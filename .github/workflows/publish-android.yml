@@ -1,0 +1,64 @@
+name: Publish verified Kitabcha Android release
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Download prepared distribution package
+        run: gh release download android-2.0.48 --repo "$GITHUB_REPOSITORY" --pattern android-2.0.48.tar.gz --dir "$RUNNER_TEMP"
+      - name: Verify package and signed APK
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP"
+          echo 'a2034d68c1fcfc3ac8de0a378d434270947cdb3442e7f09776938111f45aece8  android-2.0.48.tar.gz' | sha256sum -c -
+          mkdir package
+          python3 - <<'PY'
+          import tarfile,pathlib
+          allowed={'mobile/Kitabcha-2.0.48-android.apk','mobile/release.json','site/android-release.json','site/landing/index.html','site/landing/fa/index.html','site/landing/ps/index.html','deploy/release.sh'}
+          with tarfile.open('android-2.0.48.tar.gz') as archive:
+              assert set(archive.getnames())==allowed
+              assert all(m.isfile() for m in archive.getmembers())
+              archive.extractall('package',filter='data')
+          PY
+          apk=package/mobile/Kitabcha-2.0.48-android.apk
+          echo '482a66f72e98d262087d112547c5bc5083076cb790abca242c01b53b26e01717  package/mobile/Kitabcha-2.0.48-android.apk' | sha256sum -c -
+          sdk="$ANDROID_HOME/build-tools/36.0.0"
+          "$sdk/apksigner" verify --verbose --print-certs "$apk" > signature.txt
+          grep -qi 'b294227ba98c244a37dbbf35ac2e01940506847d0fa959183d7400dc4310e674' signature.txt
+          "$sdk/aapt" dump badging "$apk" > metadata.txt
+          grep -q "package: name='com.kitabcha.app'.*versionCode='45'.*versionName='2.0.48'" metadata.txt
+          ! grep -q application-debuggable metadata.txt
+          "$sdk/zipalign" -c -P 16 4 "$apk"
+      - name: Publish through existing restricted receiver
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          VPS_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          install -m 700 -d ~/.ssh
+          trap 'rm -f ~/.ssh/id_ed25519' EXIT
+          printf '%s\n' "$VPS_SSH_KEY" > ~/.ssh/id_ed25519
+          printf '%s\n' "$VPS_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/id_ed25519 ~/.ssh/known_hosts
+          ssh -T -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=20 -o ServerAliveInterval=15 deploy@"$VPS_HOST" 'v3.6.70 b05551adf12b22aee613e23fe921aa0f0a72386e a2034d68c1fcfc3ac8de0a378d434270947cdb3442e7f09776938111f45aece8' < "$RUNNER_TEMP/android-2.0.48.tar.gz"
+      - name: Verify public release and all landing links
+        run: |
+          python3 - <<'PY'
+          import json,hashlib,urllib.request,os,pathlib
+          expected=json.loads((pathlib.Path(os.environ['RUNNER_TEMP'])/'package/mobile/release.json').read_text())
+          actual=json.load(urllib.request.urlopen('https://app.kitabcha.app/android-release.json',timeout=30))
+          assert actual==expected
+          data=urllib.request.urlopen('https://app.kitabcha.app'+expected['url'],timeout=90).read()
+          assert len(data)==expected['bytes'] and hashlib.sha256(data).hexdigest()==expected['sha256']
+          for route in ['', 'fa/', 'ps/']:
+              html=urllib.request.urlopen('https://kitabcha.app/'+route,timeout=30).read().decode()
+              assert expected['url'] in html
+          print('Android release and download links verified.')
+          PY
