@@ -12,16 +12,16 @@ jobs:
     timeout-minutes: 25
     env:
       CI: "1"
-      SOURCE_SHA: aa1dcff1a8be39f24578b8ddd8ece1dbcbc06920
-      DEPLOY_VERSION: v3.6.75
-      KITABCHA_BUILD_VERSION: v3.6.75
+      SOURCE_SHA: 88e5086baf6df739f1654951656e08338100c6fb
+      DEPLOY_VERSION: v3.6.77
+      KITABCHA_BUILD_VERSION: v3.6.77
       EXPO_PUBLIC_API_URL: https://app.kitabcha.app
     steps:
       - &a1
         uses: actions/checkout@v4
         with:
           repository: xecdev/kitabcha-app
-          ref: aa1dcff1a8be39f24578b8ddd8ece1dbcbc06920
+          ref: 88e5086baf6df739f1654951656e08338100c6fb
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
       - uses: actions/setup-node@v4
@@ -101,7 +101,7 @@ jobs:
       - name: Verify web publication
         run: |
           curl --fail --retry 5 https://app.kitabcha.app/web-release.json -o "$RUNNER_TEMP/web-release.json"
-          node -e "const r=require(process.env.RUNNER_TEMP+'/web-release.json');if(r.commit!==process.env.SOURCE_SHA||r.version!=='v3.6.75')process.exit(1);console.log(r)"
+          node -e "const r=require(process.env.RUNNER_TEMP+'/web-release.json');if(r.commit!==process.env.SOURCE_SHA||r.version!=='v3.6.77')process.exit(1);console.log(r)"
           curl --fail --retry 5 https://app.kitabcha.app/health
   android:
     runs-on: ubuntu-latest
@@ -114,9 +114,9 @@ jobs:
       CCACHE_BASEDIR: ${{ github.workspace }}
       CCACHE_MAXSIZE: 2G
       CCACHE_COMPILERCHECK: content
-      SOURCE_SHA: aa1dcff1a8be39f24578b8ddd8ece1dbcbc06920
-      DEPLOY_VERSION: v3.6.76
-      KITABCHA_BUILD_VERSION: v3.6.75
+      SOURCE_SHA: 88e5086baf6df739f1654951656e08338100c6fb
+      DEPLOY_VERSION: v3.6.78
+      KITABCHA_BUILD_VERSION: v3.6.77
     steps:
       - *a1
       - name: Read app version
