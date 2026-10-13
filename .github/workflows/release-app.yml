@@ -12,16 +12,16 @@ jobs:
     timeout-minutes: 25
     env:
       CI: "1"
-      SOURCE_SHA: 88e5086baf6df739f1654951656e08338100c6fb
-      DEPLOY_VERSION: v3.6.77
-      KITABCHA_BUILD_VERSION: v3.6.77
+      SOURCE_SHA: bb1c463c8c8157e114c42d091f909be2d5e464b1
+      DEPLOY_VERSION: v3.6.79
+      KITABCHA_BUILD_VERSION: v3.6.79
       EXPO_PUBLIC_API_URL: https://app.kitabcha.app
     steps:
       - &a1
         uses: actions/checkout@v4
         with:
           repository: xecdev/kitabcha-app
-          ref: 88e5086baf6df739f1654951656e08338100c6fb
+          ref: bb1c463c8c8157e114c42d091f909be2d5e464b1
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
       - uses: actions/setup-node@v4
@@ -101,7 +101,7 @@ jobs:
       - name: Verify web publication
         run: |
           curl --fail --retry 5 https://app.kitabcha.app/web-release.json -o "$RUNNER_TEMP/web-release.json"
-          node -e "const r=require(process.env.RUNNER_TEMP+'/web-release.json');if(r.commit!==process.env.SOURCE_SHA||r.version!=='v3.6.77')process.exit(1);console.log(r)"
+          node -e "const r=require(process.env.RUNNER_TEMP+'/web-release.json');if(r.commit!==process.env.SOURCE_SHA||r.version!=='v3.6.79')process.exit(1);console.log(r)"
           curl --fail --retry 5 https://app.kitabcha.app/health
   android:
     runs-on: ubuntu-latest
@@ -114,9 +114,9 @@ jobs:
       CCACHE_BASEDIR: ${{ github.workspace }}
       CCACHE_MAXSIZE: 2G
       CCACHE_COMPILERCHECK: content
-      SOURCE_SHA: 88e5086baf6df739f1654951656e08338100c6fb
-      DEPLOY_VERSION: v3.6.78
-      KITABCHA_BUILD_VERSION: v3.6.77
+      SOURCE_SHA: bb1c463c8c8157e114c42d091f909be2d5e464b1
+      DEPLOY_VERSION: v3.6.80
+      KITABCHA_BUILD_VERSION: v3.6.79
     steps:
       - *a1
       - name: Read app version
@@ -292,9 +292,9 @@ jobs:
           set -euo pipefail
           package="$RUNNER_TEMP/package"
           mkdir -p "$package/mobile" "$package/site/landing" "$package/deploy"
-          apk="$RUNNER_TEMP/mobile-output/Kitabcha-2.0.50-android.apk"
+          apk="$RUNNER_TEMP/mobile-output/Kitabcha-2.0.51-android.apk"
           cp "$apk" "$package/mobile/"
-          python3 scripts/verify-mobile-release.py "$apk" 2.0.50 47 "$package/mobile/release.json"
+          python3 scripts/verify-mobile-release.py "$apk" 2.0.51 48 "$package/mobile/release.json"
           node --input-type=module <<'JS'
           import fs from 'node:fs';
           const r=JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP+'/package/mobile/release.json'));
