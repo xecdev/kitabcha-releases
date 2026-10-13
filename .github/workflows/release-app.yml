@@ -301,7 +301,7 @@ jobs:
           const p='apps/client/marketing/releases.json';const d=JSON.parse(fs.readFileSync(p));d.android=r;fs.writeFileSync(p,JSON.stringify(d,null,2)+'\n');
           JS
           node scripts/build-landing.mjs > "$RUNNER_TEMP/landing.log" 2>&1
-          cp -r apps/client/dist/landing/. "$package/site/landing/"
+          cp -r apps/client/public/landing/. "$package/site/landing/"
           cp "$package/mobile/release.json" "$package/site/android-release.json"
           cp deploy/android-assets-release.sh "$package/deploy/release.sh"
           tar --mtime=@0 --owner=0 --group=0 --numeric-owner -czf "$RUNNER_TEMP/update.tar.gz" -C "$package" .
