@@ -1,4 +1,4 @@
-name: Free web single account currency release
+name: Free web cohesive currency and expenses release
 on:
   workflow_dispatch: null
 permissions:
@@ -12,15 +12,15 @@ jobs:
     timeout-minutes: 25
     env:
       CI: "1"
-      SOURCE_SHA: 2e4a81345657cdf654278b0c671a9fc358b7c521
-      DEPLOY_VERSION: v3.6.99
-      KITABCHA_BUILD_VERSION: v3.6.99
+      SOURCE_SHA: f33e2c2b6881d763a3a22fbd65042a994564dfb1
+      DEPLOY_VERSION: v3.7.1
+      KITABCHA_BUILD_VERSION: v3.7.1
       EXPO_PUBLIC_API_URL: https://app.kitabcha.app
     steps:
       - uses: actions/checkout@v4
         with:
           repository: xecdev/kitabcha-app
-          ref: 2e4a81345657cdf654278b0c671a9fc358b7c521
+          ref: f33e2c2b6881d763a3a22fbd65042a994564dfb1
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
       - uses: actions/setup-node@v4
