@@ -99,5 +99,5 @@ jobs:
       - name: Verify web publication
         run: |
           curl --fail --retry 5 https://app.kitabcha.app/web-release.json -o "$RUNNER_TEMP/web-release.json"
-          node -e "const r=require(process.env.RUNNER_TEMP+'/web-release.json');if(r.commit!==process.env.SOURCE_SHA||r.version!=='v3.6.95')process.exit(1);console.log(r)"
+          node -e "const r=require(process.env.RUNNER_TEMP+'/web-release.json');if(r.commit!==process.env.SOURCE_SHA||r.version!==process.env.DEPLOY_VERSION)process.exit(1);console.log(r)"
           curl --fail --retry 5 https://app.kitabcha.app/health
