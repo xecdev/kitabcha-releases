@@ -1,4 +1,4 @@
-name: Free web business reporting release
+name: Free web single account currency release
 on:
   workflow_dispatch: null
 permissions:
@@ -12,15 +12,15 @@ jobs:
     timeout-minutes: 25
     env:
       CI: "1"
-      SOURCE_SHA: 30f51a9e9b992b294325d4698ab1e81e4a02f29d
-      DEPLOY_VERSION: v3.6.97
-      KITABCHA_BUILD_VERSION: v3.6.97
+      SOURCE_SHA: 2e4a81345657cdf654278b0c671a9fc358b7c521
+      DEPLOY_VERSION: v3.6.99
+      KITABCHA_BUILD_VERSION: v3.6.99
       EXPO_PUBLIC_API_URL: https://app.kitabcha.app
     steps:
       - uses: actions/checkout@v4
         with:
           repository: xecdev/kitabcha-app
-          ref: 30f51a9e9b992b294325d4698ab1e81e4a02f29d
+          ref: 2e4a81345657cdf654278b0c671a9fc358b7c521
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
       - uses: actions/setup-node@v4
