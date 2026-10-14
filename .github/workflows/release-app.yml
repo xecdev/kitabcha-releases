@@ -3,6 +3,7 @@ on:
   workflow_dispatch: null
 permissions:
   contents: read
+  actions: read
 concurrency:
   group: production-free-release
   cancel-in-progress: false
@@ -12,18 +13,29 @@ jobs:
     timeout-minutes: 25
     env:
       CI: "1"
-      SOURCE_SHA: 3ad4106e47d9dbe88f5d7db7d9a8b5bd53236821
-      DEPLOY_VERSION: v3.7.8
-      KITABCHA_BUILD_VERSION: v3.7.8
+      SOURCE_SHA: bcbf5ee592a997b77663840fd88fd5fa3affcb98
+      DEPLOY_VERSION: v3.7.10
+      KITABCHA_BUILD_VERSION: v3.7.10
       EXPO_PUBLIC_API_URL: https://app.kitabcha.app
     steps:
       - &a1
         uses: actions/checkout@v4
         with:
           repository: xecdev/kitabcha-app
-          ref: 3ad4106e47d9dbe88f5d7db7d9a8b5bd53236821
+          ref: bcbf5ee592a997b77663840fd88fd5fa3affcb98
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
+      - name: Wait for the earlier web publication to finish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          for attempt in $(seq 1 48); do
+            state=$(gh api repos/xecdev/kitabcha-releases/actions/runs/38546011464 --jq .status)
+            if test "$state" = completed; then exit 0; fi
+            sleep 15
+          done
+
+          exit 1
       - uses: actions/setup-node@v4
         with:
           node-version: 24
@@ -97,9 +109,17 @@ jobs:
 
           sum=$(sha256sum "$RUNNER_TEMP/update.tar.gz" | cut -d' ' -f1)
 
-          ssh -T -o BatchMode=yes -o StrictHostKeyChecking=yes -o
-          ConnectTimeout=20 -o ServerAliveInterval=15 deploy@"$VPS_HOST"
-          "$DEPLOY_VERSION $SOURCE_SHA $sum" < "$RUNNER_TEMP/update.tar.gz"
+          for attempt in $(seq 1 20); do
+            if ssh -T -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=20 -o ServerAliveInterval=15 deploy@"$VPS_HOST" "$DEPLOY_VERSION $SOURCE_SHA $sum" < "$RUNNER_TEMP/update.tar.gz" > "$RUNNER_TEMP/receiver.log" 2>&1; then
+              cat "$RUNNER_TEMP/receiver.log"
+              exit 0
+            fi
+            cat "$RUNNER_TEMP/receiver.log"
+            if ! rg -q 'Another CI deployment is running|Another deployment is running' "$RUNNER_TEMP/receiver.log"; then exit 1; fi
+            sleep 30
+          done
+
+          exit 1
       - name: Verify web publication
         run: |
           curl --fail --retry 5 https://app.kitabcha.app/web-release.json -o "$RUNNER_TEMP/web-release.json"
@@ -116,9 +136,9 @@ jobs:
       CCACHE_BASEDIR: ${{ github.workspace }}
       CCACHE_MAXSIZE: 2G
       CCACHE_COMPILERCHECK: content
-      SOURCE_SHA: 3ad4106e47d9dbe88f5d7db7d9a8b5bd53236821
-      DEPLOY_VERSION: v3.7.9
-      KITABCHA_BUILD_VERSION: v3.7.8
+      SOURCE_SHA: bcbf5ee592a997b77663840fd88fd5fa3affcb98
+      DEPLOY_VERSION: v3.7.11
+      KITABCHA_BUILD_VERSION: v3.7.10
     steps:
       - *a1
       - name: Read app version
