@@ -1,0 +1,111 @@
+name: Free web Kitabcha publication retry
+on:
+  workflow_dispatch: null
+permissions:
+  contents: read
+concurrency:
+  group: production-free-web-retry
+  cancel-in-progress: false
+jobs:
+  web:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      CI: "1"
+      SOURCE_SHA: 3ad4106e47d9dbe88f5d7db7d9a8b5bd53236821
+      DEPLOY_VERSION: v3.7.8
+      KITABCHA_BUILD_VERSION: v3.7.8
+      EXPO_PUBLIC_API_URL: https://app.kitabcha.app
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: xecdev/kitabcha-app
+          ref: 3ad4106e47d9dbe88f5d7db7d9a8b5bd53236821
+          ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Build tested web and API package
+        run: >
+          set -euo pipefail
+
+          npm ci --include=dev --no-audit --no-fund > "$RUNNER_TEMP/install.log"
+          2>&1
+
+          npm run db:generate > "$RUNNER_TEMP/prisma.log" 2>&1
+
+          GITHUB_SHA="$SOURCE_SHA" npm run build:web >
+          "$RUNNER_TEMP/web-build.log" 2>&1
+
+          update="$RUNNER_TEMP/package"
+
+          mkdir -p "$update/site" "$update/deploy" "$update/apps/api/src"
+          "$update/apps/api/assets" "$update/apps/api/prisma"
+          "$update/packages/domain/src" "$update/node_modules"
+
+          cp -r apps/client/dist/. "$update/site/"
+
+          rm -rf "$update/site/landing" "$update/site/downloads"
+
+          rm -f "$update/site/website-sw.js" "$update/site/android-release.json"
+
+          cp -r apps/api/src/. "$update/apps/api/src/"
+
+          cp apps/api/assets/email-logo.png "$update/apps/api/assets/"
+
+          cp -r packages/domain/src/. "$update/packages/domain/src/"
+
+          cp packages/domain/package.json "$update/packages/domain/"
+
+          node scripts/copy-runtime-deps.mjs "$update" qrcode firebase-admin
+          web-push > "$RUNNER_TEMP/runtime.log" 2>&1
+
+          cp apps/api/package.json "$update/apps/api/"
+
+          cp package-lock.json "$update/"
+
+          cp -r apps/api/prisma/. "$update/apps/api/prisma/"
+
+          cp deploy/commercial-release.sh "$update/deploy/release.sh"
+
+          tar --mtime=@0 --owner=0 --group=0 --numeric-owner -czf
+          "$RUNNER_TEMP/update.tar.gz" -C "$update" .
+
+          echo 'Production package prepared without publishing private source.'
+      - name: Publish through restricted receiver
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          VPS_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+        run: >
+          set -euo pipefail
+
+          install -m 700 -d ~/.ssh
+
+          trap 'rm -f ~/.ssh/id_ed25519' EXIT
+
+          printf '%s\n' "$VPS_SSH_KEY" > ~/.ssh/id_ed25519
+
+          printf '%s\n' "$VPS_KNOWN_HOSTS" > ~/.ssh/known_hosts
+
+          chmod 600 ~/.ssh/id_ed25519 ~/.ssh/known_hosts
+
+          sum=$(sha256sum "$RUNNER_TEMP/update.tar.gz" | cut -d' ' -f1)
+
+          for attempt in $(seq 1 12); do
+            if ssh -T -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=20 -o ServerAliveInterval=15 deploy@"$VPS_HOST" "$DEPLOY_VERSION $SOURCE_SHA $sum" < "$RUNNER_TEMP/update.tar.gz" > "$RUNNER_TEMP/receiver.log" 2>&1; then
+              cat "$RUNNER_TEMP/receiver.log"
+              exit 0
+            fi
+            cat "$RUNNER_TEMP/receiver.log"
+            if ! rg -q 'Another CI deployment is running|Another deployment is running' "$RUNNER_TEMP/receiver.log"; then exit 1; fi
+            sleep 30
+          done
+
+          exit 1
+      - name: Verify web publication
+        run: |
+          curl --fail --retry 5 https://app.kitabcha.app/web-release.json -o "$RUNNER_TEMP/web-release.json"
+          node -e "const r=require(process.env.RUNNER_TEMP+'/web-release.json');if(r.commit!==process.env.SOURCE_SHA||r.version!==process.env.DEPLOY_VERSION)process.exit(1);console.log(r)"
+          curl --fail --retry 5 https://app.kitabcha.app/health
