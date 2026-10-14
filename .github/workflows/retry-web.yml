@@ -1,4 +1,4 @@
-name: Free web Kitabcha publication retry
+name: Web photo forms and reports refresh
 on:
   workflow_dispatch: null
 permissions:
@@ -12,15 +12,15 @@ jobs:
     timeout-minutes: 25
     env:
       CI: "1"
-      SOURCE_SHA: 3ad4106e47d9dbe88f5d7db7d9a8b5bd53236821
-      DEPLOY_VERSION: v3.7.8
-      KITABCHA_BUILD_VERSION: v3.7.8
+      SOURCE_SHA: 5a0de0d560d05ac4999713d6141819e57935f818
+      DEPLOY_VERSION: v3.7.12
+      KITABCHA_BUILD_VERSION: v3.7.12
       EXPO_PUBLIC_API_URL: https://app.kitabcha.app
     steps:
       - uses: actions/checkout@v4
         with:
           repository: xecdev/kitabcha-app
-          ref: 3ad4106e47d9dbe88f5d7db7d9a8b5bd53236821
+          ref: 5a0de0d560d05ac4999713d6141819e57935f818
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
       - uses: actions/setup-node@v4
