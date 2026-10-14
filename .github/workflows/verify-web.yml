@@ -1,0 +1,28 @@
+name: Verify live web release
+on:
+  workflow_dispatch: null
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      SOURCE_SHA: 30f51a9e9b992b294325d4698ab1e81e4a02f29d
+      DEPLOY_VERSION: v3.6.97
+      ANDROID_VERSION: 2.0.58
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Verify published version, protected reporting API and health
+        run: |-
+          node --input-type=module <<'JS'
+          const origin='https://app.kitabcha.app';
+          const r=await(await fetch(origin+'/web-release.json')).json();
+          if(r.commit!==process.env.SOURCE_SHA||r.version!==process.env.DEPLOY_VERSION)throw Error('Wrong release');
+          const api=await fetch(origin+'/api/v1/commerce/financial-snapshot',{headers:{'x-kitabcha-client':'1'}});if(api.status!==401)throw Error('Reporting authentication');
+          const health=await fetch(origin+'/health');if(!health.ok)throw Error('Unhealthy');
+          const android=await(await fetch(origin+'/android-release.json')).json();if(android.version!==process.env.ANDROID_VERSION)throw Error('Unexpected Android update');
+          console.log(JSON.stringify({web:r.version,source:r.commit,health:health.status,reportingApi:api.status,android:android.version}));
+          JS
