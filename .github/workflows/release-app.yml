@@ -12,16 +12,16 @@ jobs:
     timeout-minutes: 25
     env:
       CI: "1"
-      SOURCE_SHA: 25b6cc45e875339fdb5e62edc97743f3c9a2f322
-      DEPLOY_VERSION: v3.7.6
-      KITABCHA_BUILD_VERSION: v3.7.6
+      SOURCE_SHA: 3ad4106e47d9dbe88f5d7db7d9a8b5bd53236821
+      DEPLOY_VERSION: v3.7.8
+      KITABCHA_BUILD_VERSION: v3.7.8
       EXPO_PUBLIC_API_URL: https://app.kitabcha.app
     steps:
       - &a1
         uses: actions/checkout@v4
         with:
           repository: xecdev/kitabcha-app
-          ref: 25b6cc45e875339fdb5e62edc97743f3c9a2f322
+          ref: 3ad4106e47d9dbe88f5d7db7d9a8b5bd53236821
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
       - uses: actions/setup-node@v4
@@ -116,9 +116,9 @@ jobs:
       CCACHE_BASEDIR: ${{ github.workspace }}
       CCACHE_MAXSIZE: 2G
       CCACHE_COMPILERCHECK: content
-      SOURCE_SHA: 25b6cc45e875339fdb5e62edc97743f3c9a2f322
-      DEPLOY_VERSION: v3.7.7
-      KITABCHA_BUILD_VERSION: v3.7.6
+      SOURCE_SHA: 3ad4106e47d9dbe88f5d7db7d9a8b5bd53236821
+      DEPLOY_VERSION: v3.7.9
+      KITABCHA_BUILD_VERSION: v3.7.8
     steps:
       - *a1
       - name: Read app version
