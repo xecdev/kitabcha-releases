@@ -1,4 +1,4 @@
-name: Free web and Android independent Kitabchas release
+name: Web and Android Kitabcha pane drafts release
 on:
   workflow_dispatch: null
 permissions:
@@ -13,29 +13,18 @@ jobs:
     timeout-minutes: 25
     env:
       CI: "1"
-      SOURCE_SHA: bcbf5ee592a997b77663840fd88fd5fa3affcb98
-      DEPLOY_VERSION: v3.7.10
-      KITABCHA_BUILD_VERSION: v3.7.10
+      SOURCE_SHA: f1e9fa80b01b97c4451d8f3596e75aa36b3f9129
+      DEPLOY_VERSION: v3.7.13
+      KITABCHA_BUILD_VERSION: v3.7.13
       EXPO_PUBLIC_API_URL: https://app.kitabcha.app
     steps:
       - &a1
         uses: actions/checkout@v4
         with:
           repository: xecdev/kitabcha-app
-          ref: bcbf5ee592a997b77663840fd88fd5fa3affcb98
+          ref: f1e9fa80b01b97c4451d8f3596e75aa36b3f9129
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
-      - name: Wait for the earlier web publication to finish
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: >-
-          for attempt in $(seq 1 48); do
-            state=$(gh api repos/xecdev/kitabcha-releases/actions/runs/38546011464 --jq .status)
-            if test "$state" = completed; then exit 0; fi
-            sleep 15
-          done
-
-          exit 1
       - uses: actions/setup-node@v4
         with:
           node-version: 24
@@ -136,9 +125,9 @@ jobs:
       CCACHE_BASEDIR: ${{ github.workspace }}
       CCACHE_MAXSIZE: 2G
       CCACHE_COMPILERCHECK: content
-      SOURCE_SHA: bcbf5ee592a997b77663840fd88fd5fa3affcb98
-      DEPLOY_VERSION: v3.7.11
-      KITABCHA_BUILD_VERSION: v3.7.10
+      SOURCE_SHA: f1e9fa80b01b97c4451d8f3596e75aa36b3f9129
+      DEPLOY_VERSION: v3.7.14
+      KITABCHA_BUILD_VERSION: v3.7.13
     steps:
       - *a1
       - name: Read app version
@@ -333,9 +322,9 @@ jobs:
           set -euo pipefail
           package="$RUNNER_TEMP/package"
           mkdir -p "$package/mobile" "$package/site/landing" "$package/deploy"
-          apk="$RUNNER_TEMP/mobile-output/Kitabcha-2.0.61-android.apk"
+          apk="$RUNNER_TEMP/mobile-output/Kitabcha-2.0.62-android.apk"
           cp "$apk" "$package/mobile/"
-          python3 scripts/verify-mobile-release.py "$apk" 2.0.61 58 "$package/mobile/release.json"
+          python3 scripts/verify-mobile-release.py "$apk" 2.0.62 59 "$package/mobile/release.json"
           node --input-type=module <<'JS'
           import fs from 'node:fs';
           const r=JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP+'/package/mobile/release.json'));
