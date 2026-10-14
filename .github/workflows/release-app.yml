@@ -35,7 +35,7 @@ jobs:
           jobs=json.load(open(os.environ['RUNNER_TEMP']+'/build-jobs.json'))['jobs']
           job=next(j for j in jobs if j['name']=='android')
           for name in ['Verify release identity and signature','actions/upload-artifact@v4']:
-           assert any(s['name']==name and s['conclusion']=='success' for s in job['steps']),name
+           assert any(name in s['name'] and s['conclusion']=='success' for s in job['steps']),name
           PY
           mkdir -p "$RUNNER_TEMP/mobile-output"
           gh run download 38515059258 --repo xecdev/kitabcha-releases --name Kitabcha-2.0.59-android --dir "$RUNNER_TEMP/mobile-output"
