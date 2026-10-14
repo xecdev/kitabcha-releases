@@ -1,4 +1,4 @@
-name: Free web cohesive currency and expenses release
+name: Free web and Android expenses and reports release
 on:
   workflow_dispatch: null
 permissions:
@@ -12,15 +12,16 @@ jobs:
     timeout-minutes: 25
     env:
       CI: "1"
-      SOURCE_SHA: f33e2c2b6881d763a3a22fbd65042a994564dfb1
-      DEPLOY_VERSION: v3.7.1
-      KITABCHA_BUILD_VERSION: v3.7.1
+      SOURCE_SHA: 36858917efccd76721f8cc901d83650e7d59bcce
+      DEPLOY_VERSION: v3.7.2
+      KITABCHA_BUILD_VERSION: v3.7.2
       EXPO_PUBLIC_API_URL: https://app.kitabcha.app
     steps:
-      - uses: actions/checkout@v4
+      - &a1
+        uses: actions/checkout@v4
         with:
           repository: xecdev/kitabcha-app
-          ref: f33e2c2b6881d763a3a22fbd65042a994564dfb1
+          ref: 36858917efccd76721f8cc901d83650e7d59bcce
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
       - uses: actions/setup-node@v4
@@ -73,12 +74,15 @@ jobs:
           "$RUNNER_TEMP/update.tar.gz" -C "$update" .
 
           echo 'Production package prepared without publishing private source.'
-      - name: Publish through restricted receiver
+      - &a2
+        name: Publish through restricted receiver
         env:
           VPS_HOST: ${{ secrets.VPS_HOST }}
           VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
           VPS_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
         run: >
+          export GITHUB_SHA="$SOURCE_SHA"
+
           set -euo pipefail
 
           install -m 700 -d ~/.ssh
@@ -101,3 +105,237 @@ jobs:
           curl --fail --retry 5 https://app.kitabcha.app/web-release.json -o "$RUNNER_TEMP/web-release.json"
           node -e "const r=require(process.env.RUNNER_TEMP+'/web-release.json');if(r.commit!==process.env.SOURCE_SHA||r.version!==process.env.DEPLOY_VERSION)process.exit(1);console.log(r)"
           curl --fail --retry 5 https://app.kitabcha.app/health
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      CI: "1"
+      NODE_ENV: production
+      EXPO_PUBLIC_API_URL: https://app.kitabcha.app
+      CCACHE_DIR: ${{ github.workspace }}/.ccache
+      CCACHE_BASEDIR: ${{ github.workspace }}
+      CCACHE_MAXSIZE: 2G
+      CCACHE_COMPILERCHECK: content
+      SOURCE_SHA: 36858917efccd76721f8cc901d83650e7d59bcce
+      DEPLOY_VERSION: v3.7.3
+      KITABCHA_BUILD_VERSION: v3.7.2
+    steps:
+      - *a1
+      - name: Read app version
+        id: version
+        run: |
+          export GITHUB_SHA="$SOURCE_SHA"
+          # Tag-scoped caches cannot be reused by the next release tag.
+          # Build on a stable branch; publication still uses an immutable tag.
+          test "$GITHUB_REF_TYPE" = branch || { echo 'Dispatch APK builds on the release branch, not a version tag.'; exit 1; }
+          node -e "const {expo}=require('./apps/client/app.json'); console.log('version='+expo.version); console.log('code='+expo.android.versionCode)" >> "$GITHUB_OUTPUT"
+          node <<'JS' >> "$GITHUB_OUTPUT"
+          const {createHash}=require('crypto');
+          const {expo}=require('./apps/client/app.json');
+          delete expo.version;
+          delete expo.android.versionCode;
+          if(expo.ios) delete expo.ios.buildNumber;
+          console.log('native='+createHash('sha256').update(JSON.stringify(expo)).digest('hex'));
+          JS
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - name: Install native compiler cache
+        run: |
+          export GITHUB_SHA="$SOURCE_SHA"
+          sudo apt-get update -qq
+          sudo apt-get install --no-install-recommends -y ccache
+          ccache --zero-stats
+      - name: Install Android SDK components
+        run: >
+          export GITHUB_SHA="$SOURCE_SHA"
+
+          sdk=$(find "$ANDROID_HOME/cmdline-tools" -path '*/bin/sdkmanager'
+          -print -quit)
+
+          test -n "$sdk"
+
+          yes | "$sdk" --licenses >/dev/null || true
+
+          "$sdk" 'platforms;android-36' 'build-tools;36.0.0' 'ndk;27.1.12297006'
+          'cmake;3.22.1'
+      - name: Install JavaScript dependencies
+        run: |-
+          export GITHUB_SHA="$SOURCE_SHA"
+          set -euo pipefail
+          (
+          npm ci --include=dev --no-audit --no-fund
+          ) > "$RUNNER_TEMP/Install-JavaScript-dependencies.log" 2>&1
+          echo 'Install JavaScript dependencies completed.'
+      - name: Check Home swipe behavior and login translations
+        run: >-
+          export GITHUB_SHA="$SOURCE_SHA"
+
+          node --import tsx --test tests/home-swipe.test.ts
+          tests/localization.test.ts
+      - name: Verify native commerce file and draft adapters
+        run: |-
+          export GITHUB_SHA="$SOURCE_SHA"
+          node --test tests/native-commerce.test.mjs
+      - name: Generate Android project
+        working-directory: apps/client
+        run: |-
+          export GITHUB_SHA="$SOURCE_SHA"
+          set -euo pipefail
+          (
+          npx expo prebuild --platform android --no-install --no-clean
+          ) > "$RUNNER_TEMP/Generate-Android-project.log" 2>&1
+          echo 'Generate Android project completed.'
+      - name: Configure release signing
+        working-directory: apps/client
+        env:
+          SIGNING_KEY_BASE64: ${{ secrets.ANDROID_SIGNING_KEY_BASE64 }}
+          SIGNING_PASSWORD: ${{ secrets.ANDROID_SIGNING_PASSWORD }}
+        run: |
+          export GITHUB_SHA="$SOURCE_SHA"
+          set -euo pipefail
+          test -n "$SIGNING_KEY_BASE64"
+          test -n "$SIGNING_PASSWORD"
+          printf '%s' "$SIGNING_KEY_BASE64" | base64 -d > "$RUNNER_TEMP/kitabcha-signing.p12"
+          printf '%s' "$SIGNING_PASSWORD" > "$RUNNER_TEMP/kitabcha-signing-password"
+          chmod 600 "$RUNNER_TEMP/kitabcha-signing.p12" "$RUNNER_TEMP/kitabcha-signing-password"
+          node <<'JS'
+          const fs = require('fs');
+          const path = 'android/app/build.gradle';
+          let source = fs.readFileSync(path, 'utf8');
+          if (!source.includes('signingConfigs {') || !source.includes('signingConfig signingConfigs.debug')) throw Error('Unexpected Gradle signing configuration');
+          source = source.replace('signingConfigs {', `signingConfigs {
+                  kitabchaRelease {
+                      storeFile file(System.getenv('RUNNER_TEMP') + '/kitabcha-signing.p12')
+                      storePassword new File(System.getenv('RUNNER_TEMP') + '/kitabcha-signing-password').text.trim()
+                      keyAlias 'kitabcha-test'
+                      keyPassword new File(System.getenv('RUNNER_TEMP') + '/kitabcha-signing-password').text.trim()
+                  }`);
+          source = source.replaceAll('signingConfig signingConfigs.debug', 'signingConfig signingConfigs.kitabchaRelease');
+          fs.writeFileSync(path, source);
+          // Do not persist configuration-cache data: signing is read at runtime.
+          fs.appendFileSync('android/gradle.properties', '\norg.gradle.caching=true\norg.gradle.configuration-cache=false\norg.gradle.workers.max=2\norg.gradle.parallel=true\norg.gradle.jvmargs=-Xmx3072m -XX:MaxMetaspaceSize=768m -XX:ReservedCodeCacheSize=256m\nkotlin.compiler.execution.strategy=in-process\n');
+          JS
+      - name: Build signed APK
+        working-directory: apps/client/android
+        run: >-
+          export GITHUB_SHA="$SOURCE_SHA"
+
+          set -euo pipefail
+
+          (
+
+          set -euo pipefail
+
+          start=$SECONDS
+
+          ./gradlew :app:assembleRelease --no-daemon --build-cache
+          --max-workers=2
+          -PreactNativeArchitectures=arm64-v8a,armeabi-v7a,x86_64
+
+          echo "ANDROID_BUILD_SECONDS=$((SECONDS-start))" >> "$GITHUB_ENV"
+
+
+          ) > "$RUNNER_TEMP/Build-signed-APK.log" 2>&1
+
+          echo 'Build signed APK completed.'
+      - name: Native cache statistics
+        if: always()
+        run: |-
+          export GITHUB_SHA="$SOURCE_SHA"
+          ccache --show-stats
+      - name: Verify release identity and signature
+        working-directory: apps/client
+        env:
+          APP_VERSION: ${{ steps.version.outputs.version }}
+          APP_VERSION_CODE: ${{ steps.version.outputs.code }}
+        run: >
+          export GITHUB_SHA="$SOURCE_SHA"
+
+          set -euo pipefail
+
+          apk=android/app/build/outputs/apk/release/app-release.apk
+
+          sdk="$ANDROID_HOME/build-tools/36.0.0"
+
+          "$sdk/apksigner" verify --verbose --print-certs "$apk" >
+          "$RUNNER_TEMP/signature.txt"
+
+          "$sdk/aapt" dump badging "$apk" > "$RUNNER_TEMP/metadata.txt"
+
+          "$sdk/zipalign" -c -P 16 4 "$apk"
+
+          python3 - "$RUNNER_TEMP" <<'PY'
+
+          import os, pathlib, sys
+
+          root = pathlib.Path(sys.argv[1])
+
+          meta = (root / 'metadata.txt').read_text()
+
+          signature = (root / 'signature.txt').read_text().lower()
+
+          for item in ("package: name='com.kitabcha.app'",
+          f"versionName='{os.environ['APP_VERSION']}'",
+          f"versionCode='{os.environ['APP_VERSION_CODE']}'", "sdkVersion:'24'",
+          "targetSdkVersion:'36'", 'arm64-v8a', 'armeabi-v7a', 'x86_64'):
+              assert item in meta, item
+          assert 'application-debuggable' not in meta
+
+          assert
+          'b294227ba98c244a37dbbf35ac2e01940506847d0fa959183d7400dc4310e674' in
+          signature
+
+          PY
+
+          mkdir -p "$RUNNER_TEMP/mobile-output"
+
+          cp "$apk"
+          "$RUNNER_TEMP/mobile-output/Kitabcha-${APP_VERSION}-android.apk"
+
+          sha256sum
+          "$RUNNER_TEMP/mobile-output/Kitabcha-${APP_VERSION}-android.apk"
+      - uses: actions/upload-artifact@v4
+        id: apk
+        with:
+          name: Kitabcha-${{ steps.version.outputs.version }}-android
+          path: ${{ runner.temp }}/mobile-output/Kitabcha-${{
+            steps.version.outputs.version }}-android.apk
+          if-no-files-found: error
+          retention-days: 7
+      - name: Prepare verified distributable files
+        run: |
+          export GITHUB_SHA="$SOURCE_SHA"
+          set -euo pipefail
+          package="$RUNNER_TEMP/package"
+          mkdir -p "$package/mobile" "$package/site/landing" "$package/deploy"
+          apk="$RUNNER_TEMP/mobile-output/Kitabcha-2.0.59-android.apk"
+          cp "$apk" "$package/mobile/"
+          python3 scripts/verify-mobile-release.py "$apk" 2.0.59 56 "$package/mobile/release.json"
+          node --input-type=module <<'JS'
+          import fs from 'node:fs';
+          const r=JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP+'/package/mobile/release.json'));
+          const p='apps/client/marketing/releases.json';const d=JSON.parse(fs.readFileSync(p));d.android=r;fs.writeFileSync(p,JSON.stringify(d,null,2)+'\n');
+          JS
+          node scripts/build-landing.mjs > "$RUNNER_TEMP/landing.log" 2>&1
+          cp -r apps/client/dist/landing/. "$package/site/landing/"
+          cp "$package/mobile/release.json" "$package/site/android-release.json"
+          cp deploy/android-assets-release.sh "$package/deploy/release.sh"
+          tar --mtime=@0 --owner=0 --group=0 --numeric-owner -czf "$RUNNER_TEMP/update.tar.gz" -C "$package" .
+      - *a2
+      - name: Verify Android publication
+        run: |-
+          export GITHUB_SHA="$SOURCE_SHA"
+          python3 - <<'PY'
+          import json,urllib.request,hashlib,os,pathlib
+          expected=json.loads((pathlib.Path(os.environ['RUNNER_TEMP'])/'package/mobile/release.json').read_text())
+          actual=json.load(urllib.request.urlopen('https://app.kitabcha.app/android-release.json',timeout=30));assert actual==expected
+          apk=urllib.request.urlopen('https://app.kitabcha.app'+actual['url'],timeout=120).read();assert hashlib.sha256(apk).hexdigest()==actual['sha256']
+          for route in ['', 'fa/', 'ps/']:
+           assert actual['url'] in urllib.request.urlopen('https://kitabcha.app/'+route,timeout=30).read().decode()
+          print('Signed Android release and all download links verified.')
+          PY
