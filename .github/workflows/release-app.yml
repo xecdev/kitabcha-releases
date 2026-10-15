@@ -1,4 +1,4 @@
-name: Web and Android settings and backup progress release
+name: Web and Android invoice payment pane release
 on:
   workflow_dispatch: null
 permissions:
@@ -13,16 +13,16 @@ jobs:
     timeout-minutes: 25
     env:
       CI: "1"
-      SOURCE_SHA: e996de2df3c0988801e133a11dfa8141c0477349
-      DEPLOY_VERSION: v3.7.21
-      KITABCHA_BUILD_VERSION: v3.7.21
+      SOURCE_SHA: bd6cfeda3e40dc9a708cdb6bac6b0b560485721c
+      DEPLOY_VERSION: v3.7.23
+      KITABCHA_BUILD_VERSION: v3.7.23
       EXPO_PUBLIC_API_URL: https://app.kitabcha.app
     steps:
       - &a1
         uses: actions/checkout@v4
         with:
           repository: xecdev/kitabcha-app
-          ref: e996de2df3c0988801e133a11dfa8141c0477349
+          ref: bd6cfeda3e40dc9a708cdb6bac6b0b560485721c
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
       - uses: actions/setup-node@v4
@@ -125,9 +125,9 @@ jobs:
       CCACHE_BASEDIR: ${{ github.workspace }}
       CCACHE_MAXSIZE: 2G
       CCACHE_COMPILERCHECK: content
-      SOURCE_SHA: e996de2df3c0988801e133a11dfa8141c0477349
-      DEPLOY_VERSION: v3.7.22
-      KITABCHA_BUILD_VERSION: v3.7.21
+      SOURCE_SHA: bd6cfeda3e40dc9a708cdb6bac6b0b560485721c
+      DEPLOY_VERSION: v3.7.24
+      KITABCHA_BUILD_VERSION: v3.7.23
     steps:
       - *a1
       - name: Read app version
@@ -322,9 +322,9 @@ jobs:
           set -euo pipefail
           package="$RUNNER_TEMP/package"
           mkdir -p "$package/mobile" "$package/site/landing" "$package/deploy"
-          apk="$RUNNER_TEMP/mobile-output/Kitabcha-2.0.64-android.apk"
+          apk="$RUNNER_TEMP/mobile-output/Kitabcha-2.0.65-android.apk"
           cp "$apk" "$package/mobile/"
-          python3 scripts/verify-mobile-release.py "$apk" 2.0.64 61 "$package/mobile/release.json"
+          python3 scripts/verify-mobile-release.py "$apk" 2.0.65 62 "$package/mobile/release.json"
           node --input-type=module <<'JS'
           import fs from 'node:fs';
           const r=JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP+'/package/mobile/release.json'));
