@@ -1,4 +1,4 @@
-name: Kitabcha switcher and Reset & Delete
+name: Kitabcha switching animation and Profile sign out
 on:
   workflow_dispatch: null
 permissions:
@@ -13,15 +13,15 @@ jobs:
     timeout-minutes: 25
     env:
       CI: "1"
-      SOURCE_SHA: d34e36e148e018f980841edb2f1eeb100e9f868e
-      DEPLOY_VERSION: v3.7.39
-      KITABCHA_BUILD_VERSION: v3.7.39
+      SOURCE_SHA: 9a8c11daea97de2936b48676840dfefc44983f23
+      DEPLOY_VERSION: v3.7.41
+      KITABCHA_BUILD_VERSION: v3.7.41
       EXPO_PUBLIC_API_URL: https://app.kitabcha.app
     steps:
       - uses: actions/checkout@v4
         with:
           repository: xecdev/kitabcha-app
-          ref: d34e36e148e018f980841edb2f1eeb100e9f868e
+          ref: 9a8c11daea97de2936b48676840dfefc44983f23
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
       - uses: actions/setup-node@v4
