@@ -1,4 +1,4 @@
-name: Kitabcha switching animation and Profile sign out
+name: Kitabcha list loading and animated empty actions
 on:
   workflow_dispatch: null
 permissions:
@@ -13,15 +13,15 @@ jobs:
     timeout-minutes: 25
     env:
       CI: "1"
-      SOURCE_SHA: 9a8c11daea97de2936b48676840dfefc44983f23
-      DEPLOY_VERSION: v3.7.41
-      KITABCHA_BUILD_VERSION: v3.7.41
+      SOURCE_SHA: da29e42bf5a75b7100542dcb7b87afd01d7316d7
+      DEPLOY_VERSION: v3.7.43
+      KITABCHA_BUILD_VERSION: v3.7.43
       EXPO_PUBLIC_API_URL: https://app.kitabcha.app
     steps:
       - uses: actions/checkout@v4
         with:
           repository: xecdev/kitabcha-app
-          ref: 9a8c11daea97de2936b48676840dfefc44983f23
+          ref: da29e42bf5a75b7100542dcb7b87afd01d7316d7
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
       - uses: actions/setup-node@v4
