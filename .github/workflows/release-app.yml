@@ -14,8 +14,8 @@ jobs:
     env:
       CI: "1"
       SOURCE_SHA: a8dd7983e3dce888fbe8ade35aee9d4030b5b748
-      DEPLOY_VERSION: v3.7.44
-      KITABCHA_BUILD_VERSION: v3.7.44
+      DEPLOY_VERSION: v3.7.45
+      KITABCHA_BUILD_VERSION: v3.7.45
       EXPO_PUBLIC_API_URL: https://app.kitabcha.app
     steps:
       - uses: actions/checkout@v4
@@ -102,7 +102,7 @@ jobs:
               exit 0
             fi
             cat "$RUNNER_TEMP/receiver.log"
-            if ! rg -q 'Another CI deployment is running|Another deployment is running' "$RUNNER_TEMP/receiver.log"; then exit 1; fi
+            if ! grep -Eq 'Another CI deployment is running|Another deployment is running' "$RUNNER_TEMP/receiver.log"; then exit 1; fi
             sleep 30
           done
 
