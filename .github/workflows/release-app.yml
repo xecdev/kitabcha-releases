@@ -1,4 +1,4 @@
-name: Kitabcha list loading and animated empty actions
+name: Kitabcha verified team invitations and enforced access roles
 on:
   workflow_dispatch: null
 permissions:
@@ -13,15 +13,15 @@ jobs:
     timeout-minutes: 25
     env:
       CI: "1"
-      SOURCE_SHA: da29e42bf5a75b7100542dcb7b87afd01d7316d7
-      DEPLOY_VERSION: v3.7.43
-      KITABCHA_BUILD_VERSION: v3.7.43
+      SOURCE_SHA: da0f02b85d85e347ed21a391f0c1c7713a65394e
+      DEPLOY_VERSION: v3.7.44
+      KITABCHA_BUILD_VERSION: v3.7.44
       EXPO_PUBLIC_API_URL: https://app.kitabcha.app
     steps:
       - uses: actions/checkout@v4
         with:
           repository: xecdev/kitabcha-app
-          ref: da29e42bf5a75b7100542dcb7b87afd01d7316d7
+          ref: da0f02b85d85e347ed21a391f0c1c7713a65394e
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
       - uses: actions/setup-node@v4
