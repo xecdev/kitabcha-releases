@@ -1,4 +1,4 @@
-name: Kitabcha activity, stock expiry, terms and pricing fixes
+name: Kitabcha owner notifications and team access
 on:
   workflow_dispatch: null
 permissions:
@@ -13,20 +13,37 @@ jobs:
     timeout-minutes: 25
     env:
       CI: "1"
-      SOURCE_SHA: 5d47d7654c4d0099b1ae81d9bf65e0766761baad
-      DEPLOY_VERSION: v3.7.49
-      KITABCHA_BUILD_VERSION: v3.7.49
+      SOURCE_SHA: c91744fdd591d9a521df08fd908de570487078aa
+      DEPLOY_VERSION: v3.7.50
+      KITABCHA_BUILD_VERSION: v3.7.50
       EXPO_PUBLIC_API_URL: https://app.kitabcha.app
     steps:
       - uses: actions/checkout@v4
         with:
           repository: xecdev/kitabcha-app
-          ref: 5d47d7654c4d0099b1ae81d9bf65e0766761baad
+          ref: c91744fdd591d9a521df08fd908de570487078aa
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: 24
+      - name: Validate private source without publishing logs
+        run: |
+          set -euo pipefail
+          npm ci --include=dev --no-audit --no-fund > "$RUNNER_TEMP/validation-install.log" 2>&1
+          npm run db:generate > "$RUNNER_TEMP/validation-prisma.log" 2>&1
+          npm run typecheck > "$RUNNER_TEMP/validation-types.log" 2>&1
+          npm run lint > "$RUNNER_TEMP/validation-lint.log" 2>&1
+          npm test > "$RUNNER_TEMP/validation-tests.log" 2>&1
+          node --test tests/session-recovery.test.mjs tests/client-api-races.test.mjs tests/app-data-races.test.mjs tests/loading-version-progress.test.mjs tests/native-commerce.test.mjs tests/owner-workspace.test.mjs tests/admin-viewer.test.mjs tests/web-api-build.test.mjs > "$RUNNER_TEMP/validation-races.log" 2>&1
+          echo 'Types, lint, full unit/API suite and session regressions passed.'
+      - name: Validate notification links, permissions and mobile layouts
+        run: |
+          set -euo pipefail
+          npx playwright install --with-deps chromium > "$RUNNER_TEMP/validation-browser-install.log" 2>&1
+          EXPO_PUBLIC_API_URL=http://localhost:3001 GITHUB_SHA="$SOURCE_SHA" npm run build:web > "$RUNNER_TEMP/validation-web.log" 2>&1
+          npx playwright test tests/e2e/navigation-expiry.spec.ts tests/e2e/team-access.spec.ts tests/e2e/notification-settings.spec.ts > "$RUNNER_TEMP/validation-browser.log" 2>&1
+          echo 'Owner notifications, invoice links, team access and expiry browser checks passed.'
       - name: Build tested web and API package
         run: >
           set -euo pipefail
