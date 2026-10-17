@@ -13,15 +13,15 @@ jobs:
     timeout-minutes: 25
     env:
       CI: "1"
-      SOURCE_SHA: 172382b2f8f9f4012a829fc50e69b63cf7b77e20
-      DEPLOY_VERSION: v3.7.53
-      KITABCHA_BUILD_VERSION: v3.7.53
+      SOURCE_SHA: 766ea16f4eb8676079f536e8c7edf175b9dacc91
+      DEPLOY_VERSION: v3.7.54
+      KITABCHA_BUILD_VERSION: v3.7.54
       EXPO_PUBLIC_API_URL: https://app.kitabcha.app
     steps:
       - uses: actions/checkout@v4
         with:
           repository: xecdev/kitabcha-app
-          ref: 172382b2f8f9f4012a829fc50e69b63cf7b77e20
+          ref: 766ea16f4eb8676079f536e8c7edf175b9dacc91
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
       - uses: actions/setup-node@v4
@@ -34,7 +34,7 @@ jobs:
           npm run db:generate > "$RUNNER_TEMP/validation-prisma.log" 2>&1
           npm run typecheck > "$RUNNER_TEMP/validation-types.log" 2>&1
           npm run lint > "$RUNNER_TEMP/validation-lint.log" 2>&1
-          echo "Application and unit/API tests unchanged from passing run 38948903722; only browser navigation assertion changed."
+          npm test > "$RUNNER_TEMP/validation-tests.log" 2>&1
           node --test tests/session-recovery.test.mjs tests/client-api-races.test.mjs tests/app-data-races.test.mjs tests/loading-version-progress.test.mjs tests/native-commerce.test.mjs tests/owner-workspace.test.mjs tests/admin-viewer.test.mjs tests/web-api-build.test.mjs > "$RUNNER_TEMP/validation-races.log" 2>&1
           echo 'Types, lint, full unit/API suite and session regressions passed.'
       - name: Validate notification links, permissions and mobile layouts
@@ -42,7 +42,7 @@ jobs:
           set -euo pipefail
           npx playwright install --with-deps chromium > "$RUNNER_TEMP/validation-browser-install.log" 2>&1
           EXPO_PUBLIC_API_URL=http://localhost:3001 GITHUB_SHA="$SOURCE_SHA" npm run build:web > "$RUNNER_TEMP/validation-web.log" 2>&1
-          for spec in navigation-expiry team-access notification-settings; do
+          for spec in navigation-expiry team-access notification-settings access-recovery; do
             echo "Checking $spec in an isolated test server."
             if ! npx playwright test "tests/e2e/$spec.spec.ts" > "$RUNNER_TEMP/validation-browser.log" 2>&1; then
               python3 - <<'PY'
