@@ -5,7 +5,7 @@ permissions:
   contents: read
   actions: read
 concurrency:
-  group: production-web-v3-release
+  group: production-online-web-retry
   cancel-in-progress: false
 jobs:
   web:
@@ -224,4 +224,5 @@ jobs:
          assert actual['url'] in urllib.request.urlopen('https://kitabcha.app/'+route,timeout=30).read().decode()
         print('Signed Android release and all landing links verified.')
         PY
+
 
