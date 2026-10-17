@@ -1,4 +1,4 @@
-name: Release business data download and loaded offline views (web and Android)
+name: Release reliable downloads, cold-start reads and Android cached lists
 on:
   workflow_dispatch: null
 permissions:
@@ -13,15 +13,15 @@ jobs:
     timeout-minutes: 45
     env:
       CI: '1'
-      SOURCE_SHA: 37fee7b51e9d3f1898a5ef8019dc19d0d7cb9f73
-      DEPLOY_VERSION: v3.7.76
-      KITABCHA_BUILD_VERSION: v3.7.76
+      SOURCE_SHA: e1d4245fb9816bfdf2882f128f5d0b6d49cce3b1
+      DEPLOY_VERSION: v3.7.78
+      KITABCHA_BUILD_VERSION: v3.7.78
       EXPO_PUBLIC_API_URL: https://app.kitabcha.app
     steps:
     - uses: actions/checkout@v4
       with:
         repository: xecdev/kitabcha-app
-        ref: 37fee7b51e9d3f1898a5ef8019dc19d0d7cb9f73
+        ref: e1d4245fb9816bfdf2882f128f5d0b6d49cce3b1
         ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
         persist-credentials: false
     - uses: actions/setup-node@v4
@@ -62,7 +62,7 @@ jobs:
         set -euo pipefail
         npx playwright install --with-deps chromium > "$RUNNER_TEMP/validation-browser-install.log" 2>&1
         EXPO_PUBLIC_API_URL=http://localhost:3001 GITHUB_SHA="$SOURCE_SHA" npm run build:web > "$RUNNER_TEMP/validation-web.log" 2>&1
-        for spec in online-only backup-restore sale-visibility-units onboarding-prefill team-identity contact-input-ui access-recovery notification-inbox navigation-expiry bill-confirmation trade-editor-ui creator-ui plan-tiers cashbook record-payment-mode payment-pane; do
+        for spec in online-only backup-restore sale-visibility-units onboarding-prefill team-identity contact-input-ui access-recovery notification-inbox navigation-expiry bill-confirmation trade-editor-ui creator-ui plan-tiers cashbook record-payment-mode payment-pane marketing-v3; do
           echo "Checking $spec in an isolated test server."
           if ! npx playwright test "tests/e2e/$spec.spec.ts" > "$RUNNER_TEMP/validation-browser.log" 2>&1; then
             python3 - <<'PY'
@@ -145,13 +145,13 @@ jobs:
       CCACHE_BASEDIR: ${{ github.workspace }}
       CCACHE_MAXSIZE: 2G
       CCACHE_COMPILERCHECK: content
-      KITABCHA_BUILD_VERSION: v3.7.76
-      SOURCE_SHA: 37fee7b51e9d3f1898a5ef8019dc19d0d7cb9f73
+      KITABCHA_BUILD_VERSION: v3.7.78
+      SOURCE_SHA: e1d4245fb9816bfdf2882f128f5d0b6d49cce3b1
     steps:
     - uses: actions/checkout@v4
       with:
         repository: xecdev/kitabcha-app
-        ref: 37fee7b51e9d3f1898a5ef8019dc19d0d7cb9f73
+        ref: e1d4245fb9816bfdf2882f128f5d0b6d49cce3b1
         ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
         persist-credentials: false
     - name: Read app version
@@ -354,13 +354,13 @@ jobs:
     timeout-minutes: 20
     env:
       GH_TOKEN: ${{ github.token }}
-      SOURCE_SHA: 37fee7b51e9d3f1898a5ef8019dc19d0d7cb9f73
-      DEPLOY_VERSION: v3.7.77
+      SOURCE_SHA: e1d4245fb9816bfdf2882f128f5d0b6d49cce3b1
+      DEPLOY_VERSION: v3.7.79
     steps:
     - uses: actions/checkout@v4
       with:
         repository: xecdev/kitabcha-app
-        ref: 37fee7b51e9d3f1898a5ef8019dc19d0d7cb9f73
+        ref: e1d4245fb9816bfdf2882f128f5d0b6d49cce3b1
         ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
         persist-credentials: false
     - uses: actions/setup-node@v4
@@ -368,15 +368,15 @@ jobs:
         node-version: 24
     - uses: actions/download-artifact@v4
       with:
-        name: Kitabcha-2.0.74-android
+        name: Kitabcha-2.0.75-android
         path: ${{ runner.temp }}/mobile
     - name: Prepare verified Android publication
       run: |
         set -euo pipefail
         package="$RUNNER_TEMP/package"
         mkdir -p "$package/mobile" "$package/site/landing" "$package/deploy"
-        apk="$RUNNER_TEMP/mobile/Kitabcha-2.0.74-android.apk"
-        python3 scripts/verify-mobile-release.py "$apk" 2.0.74 71 "$RUNNER_TEMP/mobile/release.json"
+        apk="$RUNNER_TEMP/mobile/Kitabcha-2.0.75-android.apk"
+        python3 scripts/verify-mobile-release.py "$apk" 2.0.75 72 "$RUNNER_TEMP/mobile/release.json"
         cp "$apk" "$package/mobile/"
         cp "$RUNNER_TEMP/mobile/release.json" "$package/mobile/"
         node --input-type=module <<'JS'
