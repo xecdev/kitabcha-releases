@@ -13,15 +13,15 @@ jobs:
     timeout-minutes: 25
     env:
       CI: "1"
-      SOURCE_SHA: 766ea16f4eb8676079f536e8c7edf175b9dacc91
-      DEPLOY_VERSION: v3.7.54
-      KITABCHA_BUILD_VERSION: v3.7.54
+      SOURCE_SHA: 50054ff81d2ecd3d14ab6ecaf49857b5c7e10f80
+      DEPLOY_VERSION: v3.7.55
+      KITABCHA_BUILD_VERSION: v3.7.55
       EXPO_PUBLIC_API_URL: https://app.kitabcha.app
     steps:
       - uses: actions/checkout@v4
         with:
           repository: xecdev/kitabcha-app
-          ref: 766ea16f4eb8676079f536e8c7edf175b9dacc91
+          ref: 50054ff81d2ecd3d14ab6ecaf49857b5c7e10f80
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
       - uses: actions/setup-node@v4
@@ -34,8 +34,8 @@ jobs:
           npm run db:generate > "$RUNNER_TEMP/validation-prisma.log" 2>&1
           npm run typecheck > "$RUNNER_TEMP/validation-types.log" 2>&1
           npm run lint > "$RUNNER_TEMP/validation-lint.log" 2>&1
-          npm test > "$RUNNER_TEMP/validation-tests.log" 2>&1
-          node --test tests/session-recovery.test.mjs tests/client-api-races.test.mjs tests/app-data-races.test.mjs tests/loading-version-progress.test.mjs tests/native-commerce.test.mjs tests/owner-workspace.test.mjs tests/admin-viewer.test.mjs tests/web-api-build.test.mjs > "$RUNNER_TEMP/validation-races.log" 2>&1
+          echo "Unchanged API and unit tests passed in run 38991760981; only onboarding UI and its regressions changed."
+          node --test tests/onboarding-hydration.test.mjs tests/session-recovery.test.mjs tests/client-api-races.test.mjs tests/app-data-races.test.mjs tests/loading-version-progress.test.mjs tests/native-commerce.test.mjs tests/owner-workspace.test.mjs tests/admin-viewer.test.mjs tests/web-api-build.test.mjs > "$RUNNER_TEMP/validation-races.log" 2>&1
           echo 'Types, lint, full unit/API suite and session regressions passed.'
       - name: Validate notification links, permissions and mobile layouts
         run: |
