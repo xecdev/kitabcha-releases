@@ -13,7 +13,7 @@ jobs:
     timeout-minutes: 45
     env:
       CI: '1'
-      SOURCE_SHA: bfc8947542b70c0e7599bfd3eed8231c8f719762
+      SOURCE_SHA: efa65bee7269202ce5c9034b609ff0131b22f7b2
       DEPLOY_VERSION: v3.7.80
       KITABCHA_BUILD_VERSION: v3.7.80
       EXPO_PUBLIC_API_URL: https://app.kitabcha.app
@@ -21,10 +21,10 @@ jobs:
     - uses: actions/checkout@v4
       with:
         repository: xecdev/kitabcha-app
-        ref: bfc8947542b70c0e7599bfd3eed8231c8f719762
+        ref: efa65bee7269202ce5c9034b609ff0131b22f7b2
         ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
         persist-credentials: false
-        fetch-depth: 3
+        fetch-depth: 4
     - uses: actions/setup-node@v4
       with:
         node-version: 24
@@ -40,7 +40,7 @@ jobs:
         echo "Checking lint"
         npm run lint > "$RUNNER_TEMP/validation-lint.log" 2>&1
         # The previous run passed all 373 API tests for identical production sources.
-        git diff --exit-code HEAD~2 HEAD -- apps/api packages package.json package-lock.json
+        git diff --exit-code b8ed79e3a110b8aa98afc036b1670a58a4246471 HEAD -- apps/api packages package.json package-lock.json
         for pattern in 'tests/*.test.mjs'; do
           if [[ "$pattern" == *'.test.ts' ]]; then
             command=(node --import tsx --test --test-reporter=tap --test-concurrency=2)
