@@ -30,16 +30,21 @@ jobs:
     - name: Validate private source without publishing logs
       run: |
         set -euo pipefail
+        echo "Installing validation dependencies"
         npm ci --include=dev --no-audit --no-fund > "$RUNNER_TEMP/validation-install.log" 2>&1
+        echo "Generating database client"
         npm run db:generate > "$RUNNER_TEMP/validation-prisma.log" 2>&1
+        echo "Checking types"
         npm run typecheck > "$RUNNER_TEMP/validation-types.log" 2>&1
+        echo "Checking lint"
         npm run lint > "$RUNNER_TEMP/validation-lint.log" 2>&1
         for pattern in 'tests/*.test.ts' 'tests/*.test.mjs'; do
           if [[ "$pattern" == *'.test.ts' ]]; then
-            command=(node --import tsx --test --test-concurrency=2)
+            command=(node --import tsx --test --test-reporter=tap --test-concurrency=2)
           else
-            command=(node --test)
+            command=(node --test --test-reporter=tap)
           fi
+          echo "Running $pattern"
           if ! "${command[@]}" $pattern > "$RUNNER_TEMP/validation-tests.log" 2>&1; then
             python3 - <<'PYTEST'
         import pathlib,os,re
@@ -49,7 +54,7 @@ jobs:
         PYTEST
             exit 1
           fi
-          grep -E '^# (tests|pass|fail|skipped)' "$RUNNER_TEMP/validation-tests.log"
+          grep -E '^# (tests|pass|fail|skipped)' "$RUNNER_TEMP/validation-tests.log" || true
         done
         echo 'Types, lint, full API/unit and session/owner/native regressions passed.'
     - name: Validate plans, owner dashboard, permissions and existing browser flows
