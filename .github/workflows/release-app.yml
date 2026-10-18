@@ -1,37 +1,112 @@
-name: Read-only API latency diagnostics
+name: Release data consistency and responsiveness fixes
 on:
   workflow_dispatch: null
 permissions:
   contents: read
   actions: read
 concurrency:
-  group: production-reset-diagnostics
+  group: production-web-v3-release
   cancel-in-progress: false
 jobs:
   web:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 45
     env:
-      GH_TOKEN: ${{ github.token }}
-      SOURCE_SHA: 335b698e6640a0df7a173ac54792ea4aeca732ca
-      DEPLOY_VERSION: v3.7.91
+      CI: '1'
+      SOURCE_SHA: b27a6bb5c5616150c3bdadd5232b8d17cebb78ce
+      DEPLOY_VERSION: v3.7.92
+      KITABCHA_BUILD_VERSION: v3.7.92
+      EXPO_PUBLIC_API_URL: https://app.kitabcha.app
     steps:
     - uses: actions/checkout@v4
       with:
         repository: xecdev/kitabcha-app
-        ref: 335b698e6640a0df7a173ac54792ea4aeca732ca
+        ref: b27a6bb5c5616150c3bdadd5232b8d17cebb78ce
         ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
         persist-credentials: false
+        fetch-depth: 9
     - uses: actions/setup-node@v4
       with:
         node-version: 24
-    - name: Prepare read-only diagnostic
+    - name: Validate private source without publishing logs
       run: |
         set -euo pipefail
-        mkdir -p "$RUNNER_TEMP/package/deploy"
-        printf '%s' 'QkVHSU4gUkVBRCBPTkxZOwoKU0VUIExPQ0FMIHN0YXRlbWVudF90aW1lb3V0PScxNXMnOwoKV0lUSCB0YXJnZXQgQVMgKFNFTEVDVCBiLmlkLGIuImxlZGdlckdlbmVyYXRpb24iLGIuZGF0YS0+PidjcmVhdGVkQXQnIEFTICJjcmVhdGVkQXQiIEZST00gIkJ1c2luZXNzIiBiIEpPSU4gIkJ1c2luZXNzTWVtYmVyIiBtIE9OIG0uImJ1c2luZXNzSWQiPWIuaWQgSk9JTiAiVXNlciIgdSBPTiB1LmlkPW0uInVzZXJJZCIgV0hFUkUgZW5jb2RlKHNoYTI1Nihjb252ZXJ0X3RvKHUuImVtYWlsTm9ybWFsaXplZCIsJ1VURjgnKSksJ2hleCcpPSc0NTMwYzI1YjI5NmM4OGVhZjY0MGNkNTVmODMzNjA3MWE2ZjZmMzg1OTZkODJkMzVjNmI2YWJlOGFmZGZiZmIyJyBBTkQgbS5yb2xlPSdPV05FUicpCgpTRUxFQ1QganNvbl9idWlsZF9vYmplY3QoJ2Jvb2snLHQuaWQsJ2dlbmVyYXRpb24nLHQuImxlZGdlckdlbmVyYXRpb24iLCdjcmVhdGVkJyx0LiJjcmVhdGVkQXQiLCdjb250YWN0cycsKFNFTEVDVCBjb3VudCgqKSBGUk9NICJDb250YWN0IiBXSEVSRSAiYnVzaW5lc3NJZCI9dC5pZCksJ3RyYW5zYWN0aW9ucycsKFNFTEVDVCBjb3VudCgqKSBGUk9NICJMZWRnZXJUcmFuc2FjdGlvbiIgV0hFUkUgImJ1c2luZXNzSWQiPXQuaWQpLCdkb2N1bWVudHMnLChTRUxFQ1QgY291bnQoKikgRlJPTSAiQ29tbWVyY2VEb2N1bWVudCIgV0hFUkUgImJ1c2luZXNzSWQiPXQuaWQpLCdpdGVtcycsKFNFTEVDVCBjb3VudCgqKSBGUk9NICJDb21tZXJjZUl0ZW0iIFdIRVJFICJidXNpbmVzc0lkIj10LmlkKSwnZGVsZXRlZEVudGl0aWVzJywoU0VMRUNUIGNvdW50KCopIEZST00gIkRlbGV0ZWRFbnRpdHkiIFdIRVJFICJidXNpbmVzc0lkIj10LmlkKSwncmVzZXRPcGVyYXRpb25zJywoU0VMRUNUIGNvYWxlc2NlKGpzb25fYWdnKHgpLCAnW10nOjpqc29uKSBGUk9NIChTRUxFQ1QgImNyZWF0ZWRBdCIgRlJPTSAiUHJvY2Vzc2VkU3luY09wZXJhdGlvbiIgV0hFUkUgImJ1c2luZXNzSWQiPXQuaWQgQU5EICJwYXlsb2FkSGFzaCI9JzlmNzdhMWM3ZjY3YjM5MTBjZDU0MjQ4M2Y0N2RlMDM4ZGI0ODZkMDgwYmQyM2Q2MzE5YjU3ZTc2MTMxNDk2NjEnIE9SREVSIEJZICJjcmVhdGVkQXQiIERFU0MgTElNSVQgMTApIHgpLCdyZXN0b3JlT3BlcmF0aW9ucycsKFNFTEVDVCBjb2FsZXNjZShqc29uX2FnZyh4KSwgJ1tdJzo6anNvbikgRlJPTSAoU0VMRUNUICJjcmVhdGVkQXQiLHNwbGl0X3BhcnQoInBheWxvYWRIYXNoIiwnOicsMSkgQVMga2luZCBGUk9NICJQcm9jZXNzZWRTeW5jT3BlcmF0aW9uIiBXSEVSRSAiYnVzaW5lc3NJZCI9dC5pZCBBTkQgInBheWxvYWRIYXNoIiBMSUtFICdyZXN0b3JlOiUnIE9SREVSIEJZICJjcmVhdGVkQXQiIERFU0MgTElNSVQgMTApIHgpLCdyZWN5Y2xlJywoU0VMRUNUIGNvYWxlc2NlKGpzb25fYWdnKHgpLCAnW10nOjpqc29uKSBGUk9NIChTRUxFQ1Qga2luZCxjb3VudCgqKSBGUk9NICJSZWN5Y2xlRW50cnkiIFdIRVJFICJidXNpbmVzc0lkIj10LmlkIEdST1VQIEJZIGtpbmQpIHgpLCdyZWNlbnRBY3Rpdml0eScsKFNFTEVDVCBjb2FsZXNjZShqc29uX2FnZyh4KSwgJ1tdJzo6anNvbikgRlJPTSAoU0VMRUNUIGFjdGlvbixkZXRhaWwsImNyZWF0ZWRBdCIgRlJPTSAiVGVhbUFjdGl2aXR5IiBXSEVSRSAiYnVzaW5lc3NJZCI9dC5pZCBPUkRFUiBCWSBpZCBERVNDIExJTUlUIDQwKSB4KSkgRlJPTSB0YXJnZXQgdDsKCkNPTU1JVDsKCg==' | base64 -d > "$RUNNER_TEMP/package/investigation.sql"
-        printf '%s' 'IyEvdXNyL2Jpbi9lbnYgYmFzaApzZXQgLWV1byBwaXBlZmFpbApjZCAiJChkaXJuYW1lICIkMCIpLy4uIgpkb2NrZXIgbG9ncyAtLXNpbmNlIDYwbSAtLXRhaWwgMjAwMDAga2l0YWJjaGEtYXBpLTEgPiBhcGkubG9nIDI+JjEKcHl0aG9uMyAtIDw8J1BZTUVUUklDJwppbXBvcnQganNvbixyZSxjb2xsZWN0aW9ucyxzdGF0aXN0aWNzCnJvdXRlcz17fTtzYW1wbGVzPWNvbGxlY3Rpb25zLmRlZmF1bHRkaWN0KGxpc3QpO3N0YXR1c2VzPWNvbGxlY3Rpb25zLkNvdW50ZXIoKQpmb3IgbGluZSBpbiBvcGVuKCdhcGkubG9nJyk6CiB0cnk6ZD1qc29uLmxvYWRzKGxpbmUpCiBleGNlcHQ6Y29udGludWUKIHJlcXVlc3Q9ZC5nZXQoJ3JlcScse30pCiBpZiByZXF1ZXN0LmdldCgndXJsJyk6CiAgcGF0aD1yZXF1ZXN0Wyd1cmwnXS5zcGxpdCgnPycpWzBdO3BhdGg9cmUuc3ViKHInL1thLWYwLTktXXszNn0nLCAnLzppZCcscGF0aCk7cm91dGVzW2QuZ2V0KCdyZXFJZCcpXT1yZXF1ZXN0LmdldCgnbWV0aG9kJywnJykrJyAnK3BhdGgKIGlmIGQuZ2V0KCdyZXMnLHt9KS5nZXQoJ3N0YXR1c0NvZGUnKT09NDI5OiBwcmludChqc29uLmR1bXBzKGRpY3QocmF0ZUxpbWl0ZWRSb3V0ZT1yb3V0ZXMuZ2V0KGQuZ2V0KCdyZXFJZCcpLCd1bmtub3duJykpKSkKIGlmICdyZXNwb25zZVRpbWUnIGluIGQ6CiAgcm91dGU9cm91dGVzLmdldChkLmdldCgncmVxSWQnKSwndW5rbm93bicpO3NhbXBsZXNbcm91dGVdLmFwcGVuZChmbG9hdChkWydyZXNwb25zZVRpbWUnXSkpO3N0YXR1c2VzW3N0cihkLmdldCgncmVzJyx7fSkuZ2V0KCdzdGF0dXNDb2RlJykpXSs9MQpmb3Igcm91dGUsdmFsdWVzIGluIHNvcnRlZChzYW1wbGVzLml0ZW1zKCksa2V5PWxhbWJkYSBwOm1heChwWzFdKSxyZXZlcnNlPVRydWUpWzoyNV06CiB2YWx1ZXMuc29ydCgpO3ByaW50KGpzb24uZHVtcHMoZGljdChyb3V0ZT1yb3V0ZSxjb3VudD1sZW4odmFsdWVzKSxtZWRpYW5Ncz1yb3VuZChzdGF0aXN0aWNzLm1lZGlhbih2YWx1ZXMpLDEpLHA5NU1zPXJvdW5kKHZhbHVlc1ttaW4obGVuKHZhbHVlcyktMSxpbnQobGVuKHZhbHVlcykqLjk1KSldLDEpLG1heE1zPXJvdW5kKG1heCh2YWx1ZXMpLDEpKSkpCnByaW50KGpzb24uZHVtcHMoZGljdChzdGF0dXNDb3VudHM9c3RhdHVzZXMpKSkKUFlNRVRSSUMKcm0gLWYgYXBpLmxvZwo=' | base64 -d > "$RUNNER_TEMP/package/deploy/release.sh"
-        tar --mtime=@0 --owner=0 --group=0 --numeric-owner -czf "$RUNNER_TEMP/update.tar.gz" -C "$RUNNER_TEMP/package" .
+        echo "Installing validation dependencies"
+        npm ci --include=dev --no-audit --no-fund > "$RUNNER_TEMP/validation-install.log" 2>&1
+        echo "Generating database client"
+        npm run db:generate > "$RUNNER_TEMP/validation-prisma.log" 2>&1
+        echo "Checking types"
+        npm run typecheck > "$RUNNER_TEMP/validation-types.log" 2>&1
+        echo "Checking lint"
+        npm run lint > "$RUNNER_TEMP/validation-lint.log" 2>&1
+        for pattern in 'tests/*.test.ts' 'tests/*.test.mjs'; do
+          if [[ "$pattern" == *'.test.ts' ]]; then
+            command=(node --import tsx --test --test-reporter=tap --test-concurrency=2)
+          else
+            command=(node --test --test-reporter=tap)
+          fi
+          echo "Running $pattern"
+          if ! "${command[@]}" $pattern > "$RUNNER_TEMP/validation-tests.log" 2>&1; then
+            python3 - <<'PYTEST'
+        import pathlib,os,re
+        log=pathlib.Path(os.environ['RUNNER_TEMP'],'validation-tests.log').read_text()
+        for line in log.splitlines():
+         if re.match(r'^\s*(not ok|# (tests|pass|fail|skipped)|error:)',line):print(line[:300])
+        PYTEST
+            exit 1
+          fi
+          grep -E '^# (tests|pass|fail|skipped)' "$RUNNER_TEMP/validation-tests.log" || true
+        done
+        echo 'Types, lint, full API/unit and session/owner/native regressions passed.'
+    - name: Validate plans, owner dashboard, permissions and existing browser flows
+      run: |
+        set -euo pipefail
+        npx playwright install --with-deps chromium > "$RUNNER_TEMP/validation-browser-install.log" 2>&1
+        EXPO_PUBLIC_API_URL=http://localhost:3001 GITHUB_SHA="$SOURCE_SHA" npm run build:web > "$RUNNER_TEMP/validation-web.log" 2>&1
+        for spec in online-only backup-restore sale-visibility-units onboarding-prefill team-identity contact-input-ui access-recovery notification-inbox navigation-expiry bill-confirmation trade-editor-ui creator-ui plan-tiers cashbook record-payment-mode payment-pane marketing-v3 website-pages theme-speed website-language app-language-ux switcher-animations bahij-web reset-backup reset-cache-boundaries transaction-drafts transaction-receipts more-hub; do
+          echo "Checking $spec in an isolated test server."
+          if ! npx playwright test "tests/e2e/$spec.spec.ts" > "$RUNNER_TEMP/validation-browser.log" 2>&1; then
+            python3 - <<'PY'
+        import re,pathlib,os
+        log=re.sub(r'\x1b\[[0-9;]*m','',pathlib.Path(os.environ['RUNNER_TEMP'],'validation-browser.log').read_text())
+        for line in log.splitlines():
+            if re.match(r'^\s*(Error:|TimeoutError:|Expected:|Received:|Locator:|Test timeout|[0-9]+ failed|[0-9]+ passed|at .*\.spec\.ts:)',line):
+                print(re.sub(r'\b[0-9]{6}\b','[redacted]',line)[:500])
+        for file in pathlib.Path('test-results').glob('*/error-context.md'):
+            text=file.read_text()
+            if '```yaml' in text:
+                snapshot=text.split('```yaml',1)[1].split('```',1)[0]
+                print(re.sub(r'\b[0-9]{6}\b','[redacted]',snapshot)[:10000])
+        PY
+            exit 1
+          fi
+        done
+        echo 'Owner notifications, invoice links, team access and expiry browser checks passed.'
+    - name: Build tested web and API package
+      run: |
+        set -euo pipefail
+        npm ci --include=dev --no-audit --no-fund > "$RUNNER_TEMP/install.log" 2>&1
+        npm run db:generate > "$RUNNER_TEMP/prisma.log" 2>&1
+        GITHUB_SHA="$SOURCE_SHA" npm run build:web > "$RUNNER_TEMP/web-build.log" 2>&1
+        update="$RUNNER_TEMP/package"
+        mkdir -p "$update/site" "$update/deploy" "$update/apps/api/src" "$update/apps/api/assets" "$update/apps/api/prisma" "$update/packages/domain/src" "$update/node_modules"
+        cp -r apps/client/dist/. "$update/site/"
+        rm -rf "$update/site/landing" "$update/site/downloads"
+        rm -f "$update/site/website-sw.js" "$update/site/android-release.json"
+        cp -r apps/api/src/. "$update/apps/api/src/"
+        cp apps/api/assets/email-logo.png "$update/apps/api/assets/"
+        cp -r packages/domain/src/. "$update/packages/domain/src/"
+        cp packages/domain/package.json "$update/packages/domain/"
+        node scripts/copy-runtime-deps.mjs "$update" sharp qrcode firebase-admin web-push fflate > "$RUNNER_TEMP/runtime.log" 2>&1
+        cp apps/api/package.json "$update/apps/api/"
+        cp package-lock.json "$update/"
+        cp -r apps/api/prisma/. "$update/apps/api/prisma/"
+        cp deploy/commercial-release.sh "$update/deploy/release.sh"
+        cp deploy/patch-public-pages.sh "$update/deploy/"
+        mkdir -p "$update/site/landing"
+        cp -r apps/client/public/landing/. "$update/site/landing/"
+        tar --mtime=@0 --owner=0 --group=0 --numeric-owner -czf "$RUNNER_TEMP/update.tar.gz" -C "$update" .
+        echo 'Production package prepared without publishing private source.'
     - name: Publish through restricted receiver
       env:
         VPS_HOST: ${{ secrets.VPS_HOST }}
@@ -56,3 +131,8 @@ jobs:
           sleep 30
         done
         exit 1
+    - name: Verify web publication
+      run: |
+        curl --fail --retry 5 https://app.kitabcha.app/web-release.json -o "$RUNNER_TEMP/web-release.json"
+        node -e "const r=require(process.env.RUNNER_TEMP+'/web-release.json');if(r.commit!==process.env.SOURCE_SHA||r.version!==process.env.DEPLOY_VERSION)process.exit(1);console.log(r)"
+        curl --fail --retry 5 https://app.kitabcha.app/health
