@@ -1,4 +1,4 @@
-name: Release official tagline, public pages and notification clearing
+name: Release Afghan business landing and instant appearance feedback
 on:
   workflow_dispatch: null
 permissions:
@@ -13,15 +13,15 @@ jobs:
     timeout-minutes: 45
     env:
       CI: '1'
-      SOURCE_SHA: 460bc4378a3e6f5194f3df5d14a94701fb248033
-      DEPLOY_VERSION: v3.7.80
-      KITABCHA_BUILD_VERSION: v3.7.80
+      SOURCE_SHA: 9444b92731ecb6ef54dcc2aa855e6c82534fc217
+      DEPLOY_VERSION: v3.7.81
+      KITABCHA_BUILD_VERSION: v3.7.81
       EXPO_PUBLIC_API_URL: https://app.kitabcha.app
     steps:
     - uses: actions/checkout@v4
       with:
         repository: xecdev/kitabcha-app
-        ref: 460bc4378a3e6f5194f3df5d14a94701fb248033
+        ref: 9444b92731ecb6ef54dcc2aa855e6c82534fc217
         ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
         persist-credentials: false
         fetch-depth: 9
@@ -39,9 +39,7 @@ jobs:
         npm run typecheck > "$RUNNER_TEMP/validation-types.log" 2>&1
         echo "Checking lint"
         npm run lint > "$RUNNER_TEMP/validation-lint.log" 2>&1
-        # The previous run passed all 373 API tests for identical production sources.
-        git diff --exit-code b8ed79e3a110b8aa98afc036b1670a58a4246471 HEAD -- apps/api packages package.json package-lock.json
-        for pattern in 'tests/*.test.mjs'; do
+        for pattern in 'tests/*.test.ts' 'tests/*.test.mjs'; do
           if [[ "$pattern" == *'.test.ts' ]]; then
             command=(node --import tsx --test --test-reporter=tap --test-concurrency=2)
           else
@@ -65,7 +63,7 @@ jobs:
         set -euo pipefail
         npx playwright install --with-deps chromium > "$RUNNER_TEMP/validation-browser-install.log" 2>&1
         EXPO_PUBLIC_API_URL=http://localhost:3001 GITHUB_SHA="$SOURCE_SHA" npm run build:web > "$RUNNER_TEMP/validation-web.log" 2>&1
-        for spec in online-only backup-restore sale-visibility-units onboarding-prefill team-identity contact-input-ui access-recovery notification-inbox navigation-expiry bill-confirmation trade-editor-ui creator-ui plan-tiers cashbook record-payment-mode payment-pane marketing-v3 website-pages; do
+        for spec in online-only backup-restore sale-visibility-units onboarding-prefill team-identity contact-input-ui access-recovery notification-inbox navigation-expiry bill-confirmation trade-editor-ui creator-ui plan-tiers cashbook record-payment-mode payment-pane marketing-v3 website-pages theme-speed; do
           echo "Checking $spec in an isolated test server."
           if ! npx playwright test "tests/e2e/$spec.spec.ts" > "$RUNNER_TEMP/validation-browser.log" 2>&1; then
             python3 - <<'PY'
