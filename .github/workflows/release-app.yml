@@ -1,56 +1,46 @@
-name: Release Bahij fonts for Android
+name: Publish multilingual marketing vacancies
 on:
   workflow_dispatch: null
 permissions:
   contents: read
   actions: read
 concurrency:
-  group: production-bahij-android
+  group: production-careers-web
   cancel-in-progress: false
 jobs:
-  android_publish:
+  web:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
       GH_TOKEN: ${{ github.token }}
-      SOURCE_SHA: a45c1aa168000f2b837a4ab6664db30e2e0f3d24
-      DEPLOY_VERSION: v3.7.84
+      SOURCE_SHA: 6efb995c6e48ed05f4afd5984eb42e76a6a9e6ab
+      DEPLOY_VERSION: v3.7.85
     steps:
     - uses: actions/checkout@v4
       with:
         repository: xecdev/kitabcha-app
-        ref: a45c1aa168000f2b837a4ab6664db30e2e0f3d24
+        ref: 6efb995c6e48ed05f4afd5984eb42e76a6a9e6ab
         ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
         persist-credentials: false
     - uses: actions/setup-node@v4
       with:
         node-version: 24
-    - uses: actions/download-artifact@v4
-      with:
-        name: Kitabcha-2.0.76-android
-        run-id: 39097091955
-        github-token: ${{ github.token }}
-        path: ${{ runner.temp }}/mobile
     - name: Install public page generator dependencies
       run: npm ci --include=dev --no-audit --no-fund > "$RUNNER_TEMP/publication-install.log" 2>&1
-    - name: Prepare verified Android publication
+    - name: Prepare careers pages
       run: |
         set -euo pipefail
+        node scripts/build-landing.mjs > "$RUNNER_TEMP/careers-build.log" 2>&1
         package="$RUNNER_TEMP/package"
-        mkdir -p "$package/mobile" "$package/site/landing" "$package/deploy"
-        apk="$RUNNER_TEMP/mobile/Kitabcha-2.0.76-android.apk"
-        python3 scripts/verify-mobile-release.py "$apk" 2.0.76 73 "$RUNNER_TEMP/mobile/release.json"
-        cp "$apk" "$package/mobile/"
-        cp "$RUNNER_TEMP/mobile/release.json" "$package/mobile/"
-        node --input-type=module <<'JS'
-        import fs from 'node:fs';
-        const p='apps/client/marketing/releases.json';const d=JSON.parse(fs.readFileSync(p));d.android=JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP+'/mobile/release.json'));fs.writeFileSync(p,JSON.stringify(d,null,2)+'\n');
-        JS
-        node scripts/build-landing.mjs > "$RUNNER_TEMP/android-landing.log" 2>&1
-        cp -r apps/client/public/landing/. "$package/site/landing/"
-        cp "$RUNNER_TEMP/mobile/release.json" "$package/site/android-release.json"
-        cp deploy/android-assets-release.sh "$package/deploy/release.sh"
-        cp deploy/prune-android-downloads.py "$package/deploy/"
+        mkdir -p "$package/site/landing/fa/careers" "$package/site/landing/ps/careers" "$package/site/landing/careers" "$package/deploy"
+        for locale in '' 'fa/' 'ps/'; do cp "apps/client/public/landing/${locale}careers/index.html" "$package/site/landing/${locale}careers/index.html"; done
+        python3 - "$package" <<'PYSCRIPT'
+        from pathlib import Path
+        import sys
+        source=Path('deploy/web-assets-release.sh').read_text()
+        source=source.replace('COPY Caddyfile /etc/caddy/Caddyfile\\n','')
+        Path(sys.argv[1],'deploy/release.sh').write_text(source)
+        PYSCRIPT
         tar --mtime=@0 --owner=0 --group=0 --numeric-owner -czf "$RUNNER_TEMP/update.tar.gz" -C "$package" .
     - name: Publish through restricted receiver
       env:
@@ -76,15 +66,15 @@ jobs:
           sleep 30
         done
         exit 1
-    - name: Verify published Android APK and latest-only download links
+    - name: Verify published careers pages
       run: |
         python3 - <<'PY'
-        import hashlib,json,os,urllib.request
-        expected=json.load(open(os.environ['RUNNER_TEMP']+'/mobile/release.json'))
-        actual=json.load(urllib.request.urlopen('https://app.kitabcha.app/android-release.json',timeout=30));assert actual==expected
-        with urllib.request.urlopen('https://app.kitabcha.app'+actual['url'],timeout=120) as response: data=response.read()
-        assert len(data)==expected['bytes'] and hashlib.sha256(data).hexdigest()==expected['sha256']
-        for route in ['', 'fa/', 'ps/']:
-         assert actual['url'] in urllib.request.urlopen('https://kitabcha.app/'+route,timeout=30).read().decode()
-        print('Signed Android release and all landing links verified.')
+        import urllib.request
+        for locale in ['', 'fa/', 'ps/']:
+            html=urllib.request.urlopen('https://kitabcha.app/'+locale+'careers/',timeout=30).read().decode()
+            for ref in ['KTB-MO-001','KTB-MA-002']:
+                assert ref in html
+                assert 'subject=Application%20-%20'+ref in html
+            assert 'No open roles right now.' not in html
+        print('Both roles, references and email application links verified in all three languages.')
         PY
