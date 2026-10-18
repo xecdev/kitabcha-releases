@@ -11,31 +11,21 @@ jobs:
     timeout-minutes: 35
     env:
       CI: '1'
-      SOURCE_SHA: 0ae16eb21f20dbab1c74e17031f8fd20bd212813
-      DEPLOY_VERSION: v3.7.99
-      KITABCHA_BUILD_VERSION: v3.7.99
+      SOURCE_SHA: 9ae8f7b6d9cf93300d87bfaeffe37dc8a48a0ae9
+      DEPLOY_VERSION: v3.7.101
+      KITABCHA_BUILD_VERSION: v3.7.101
       EXPO_PUBLIC_API_URL: https://app.kitabcha.app
     steps:
     - uses: actions/checkout@v4
       with:
         repository: xecdev/kitabcha-app
-        ref: 0ae16eb21f20dbab1c74e17031f8fd20bd212813
+        ref: 9ae8f7b6d9cf93300d87bfaeffe37dc8a48a0ae9
         ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
         persist-credentials: false
         fetch-depth: 9
     - uses: actions/setup-node@v4
       with:
         node-version: 24
-    - name: Validate private source without publishing logs
-      run: "set -euo pipefail\necho \"Installing validation dependencies\"\nnpm ci --include=dev --no-audit --no-fund > \"$RUNNER_TEMP/validation-install.log\"\
-        \ 2>&1\necho \"Generating database client\"\nnpm run db:generate > \"$RUNNER_TEMP/validation-prisma.log\" 2>&1\necho \"Checking types\"\nnpm run\
-        \ typecheck > \"$RUNNER_TEMP/validation-types.log\" 2>&1\necho \"Checking lint\"\nnpm run lint > \"$RUNNER_TEMP/validation-lint.log\" 2>&1\nfor\
-        \ pattern in 'tests/*.test.ts' 'tests/*.test.mjs'; do\n  if [[ \"$pattern\" == *'.test.ts' ]]; then\n    command=(node --import tsx --test --test-reporter=tap\
-        \ --test-concurrency=2)\n  else\n    command=(node --test --test-reporter=tap)\n  fi\n  echo \"Running $pattern\"\n  if ! \"${command[@]}\" $pattern\
-        \ > \"$RUNNER_TEMP/validation-tests.log\" 2>&1; then\n    python3 - <<'PYTEST'\nimport pathlib,os,re\nlog=pathlib.Path(os.environ['RUNNER_TEMP'],'validation-tests.log').read_text()\n\
-        for line in log.splitlines():\n if re.match(r'^\\s*(not ok|# (tests|pass|fail|skipped)|error:)',line):print(line[:300])\nPYTEST\n    exit 1\n  fi\n\
-        \  grep -E '^# (tests|pass|fail|skipped)' \"$RUNNER_TEMP/validation-tests.log\" || true\ndone\necho 'Types, lint, full API/unit and session/owner/native\
-        \ regressions passed.'\n"
     - name: Build tested web and API package
       run: 'set -euo pipefail
 
@@ -106,6 +96,7 @@ jobs:
         '
     needs:
     - browser
+    - unit
   browser:
     runs-on: ubuntu-latest
     timeout-minutes: 35
@@ -119,15 +110,15 @@ jobs:
         - onboarding-prefill notification-inbox bill-confirmation cashbook website-pages switcher-animations transaction-drafts financial-reports people-currency-selection
     env:
       CI: '1'
-      SOURCE_SHA: 0ae16eb21f20dbab1c74e17031f8fd20bd212813
-      KITABCHA_BUILD_VERSION: v3.7.99
+      SOURCE_SHA: 9ae8f7b6d9cf93300d87bfaeffe37dc8a48a0ae9
+      KITABCHA_BUILD_VERSION: v3.7.101
       EXPO_PUBLIC_API_URL: http://localhost:3001
       SPECS: ${{ matrix.specs }}
     steps:
     - uses: actions/checkout@v4
       with:
         repository: xecdev/kitabcha-app
-        ref: 0ae16eb21f20dbab1c74e17031f8fd20bd212813
+        ref: 9ae8f7b6d9cf93300d87bfaeffe37dc8a48a0ae9
         ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
         persist-credentials: false
         fetch-depth: 9
@@ -159,13 +150,13 @@ jobs:
       CCACHE_BASEDIR: ${{ github.workspace }}
       CCACHE_MAXSIZE: 2G
       CCACHE_COMPILERCHECK: content
-      KITABCHA_BUILD_VERSION: v3.7.99
-      SOURCE_SHA: 0ae16eb21f20dbab1c74e17031f8fd20bd212813
+      KITABCHA_BUILD_VERSION: v3.7.101
+      SOURCE_SHA: 9ae8f7b6d9cf93300d87bfaeffe37dc8a48a0ae9
     steps:
     - uses: actions/checkout@v4
       with:
         repository: xecdev/kitabcha-app
-        ref: 0ae16eb21f20dbab1c74e17031f8fd20bd212813
+        ref: 9ae8f7b6d9cf93300d87bfaeffe37dc8a48a0ae9
         ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
         persist-credentials: false
     - name: Read app version
@@ -391,13 +382,13 @@ jobs:
     timeout-minutes: 20
     env:
       GH_TOKEN: ${{ github.token }}
-      SOURCE_SHA: 0ae16eb21f20dbab1c74e17031f8fd20bd212813
-      DEPLOY_VERSION: v3.7.100
+      SOURCE_SHA: 9ae8f7b6d9cf93300d87bfaeffe37dc8a48a0ae9
+      DEPLOY_VERSION: v3.7.102
     steps:
     - uses: actions/checkout@v4
       with:
         repository: xecdev/kitabcha-app
-        ref: 0ae16eb21f20dbab1c74e17031f8fd20bd212813
+        ref: 9ae8f7b6d9cf93300d87bfaeffe37dc8a48a0ae9
         ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
         persist-credentials: false
     - uses: actions/setup-node@v4
@@ -460,5 +451,35 @@ jobs:
         \ len(data)==expected['bytes'] and hashlib.sha256(data).hexdigest()==expected['sha256']\nfor route in ['', 'fa/', 'ps/']:\n assert actual['url']\
         \ in urllib.request.urlopen('https://kitabcha.app/'+route,timeout=30).read().decode()\nprint('Signed Android release and all landing links verified.')\n\
         PY\n"
+  unit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CI: '1'
+      SOURCE_SHA: 9ae8f7b6d9cf93300d87bfaeffe37dc8a48a0ae9
+      DEPLOY_VERSION: v3.7.101
+      KITABCHA_BUILD_VERSION: v3.7.101
+      EXPO_PUBLIC_API_URL: https://app.kitabcha.app
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        repository: xecdev/kitabcha-app
+        ref: 9ae8f7b6d9cf93300d87bfaeffe37dc8a48a0ae9
+        ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
+        persist-credentials: false
+        fetch-depth: 9
+    - uses: actions/setup-node@v4
+      with:
+        node-version: 24
+    - name: Validate private source without publishing logs
+      run: "set -euo pipefail\necho \"Installing validation dependencies\"\nnpm ci --include=dev --no-audit --no-fund > \"$RUNNER_TEMP/validation-install.log\"\
+        \ 2>&1\necho \"Generating database client\"\nnpm run db:generate > \"$RUNNER_TEMP/validation-prisma.log\" 2>&1\necho \"Checking types\"\nnpm run\
+        \ typecheck > \"$RUNNER_TEMP/validation-types.log\" 2>&1\necho \"Checking lint\"\nnpm run lint > \"$RUNNER_TEMP/validation-lint.log\" 2>&1\nfor\
+        \ pattern in 'tests/*.test.ts' 'tests/*.test.mjs'; do\n  if [[ \"$pattern\" == *'.test.ts' ]]; then\n    command=(node --import tsx --test --test-reporter=tap\
+        \ --test-concurrency=2)\n  else\n    command=(node --test --test-reporter=tap)\n  fi\n  echo \"Running $pattern\"\n  if ! \"${command[@]}\" $pattern\
+        \ > \"$RUNNER_TEMP/validation-tests.log\" 2>&1; then\n    python3 - <<'PYTEST'\nimport pathlib,os,re\nlog=pathlib.Path(os.environ['RUNNER_TEMP'],'validation-tests.log').read_text()\n\
+        for line in log.splitlines():\n if re.match(r'^\\s*(not ok|# (tests|pass|fail|skipped)|error:)',line):print(line[:300])\nPYTEST\n    exit 1\n  fi\n\
+        \  grep -E '^# (tests|pass|fail|skipped)' \"$RUNNER_TEMP/validation-tests.log\" || true\ndone\necho 'Types, lint, full API/unit and session/owner/native\
+        \ regressions passed.'\n"
 'on':
   workflow_dispatch: null
