@@ -20,7 +20,6 @@ jobs:
     steps:
     - uses: actions/checkout@v4
       with:
-        fetch-depth: 2
         repository: xecdev/kitabcha-app
         ref: fcd1e6b9a09ee9470deff1cdb4a9bedf607c9844
         ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
