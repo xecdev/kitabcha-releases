@@ -1,4 +1,4 @@
-name: Release Afghan business landing and instant appearance feedback
+name: Release persistent website languages and startup UX fixes
 on:
   workflow_dispatch: null
 permissions:
@@ -13,15 +13,15 @@ jobs:
     timeout-minutes: 45
     env:
       CI: '1'
-      SOURCE_SHA: 5f47a5aa4edb10f44f9df1b84cfc848e7c7b85f0
-      DEPLOY_VERSION: v3.7.81
-      KITABCHA_BUILD_VERSION: v3.7.81
+      SOURCE_SHA: a41d5c9dfb3cf5ea33fa23004f52769ff2912ee9
+      DEPLOY_VERSION: v3.7.82
+      KITABCHA_BUILD_VERSION: v3.7.82
       EXPO_PUBLIC_API_URL: https://app.kitabcha.app
     steps:
     - uses: actions/checkout@v4
       with:
         repository: xecdev/kitabcha-app
-        ref: 5f47a5aa4edb10f44f9df1b84cfc848e7c7b85f0
+        ref: a41d5c9dfb3cf5ea33fa23004f52769ff2912ee9
         ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
         persist-credentials: false
         fetch-depth: 9
@@ -63,7 +63,7 @@ jobs:
         set -euo pipefail
         npx playwright install --with-deps chromium > "$RUNNER_TEMP/validation-browser-install.log" 2>&1
         EXPO_PUBLIC_API_URL=http://localhost:3001 GITHUB_SHA="$SOURCE_SHA" npm run build:web > "$RUNNER_TEMP/validation-web.log" 2>&1
-        for spec in online-only backup-restore sale-visibility-units onboarding-prefill team-identity contact-input-ui access-recovery notification-inbox navigation-expiry bill-confirmation trade-editor-ui creator-ui plan-tiers cashbook record-payment-mode payment-pane marketing-v3 website-pages theme-speed; do
+        for spec in online-only backup-restore sale-visibility-units onboarding-prefill team-identity contact-input-ui access-recovery notification-inbox navigation-expiry bill-confirmation trade-editor-ui creator-ui plan-tiers cashbook record-payment-mode payment-pane marketing-v3 website-pages theme-speed website-language app-language-ux switcher-animations; do
           echo "Checking $spec in an isolated test server."
           if ! npx playwright test "tests/e2e/$spec.spec.ts" > "$RUNNER_TEMP/validation-browser.log" 2>&1; then
             python3 - <<'PY'
