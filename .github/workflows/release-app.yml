@@ -14,7 +14,7 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       SOURCE_SHA: 335b698e6640a0df7a173ac54792ea4aeca732ca
-      DEPLOY_VERSION: v3.7.87
+      DEPLOY_VERSION: v3.7.88
     steps:
     - uses: actions/checkout@v4
       with:
