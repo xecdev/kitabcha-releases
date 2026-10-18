@@ -13,13 +13,13 @@ jobs:
     timeout-minutes: 20
     env:
       GH_TOKEN: ${{ github.token }}
-      SOURCE_SHA: 6efb995c6e48ed05f4afd5984eb42e76a6a9e6ab
-      DEPLOY_VERSION: v3.7.85
+      SOURCE_SHA: 335b698e6640a0df7a173ac54792ea4aeca732ca
+      DEPLOY_VERSION: v3.7.86
     steps:
     - uses: actions/checkout@v4
       with:
         repository: xecdev/kitabcha-app
-        ref: 6efb995c6e48ed05f4afd5984eb42e76a6a9e6ab
+        ref: 335b698e6640a0df7a173ac54792ea4aeca732ca
         ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
         persist-credentials: false
     - uses: actions/setup-node@v4
