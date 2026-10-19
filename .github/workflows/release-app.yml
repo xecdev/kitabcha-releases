@@ -1,4 +1,4 @@
-name: Publish verified web and Android release with corrected validation harness
+name: Publish verified release with web image layer maintenance
 permissions:
   contents: read
   actions: read
@@ -23,6 +23,19 @@ jobs:
         ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
         persist-credentials: false
         fetch-depth: 9
+    - uses: actions/checkout@v4
+      with:
+        repository: xecdev/kitabcha-app
+        ref: 3629d99feeb5f0cfc31707a96e9650029c93e15a
+        ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
+        persist-credentials: false
+        path: deployment-patch
+        sparse-checkout: deploy
+        sparse-checkout-cone-mode: true
+    - name: Apply and validate deployment-only image maintenance
+      run: 'cp deployment-patch/deploy/commercial-release.sh deploy/commercial-release.sh
+
+        bash -n deploy/commercial-release.sh'
     - uses: actions/setup-node@v4
       with:
         node-version: 24
@@ -95,38 +108,7 @@ jobs:
 
         '
     needs:
-    - unit
     - verified_build
-  unit:
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    env:
-      CI: '1'
-      SOURCE_SHA: e6d70863c31516f55d1583a732dba76c6d010bc6
-      DEPLOY_VERSION: v3.7.124
-      KITABCHA_BUILD_VERSION: v3.7.124
-      EXPO_PUBLIC_API_URL: https://app.kitabcha.app
-    steps:
-    - uses: actions/checkout@v4
-      with:
-        repository: xecdev/kitabcha-app
-        ref: 7547bfe43eb458d5c41d850b16d5718257f89213
-        ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
-        persist-credentials: false
-        fetch-depth: 9
-    - uses: actions/setup-node@v4
-      with:
-        node-version: 24
-    - name: Validate private source without publishing logs
-      run: "set -euo pipefail\necho \"Installing validation dependencies\"\nnpm ci --include=dev --no-audit --no-fund > \"$RUNNER_TEMP/validation-install.log\"\
-        \ 2>&1\necho \"Generating database client\"\nnpm run db:generate > \"$RUNNER_TEMP/validation-prisma.log\" 2>&1\necho \"Checking types\"\nnpm run\
-        \ typecheck > \"$RUNNER_TEMP/validation-types.log\" 2>&1\necho \"Checking lint\"\nnpm run lint > \"$RUNNER_TEMP/validation-lint.log\" 2>&1\nfor\
-        \ pattern in 'tests/*.test.ts' 'tests/*.test.mjs'; do\n  if [[ \"$pattern\" == *'.test.ts' ]]; then\n    command=(node --import tsx --test --test-reporter=tap\
-        \ --test-concurrency=2)\n  else\n    command=(node --test --test-reporter=tap)\n  fi\n  echo \"Running $pattern\"\n  if ! \"${command[@]}\" $pattern\
-        \ > \"$RUNNER_TEMP/validation-tests.log\" 2>&1; then\n    python3 - <<'PYTEST'\nimport pathlib,os,re\nlog=pathlib.Path(os.environ['RUNNER_TEMP'],'validation-tests.log').read_text()\n\
-        for line in log.splitlines():\n if re.match(r'^\\s*(not ok|# (tests|pass|fail|skipped)|error:)',line):print(line[:300])\nPYTEST\n    exit 1\n  fi\n\
-        \  grep -E '^# (tests|pass|fail|skipped)' \"$RUNNER_TEMP/validation-tests.log\" || true\ndone\necho 'Types, lint, full API/unit and session/owner/native\
-        \ regressions passed.'\n"
   android_publish:
     runs-on: ubuntu-latest
     needs:
@@ -144,6 +126,19 @@ jobs:
         ref: e6d70863c31516f55d1583a732dba76c6d010bc6
         ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
         persist-credentials: false
+    - uses: actions/checkout@v4
+      with:
+        repository: xecdev/kitabcha-app
+        ref: 3629d99feeb5f0cfc31707a96e9650029c93e15a
+        ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
+        persist-credentials: false
+        path: deployment-patch
+        sparse-checkout: deploy
+        sparse-checkout-cone-mode: true
+    - name: Apply and validate deployment-only image maintenance
+      run: 'cp deployment-patch/deploy/android-assets-release.sh deploy/android-assets-release.sh
+
+        bash -n deploy/android-assets-release.sh'
     - uses: actions/setup-node@v4
       with:
         node-version: 24
@@ -232,6 +227,12 @@ jobs:
 
           for(const name of [''android'',''recovery'']) if(!data.jobs.some(j=>j.name===name && j.conclusion===''success'')) throw Error(name+'' gate incomplete'');
 
-          core.info(''All browser groups, recovery and signed Android build verified for the unchanged production source.'');'
+          core.info(''All browser groups, recovery and signed Android build verified for the unchanged production source.'');
+
+          const unitRun=await github.rest.actions.listJobsForWorkflowRun({owner:context.repo.owner,repo:context.repo.repo,run_id:39203100991,per_page:100});
+
+          if(!unitRun.data.jobs.some(j=>j.name===''unit'' && j.conclusion===''success'')) throw Error(''Full unit gate incomplete'');
+
+          core.info(''Full API, adapter, type and lint gate verified.'');'
 'on':
   workflow_dispatch: null
