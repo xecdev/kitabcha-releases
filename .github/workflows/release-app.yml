@@ -7,7 +7,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   web:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     timeout-minutes: 35
     env:
       CI: '1'
@@ -100,7 +100,7 @@ jobs:
     - unit
     - recovery
   browser:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     timeout-minutes: 35
     strategy:
       fail-fast: false
@@ -146,7 +146,7 @@ jobs:
         b[0-9]{6}\\b','[redacted]',snapshot)[:10000])\nPY\n    exit 1\n  fi\ndone\necho 'Owner notifications, invoice links, team access and expiry\
         \ browser checks passed.'\n"
   unit:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     timeout-minutes: 30
     env:
       CI: '1'
@@ -176,7 +176,7 @@ jobs:
         \ ok|# (tests|pass|fail|skipped)|error:)',line):print(line[:300])\nPYTEST\n    exit 1\n  fi\n  grep -E '^# (tests|pass|fail|skipped)'\
         \ \"$RUNNER_TEMP/validation-tests.log\" || true\ndone\necho 'Types, lint, full API/unit and session/owner/native regressions passed.'\n"
   recovery:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     timeout-minutes: 10
     steps:
     - uses: actions/checkout@v4
