@@ -12,8 +12,8 @@ jobs:
     env:
       CI: '1'
       SOURCE_SHA: e6d70863c31516f55d1583a732dba76c6d010bc6
-      DEPLOY_VERSION: v3.7.124
-      KITABCHA_BUILD_VERSION: v3.7.124
+      DEPLOY_VERSION: v3.7.125
+      KITABCHA_BUILD_VERSION: v3.7.125
       EXPO_PUBLIC_API_URL: https://app.kitabcha.app
     steps:
     - uses: actions/checkout@v4
@@ -118,7 +118,7 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       SOURCE_SHA: e6d70863c31516f55d1583a732dba76c6d010bc6
-      DEPLOY_VERSION: v3.7.124
+      DEPLOY_VERSION: v3.7.126
     steps:
     - uses: actions/checkout@v4
       with:
