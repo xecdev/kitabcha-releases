@@ -1,4 +1,4 @@
-name: Release faster owner account navigation and desktop WhatsApp text sharing
+name: Publish current verified Android download links
 permissions:
   contents: read
   actions: read
@@ -6,186 +6,53 @@ concurrency:
   group: production-web-v3-release
   cancel-in-progress: false
 jobs:
-  web:
+  landing_links:
     runs-on: ubuntu-22.04
     timeout-minutes: 35
     env:
       CI: '1'
-      SOURCE_SHA: cce3fe4423a367fc25dcf37e5fe45ea5e714dfe7
-      DEPLOY_VERSION: v3.7.134
-      KITABCHA_BUILD_VERSION: v3.7.134
+      SOURCE_SHA: 1d25eea9542ea77dc76784603f19e8118b9759c9
+      DEPLOY_VERSION: v3.7.135
+      KITABCHA_BUILD_VERSION: v3.7.135
       EXPO_PUBLIC_API_URL: https://app.kitabcha.app
     steps:
     - uses: actions/checkout@v4
       with:
         repository: xecdev/kitabcha-app
-        ref: cce3fe4423a367fc25dcf37e5fe45ea5e714dfe7
+        ref: 1d25eea9542ea77dc76784603f19e8118b9759c9
         ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
         persist-credentials: false
         fetch-depth: 9
     - uses: actions/setup-node@v4
       with:
         node-version: 24
-    - name: Build tested web and API package
-      run: 'set -euo pipefail
-
-        npm ci --include=dev --no-audit --no-fund > "$RUNNER_TEMP/install.log" 2>&1
-
-        npm run db:generate > "$RUNNER_TEMP/prisma.log" 2>&1
-
-        GITHUB_SHA="$SOURCE_SHA" npm run build:web > "$RUNNER_TEMP/web-build.log" 2>&1
-
-        update="$RUNNER_TEMP/package"
-
-        mkdir -p "$update/site" "$update/deploy" "$update/apps/api/src" "$update/apps/api/assets" "$update/apps/api/prisma" "$update/packages/domain/src"
-        "$update/node_modules"
-
-        cp -r apps/client/dist/. "$update/site/"
-
-        rm -rf "$update/site/landing" "$update/site/downloads"
-
-        rm -f "$update/site/website-sw.js" "$update/site/android-release.json"
-
-        cp -r apps/api/src/. "$update/apps/api/src/"
-
-        cp apps/api/assets/* "$update/apps/api/assets/"
-
-        cp -r packages/domain/src/. "$update/packages/domain/src/"
-
-        cp packages/domain/package.json "$update/packages/domain/"
-
-        node scripts/copy-runtime-deps.mjs "$update" sharp qrcode firebase-admin web-push fflate @fastify/jwt > "$RUNNER_TEMP/runtime.log" 2>&1
-
-        cp apps/api/package.json "$update/apps/api/"
-
-        cp package-lock.json "$update/"
-
-        cp -r apps/api/prisma/. "$update/apps/api/prisma/"
-
-        cp deploy/commercial-release.sh "$update/deploy/release.sh"
-
-        cp deploy/patch-public-pages.sh "$update/deploy/"
-
-        mkdir -p "$update/site/landing"
-
-        cp -r apps/client/public/landing/. "$update/site/landing/"
-
-        tar --mtime=@0 --owner=0 --group=0 --numeric-owner -czf "$RUNNER_TEMP/update.tar.gz" -C "$update" .
-
-        echo ''Production package prepared without publishing private source.''
-
-        '
+    - name: Build and verify landing download links
+      run: "set -euo pipefail\nnpm ci --include=dev --no-audit --no-fund > \"$RUNNER_TEMP/install.log\"\
+        \ 2>&1\nnode scripts/build-landing.mjs\nnode --test tests/landing-phone.test.mjs\n\
+        node --input-type=module <<'JS'\nimport fs from 'node:fs';\nconst expected=JSON.parse(fs.readFileSync('apps/client/marketing/releases.json')).android.url;\n\
+        for(const language of ['', 'fa/', 'ps/']) {\n const html=fs.readFileSync('apps/client/public/landing/'+language+'index.html','utf8');\n\
+        \ if(!html.includes(expected))throw Error('Wrong Android link');\n}\nJS\n\
+        update=\"$RUNNER_TEMP/package\"\nmkdir -p \"$update/site/landing/fa\" \"$update/site/landing/ps\"\
+        \ \"$update/deploy\"\nfor language in '' 'fa/' 'ps/'; do cp \"apps/client/public/landing/${language}index.html\"\
+        \ \"$update/site/landing/${language}index.html\"; done\ncp deploy/landing-assets-release.sh\
+        \ \"$update/deploy/release.sh\"\nbash -n \"$update/deploy/release.sh\"\ntar\
+        \ --mtime=@0 --owner=0 --group=0 --numeric-owner -czf \"$RUNNER_TEMP/update.tar.gz\"\
+        \ -C \"$update\" .\n"
     - name: Publish through restricted receiver
       env:
         VPS_HOST: ${{ secrets.VPS_HOST }}
         VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
         VPS_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
-      run: "export GITHUB_SHA=\"$SOURCE_SHA\"\nset -euo pipefail\ninstall -m 700 -d ~/.ssh\ntrap 'rm -f ~/.ssh/id_ed25519' EXIT\nprintf '%s\\\
-        n' \"$VPS_SSH_KEY\" > ~/.ssh/id_ed25519\nprintf '%s\\n' \"$VPS_KNOWN_HOSTS\" > ~/.ssh/known_hosts\nchmod 600 ~/.ssh/id_ed25519 ~/.ssh/known_hosts\n\
-        sum=$(sha256sum \"$RUNNER_TEMP/update.tar.gz\" | cut -d' ' -f1)\nfor attempt in $(seq 1 20); do\n  if ssh -T -o BatchMode=yes -o StrictHostKeyChecking=yes\
-        \ -o ConnectTimeout=20 -o ServerAliveInterval=15 deploy@\"$VPS_HOST\" \"$DEPLOY_VERSION $SOURCE_SHA $sum\" < \"$RUNNER_TEMP/update.tar.gz\"\
-        \ > \"$RUNNER_TEMP/receiver.log\" 2>&1; then\n    cat \"$RUNNER_TEMP/receiver.log\"\n    exit 0\n  fi\n  cat \"$RUNNER_TEMP/receiver.log\"\
-        \n  if ! grep -Eq 'Another CI deployment is running|Another deployment is running' \"$RUNNER_TEMP/receiver.log\"; then exit 1; fi\n  sleep\
-        \ 30\ndone\nexit 1\n"
-    - name: Verify web publication
-      run: 'curl --fail --retry 5 https://app.kitabcha.app/web-release.json -o "$RUNNER_TEMP/web-release.json"
-
-        node -e "const r=require(process.env.RUNNER_TEMP+''/web-release.json'');if(r.commit!==process.env.SOURCE_SHA||r.version!==process.env.DEPLOY_VERSION)process.exit(1);console.log(r)"
-
-        curl --fail --retry 5 https://app.kitabcha.app/health
-
-        '
-    needs:
-    - browser
-    - unit
-    - recovery
-  browser:
-    runs-on: ubuntu-22.04
-    timeout-minutes: 35
-    strategy:
-      fail-fast: false
-      matrix:
-        specs:
-        - online-only team-identity notification-settings trade-editor-ui record-payment-mode theme-speed bahij-web transaction-receipts team-access
-          screen-recovery refresh-interruption auth landing mobile-keyboard
-        - backup-restore contact-input-ui push-notifications creator-ui payment-pane website-language reset-backup more-hub bill-actions profile-stock-premium
-          pane-drafts forms-refresh
-        - sale-visibility-units access-recovery navigation-expiry plan-tiers marketing-v3 app-language-ux reset-cache-boundaries book-deletion
-          accounts-workspace
-        - onboarding-prefill notification-inbox bill-confirmation cashbook website-pages switcher-animations transaction-drafts financial-reports
-          people-currency-selection report-attachments
-    env:
-      CI: '1'
-      SOURCE_SHA: cce3fe4423a367fc25dcf37e5fe45ea5e714dfe7
-      KITABCHA_BUILD_VERSION: v3.7.134
-      EXPO_PUBLIC_API_URL: http://localhost:3001
-      SPECS: ${{ matrix.specs }}
-    steps:
-    - uses: actions/checkout@v4
-      with:
-        repository: xecdev/kitabcha-app
-        ref: cce3fe4423a367fc25dcf37e5fe45ea5e714dfe7
-        ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
-        persist-credentials: false
-        fetch-depth: 9
-    - uses: actions/setup-node@v4
-      with:
-        node-version: 24
-    - name: Install browser validation dependencies
-      run: 'npm ci --include=dev --no-audit --no-fund > "$RUNNER_TEMP/browser-install.log" 2>&1
-
-        npm run db:generate > "$RUNNER_TEMP/browser-prisma.log" 2>&1'
-    - name: Validate plans, owner dashboard, permissions and existing browser flows
-      run: "set -euo pipefail\nnpx playwright install --with-deps chromium > \"$RUNNER_TEMP/validation-browser-install.log\" 2>&1\nEXPO_PUBLIC_API_URL=http://localhost:3001\
-        \ GITHUB_SHA=\"$SOURCE_SHA\" npm run build:web > \"$RUNNER_TEMP/validation-web.log\" 2>&1\nfor spec in $SPECS; do\n  echo \"Checking $spec\
-        \ in an isolated test server.\"\n  if ! npx playwright test \"tests/e2e/$spec.spec.ts\" > \"$RUNNER_TEMP/validation-browser.log\" 2>&1;\
-        \ then\n    python3 - <<'PY'\nimport re,pathlib,os\nlog=re.sub(r'\\x1b\\[[0-9;]*m','',pathlib.Path(os.environ['RUNNER_TEMP'],'validation-browser.log').read_text())\n\
-        for line in log.splitlines():\n    if re.match(r'^\\s*(Error:|TimeoutError:|Expected:|Received:|Locator:|Test timeout|[0-9]+ failed|[0-9]+\
-        \ passed|at .*\\.spec\\.ts:)',line):\n        print(re.sub(r'\\b[0-9]{6}\\b','[redacted]',line)[:500])\nfor file in pathlib.Path('test-results').glob('*/error-context.md'):\n\
-        \    text=file.read_text()\n    if '```yaml' in text:\n        snapshot=text.split('```yaml',1)[1].split('```',1)[0]\n        print(re.sub(r'\\\
-        b[0-9]{6}\\b','[redacted]',snapshot)[:10000])\nPY\n    exit 1\n  fi\ndone\necho 'Owner notifications, invoice links, team access and expiry\
-        \ browser checks passed.'\n"
-  unit:
-    runs-on: ubuntu-22.04
-    timeout-minutes: 30
-    env:
-      CI: '1'
-      SOURCE_SHA: cce3fe4423a367fc25dcf37e5fe45ea5e714dfe7
-      DEPLOY_VERSION: v3.7.134
-      KITABCHA_BUILD_VERSION: v3.7.134
-      EXPO_PUBLIC_API_URL: https://app.kitabcha.app
-    steps:
-    - uses: actions/checkout@v4
-      with:
-        repository: xecdev/kitabcha-app
-        ref: cce3fe4423a367fc25dcf37e5fe45ea5e714dfe7
-        ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
-        persist-credentials: false
-        fetch-depth: 9
-    - uses: actions/setup-node@v4
-      with:
-        node-version: 24
-    - name: Validate private source without publishing logs
-      run: "set -euo pipefail\necho \"Installing validation dependencies\"\nnpm ci --include=dev --no-audit --no-fund > \"$RUNNER_TEMP/validation-install.log\"\
-        \ 2>&1\necho \"Generating database client\"\nnpm run db:generate > \"$RUNNER_TEMP/validation-prisma.log\" 2>&1\necho \"Checking types\"\
-        \nnpm run typecheck > \"$RUNNER_TEMP/validation-types.log\" 2>&1\necho \"Checking lint\"\nnpm run lint > \"$RUNNER_TEMP/validation-lint.log\"\
-        \ 2>&1\nfor pattern in 'tests/*.test.ts' 'tests/*.test.mjs'; do\n  if [[ \"$pattern\" == *'.test.ts' ]]; then\n    command=(node --import\
-        \ tsx --test --test-reporter=tap --test-concurrency=2)\n  else\n    command=(node --test --test-reporter=tap)\n  fi\n  echo \"Running\
-        \ $pattern\"\n  if ! \"${command[@]}\" $pattern > \"$RUNNER_TEMP/validation-tests.log\" 2>&1; then\n    python3 - <<'PYTEST'\nimport pathlib,os,re\n\
-        log=pathlib.Path(os.environ['RUNNER_TEMP'],'validation-tests.log').read_text()\nfor line in log.splitlines():\n if re.match(r'^\\s*(not\
-        \ ok|# (tests|pass|fail|skipped)|error:)',line):print(line[:300])\nPYTEST\n    exit 1\n  fi\n  grep -E '^# (tests|pass|fail|skipped)'\
-        \ \"$RUNNER_TEMP/validation-tests.log\" || true\ndone\necho 'Types, lint, full API/unit and session/owner/native regressions passed.'\n"
-  recovery:
-    runs-on: ubuntu-22.04
-    timeout-minutes: 10
-    steps:
-    - uses: actions/checkout@v4
-      with:
-        repository: xecdev/kitabcha-app
-        ref: cce3fe4423a367fc25dcf37e5fe45ea5e714dfe7
-        ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
-        persist-credentials: false
-    - name: Verify isolated PostgreSQL backup and restore
-      run: python3 scripts/verify-postgres-recovery.py
+      run: "export GITHUB_SHA=\"$SOURCE_SHA\"\nset -euo pipefail\ninstall -m 700 -d\
+        \ ~/.ssh\ntrap 'rm -f ~/.ssh/id_ed25519' EXIT\nprintf '%s\\n' \"$VPS_SSH_KEY\"\
+        \ > ~/.ssh/id_ed25519\nprintf '%s\\n' \"$VPS_KNOWN_HOSTS\" > ~/.ssh/known_hosts\n\
+        chmod 600 ~/.ssh/id_ed25519 ~/.ssh/known_hosts\nsum=$(sha256sum \"$RUNNER_TEMP/update.tar.gz\"\
+        \ | cut -d' ' -f1)\nfor attempt in $(seq 1 20); do\n  if ssh -T -o BatchMode=yes\
+        \ -o StrictHostKeyChecking=yes -o ConnectTimeout=20 -o ServerAliveInterval=15\
+        \ deploy@\"$VPS_HOST\" \"$DEPLOY_VERSION $SOURCE_SHA $sum\" < \"$RUNNER_TEMP/update.tar.gz\"\
+        \ > \"$RUNNER_TEMP/receiver.log\" 2>&1; then\n    cat \"$RUNNER_TEMP/receiver.log\"\
+        \n    exit 0\n  fi\n  cat \"$RUNNER_TEMP/receiver.log\"\n  if ! grep -Eq 'Another\
+        \ CI deployment is running|Another deployment is running' \"$RUNNER_TEMP/receiver.log\"\
+        ; then exit 1; fi\n  sleep 30\ndone\nexit 1\n"
 'on':
   workflow_dispatch: null
