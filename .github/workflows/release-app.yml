@@ -1,4 +1,4 @@
-name: Release sale barcode scanner
+name: Release faster scanner with printed numbers and reliable audio
 permissions:
   contents: read
   actions: read
@@ -11,15 +11,15 @@ jobs:
     timeout-minutes: 35
     env:
       CI: '1'
-      SOURCE_SHA: 8636af3dc4b0f36130b9e298e2ba4696f730c5f8
-      DEPLOY_VERSION: v3.7.140
-      KITABCHA_BUILD_VERSION: v3.7.140
+      SOURCE_SHA: 192875c908369017b283676f6602f69ae889cfd3
+      DEPLOY_VERSION: v3.7.141
+      KITABCHA_BUILD_VERSION: v3.7.141
       EXPO_PUBLIC_API_URL: https://app.kitabcha.app
     steps:
     - uses: actions/checkout@v4
       with:
         repository: xecdev/kitabcha-app
-        ref: 8636af3dc4b0f36130b9e298e2ba4696f730c5f8
+        ref: 192875c908369017b283676f6602f69ae889cfd3
         ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
         persist-credentials: false
         fetch-depth: 9
@@ -116,15 +116,15 @@ jobs:
           people-currency-selection report-attachments
     env:
       CI: '1'
-      SOURCE_SHA: 8636af3dc4b0f36130b9e298e2ba4696f730c5f8
-      KITABCHA_BUILD_VERSION: v3.7.140
+      SOURCE_SHA: 192875c908369017b283676f6602f69ae889cfd3
+      KITABCHA_BUILD_VERSION: v3.7.141
       EXPO_PUBLIC_API_URL: http://localhost:3001
       SPECS: ${{ matrix.specs }}
     steps:
     - uses: actions/checkout@v4
       with:
         repository: xecdev/kitabcha-app
-        ref: 8636af3dc4b0f36130b9e298e2ba4696f730c5f8
+        ref: 192875c908369017b283676f6602f69ae889cfd3
         ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
         persist-credentials: false
         fetch-depth: 9
@@ -150,15 +150,15 @@ jobs:
     timeout-minutes: 30
     env:
       CI: '1'
-      SOURCE_SHA: 8636af3dc4b0f36130b9e298e2ba4696f730c5f8
-      DEPLOY_VERSION: v3.7.140
-      KITABCHA_BUILD_VERSION: v3.7.140
+      SOURCE_SHA: 192875c908369017b283676f6602f69ae889cfd3
+      DEPLOY_VERSION: v3.7.141
+      KITABCHA_BUILD_VERSION: v3.7.141
       EXPO_PUBLIC_API_URL: https://app.kitabcha.app
     steps:
     - uses: actions/checkout@v4
       with:
         repository: xecdev/kitabcha-app
-        ref: 8636af3dc4b0f36130b9e298e2ba4696f730c5f8
+        ref: 192875c908369017b283676f6602f69ae889cfd3
         ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
         persist-credentials: false
         fetch-depth: 9
@@ -182,7 +182,7 @@ jobs:
     - uses: actions/checkout@v4
       with:
         repository: xecdev/kitabcha-app
-        ref: 8636af3dc4b0f36130b9e298e2ba4696f730c5f8
+        ref: 192875c908369017b283676f6602f69ae889cfd3
         ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
         persist-credentials: false
     - name: Verify isolated PostgreSQL backup and restore
