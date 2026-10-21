@@ -1,4 +1,4 @@
-name: Unify financial colors and add product barcode and camera capture
+name: Refine gross profit, summary styling and report currency defaults
 permissions:
   contents: read
   actions: read
@@ -11,15 +11,15 @@ jobs:
     timeout-minutes: 35
     env:
       CI: '1'
-      SOURCE_SHA: e8de0ca13caeb53e5029df6e102766a93d0d1002
-      DEPLOY_VERSION: v3.7.156
-      KITABCHA_BUILD_VERSION: v3.7.156
+      SOURCE_SHA: 721f78d483e4efaa476557a12635b07fd7f90d9f
+      DEPLOY_VERSION: v3.7.157
+      KITABCHA_BUILD_VERSION: v3.7.157
       EXPO_PUBLIC_API_URL: https://app.kitabcha.app
     steps:
     - uses: actions/checkout@v4
       with:
         repository: xecdev/kitabcha-app
-        ref: e8de0ca13caeb53e5029df6e102766a93d0d1002
+        ref: 721f78d483e4efaa476557a12635b07fd7f90d9f
         ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
         persist-credentials: false
         fetch-depth: 9
@@ -116,15 +116,15 @@ jobs:
           people-currency-selection report-attachments
     env:
       CI: '1'
-      SOURCE_SHA: e8de0ca13caeb53e5029df6e102766a93d0d1002
-      KITABCHA_BUILD_VERSION: v3.7.156
+      SOURCE_SHA: 721f78d483e4efaa476557a12635b07fd7f90d9f
+      KITABCHA_BUILD_VERSION: v3.7.157
       EXPO_PUBLIC_API_URL: http://localhost:3001
       SPECS: ${{ matrix.specs }}
     steps:
     - uses: actions/checkout@v4
       with:
         repository: xecdev/kitabcha-app
-        ref: e8de0ca13caeb53e5029df6e102766a93d0d1002
+        ref: 721f78d483e4efaa476557a12635b07fd7f90d9f
         ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
         persist-credentials: false
         fetch-depth: 9
@@ -150,15 +150,15 @@ jobs:
     timeout-minutes: 30
     env:
       CI: '1'
-      SOURCE_SHA: e8de0ca13caeb53e5029df6e102766a93d0d1002
-      DEPLOY_VERSION: v3.7.156
-      KITABCHA_BUILD_VERSION: v3.7.156
+      SOURCE_SHA: 721f78d483e4efaa476557a12635b07fd7f90d9f
+      DEPLOY_VERSION: v3.7.157
+      KITABCHA_BUILD_VERSION: v3.7.157
       EXPO_PUBLIC_API_URL: https://app.kitabcha.app
     steps:
     - uses: actions/checkout@v4
       with:
         repository: xecdev/kitabcha-app
-        ref: e8de0ca13caeb53e5029df6e102766a93d0d1002
+        ref: 721f78d483e4efaa476557a12635b07fd7f90d9f
         ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
         persist-credentials: false
         fetch-depth: 9
@@ -182,7 +182,7 @@ jobs:
     - uses: actions/checkout@v4
       with:
         repository: xecdev/kitabcha-app
-        ref: e8de0ca13caeb53e5029df6e102766a93d0d1002
+        ref: 721f78d483e4efaa476557a12635b07fd7f90d9f
         ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
         persist-credentials: false
     - name: Verify isolated PostgreSQL backup and restore
