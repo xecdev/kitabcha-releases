@@ -1,4 +1,4 @@
-name: Improve small and low-quality barcode scanning on web and Android
+name: Fix signed number direction in native reports and PDF exports
 permissions:
   contents: read
   actions: read
@@ -11,15 +11,15 @@ jobs:
     timeout-minutes: 35
     env:
       CI: '1'
-      SOURCE_SHA: 900741b18786516738a20261be7b456fde5b4381
-      DEPLOY_VERSION: v3.7.165
-      KITABCHA_BUILD_VERSION: v3.7.165
+      SOURCE_SHA: af94fee264ae2ce215844da620a0a6ba0503c6f1
+      DEPLOY_VERSION: v3.7.167
+      KITABCHA_BUILD_VERSION: v3.7.167
       EXPO_PUBLIC_API_URL: https://app.kitabcha.app
     steps:
     - uses: actions/checkout@v4
       with:
         repository: xecdev/kitabcha-app
-        ref: 900741b18786516738a20261be7b456fde5b4381
+        ref: af94fee264ae2ce215844da620a0a6ba0503c6f1
         ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
         persist-credentials: false
         fetch-depth: 9
@@ -116,15 +116,15 @@ jobs:
           people-currency-selection report-attachments
     env:
       CI: '1'
-      SOURCE_SHA: 900741b18786516738a20261be7b456fde5b4381
-      KITABCHA_BUILD_VERSION: v3.7.165
+      SOURCE_SHA: af94fee264ae2ce215844da620a0a6ba0503c6f1
+      KITABCHA_BUILD_VERSION: v3.7.167
       EXPO_PUBLIC_API_URL: http://localhost:3001
       SPECS: ${{ matrix.specs }}
     steps:
     - uses: actions/checkout@v4
       with:
         repository: xecdev/kitabcha-app
-        ref: 900741b18786516738a20261be7b456fde5b4381
+        ref: af94fee264ae2ce215844da620a0a6ba0503c6f1
         ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
         persist-credentials: false
         fetch-depth: 9
@@ -150,15 +150,15 @@ jobs:
     timeout-minutes: 30
     env:
       CI: '1'
-      SOURCE_SHA: 900741b18786516738a20261be7b456fde5b4381
-      DEPLOY_VERSION: v3.7.165
-      KITABCHA_BUILD_VERSION: v3.7.165
+      SOURCE_SHA: af94fee264ae2ce215844da620a0a6ba0503c6f1
+      DEPLOY_VERSION: v3.7.167
+      KITABCHA_BUILD_VERSION: v3.7.167
       EXPO_PUBLIC_API_URL: https://app.kitabcha.app
     steps:
     - uses: actions/checkout@v4
       with:
         repository: xecdev/kitabcha-app
-        ref: 900741b18786516738a20261be7b456fde5b4381
+        ref: af94fee264ae2ce215844da620a0a6ba0503c6f1
         ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
         persist-credentials: false
         fetch-depth: 9
@@ -182,7 +182,7 @@ jobs:
     - uses: actions/checkout@v4
       with:
         repository: xecdev/kitabcha-app
-        ref: 900741b18786516738a20261be7b456fde5b4381
+        ref: af94fee264ae2ce215844da620a0a6ba0503c6f1
         ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
         persist-credentials: false
     - name: Verify isolated PostgreSQL backup and restore
@@ -198,13 +198,13 @@ jobs:
       CCACHE_BASEDIR: ${{ github.workspace }}
       CCACHE_MAXSIZE: 2G
       CCACHE_COMPILERCHECK: content
-      KITABCHA_BUILD_VERSION: v3.7.165
-      SOURCE_SHA: 900741b18786516738a20261be7b456fde5b4381
+      KITABCHA_BUILD_VERSION: v3.7.167
+      SOURCE_SHA: af94fee264ae2ce215844da620a0a6ba0503c6f1
     steps:
     - uses: actions/checkout@v4
       with:
         repository: xecdev/kitabcha-app
-        ref: 900741b18786516738a20261be7b456fde5b4381
+        ref: af94fee264ae2ce215844da620a0a6ba0503c6f1
         ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
         persist-credentials: false
     - name: Read app version
@@ -215,7 +215,7 @@ jobs:
 
         test "$GITHUB_REF_TYPE" = branch || { echo ''Dispatch APK builds on the release branch, not a version tag.''; exit 1; }
 
-        node -e "const fs=require(''fs''),p=''apps/client/app.json'',d=JSON.parse(fs.readFileSync(p));d.expo.version=''2.0.93'';d.expo.android.versionCode=90;fs.writeFileSync(p,JSON.stringify(d,null,2)+''\n'');"
+        node -e "const fs=require(''fs''),p=''apps/client/app.json'',d=JSON.parse(fs.readFileSync(p));d.expo.version=''2.0.94'';d.expo.android.versionCode=91;fs.writeFileSync(p,JSON.stringify(d,null,2)+''\n'');"
 
         node -e "const {expo}=require(''./apps/client/app.json''); console.log(''version=''+expo.version); console.log(''code=''+expo.android.versionCode)"
         >> "$GITHUB_OUTPUT"
@@ -432,13 +432,13 @@ jobs:
     timeout-minutes: 20
     env:
       GH_TOKEN: ${{ github.token }}
-      SOURCE_SHA: 900741b18786516738a20261be7b456fde5b4381
-      DEPLOY_VERSION: v3.7.166
+      SOURCE_SHA: af94fee264ae2ce215844da620a0a6ba0503c6f1
+      DEPLOY_VERSION: v3.7.168
     steps:
     - uses: actions/checkout@v4
       with:
         repository: xecdev/kitabcha-app
-        ref: 900741b18786516738a20261be7b456fde5b4381
+        ref: af94fee264ae2ce215844da620a0a6ba0503c6f1
         ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
         persist-credentials: false
     - uses: actions/setup-node@v4
@@ -446,7 +446,7 @@ jobs:
         node-version: 24
     - uses: actions/download-artifact@v4
       with:
-        name: Kitabcha-2.0.93-android
+        name: Kitabcha-2.0.94-android
         path: ${{ runner.temp }}/mobile
     - name: Install landing build dependencies
       run: npm ci --include=dev --no-audit --no-fund > "$RUNNER_TEMP/publish-install.log" 2>&1
@@ -457,9 +457,9 @@ jobs:
 
         mkdir -p "$package/mobile" "$package/site/landing" "$package/deploy"
 
-        apk="$RUNNER_TEMP/mobile/Kitabcha-2.0.93-android.apk"
+        apk="$RUNNER_TEMP/mobile/Kitabcha-2.0.94-android.apk"
 
-        python3 scripts/verify-mobile-release.py "$apk" 2.0.93 90 "$RUNNER_TEMP/mobile/release.json"
+        python3 scripts/verify-mobile-release.py "$apk" 2.0.94 91 "$RUNNER_TEMP/mobile/release.json"
 
         cp "$apk" "$package/mobile/"
 
