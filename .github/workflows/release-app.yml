@@ -1,4 +1,4 @@
-name: Web scanner re-entry and mobile width constraints
+name: Rename public Branding page to Brand
 permissions:
   contents: read
   actions: read
@@ -11,15 +11,15 @@ jobs:
     timeout-minutes: 35
     env:
       CI: '1'
-      SOURCE_SHA: 71b20498923202092834869205a3cb6884de48fb
-      DEPLOY_VERSION: v3.7.180
-      KITABCHA_BUILD_VERSION: v3.7.180
+      SOURCE_SHA: b9517bb4cf095a28a4ab7b2c18ca1d4e3528e640
+      DEPLOY_VERSION: v3.7.181
+      KITABCHA_BUILD_VERSION: v3.7.181
       EXPO_PUBLIC_API_URL: https://app.kitabcha.app
     steps:
     - uses: actions/checkout@v4
       with:
         repository: xecdev/kitabcha-app
-        ref: 71b20498923202092834869205a3cb6884de48fb
+        ref: b9517bb4cf095a28a4ab7b2c18ca1d4e3528e640
         ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
         persist-credentials: false
         fetch-depth: 9
@@ -116,15 +116,15 @@ jobs:
           people-currency-selection report-attachments
     env:
       CI: '1'
-      SOURCE_SHA: 71b20498923202092834869205a3cb6884de48fb
-      KITABCHA_BUILD_VERSION: v3.7.180
+      SOURCE_SHA: b9517bb4cf095a28a4ab7b2c18ca1d4e3528e640
+      KITABCHA_BUILD_VERSION: v3.7.181
       EXPO_PUBLIC_API_URL: http://localhost:3001
       SPECS: ${{ matrix.specs }}
     steps:
     - uses: actions/checkout@v4
       with:
         repository: xecdev/kitabcha-app
-        ref: 71b20498923202092834869205a3cb6884de48fb
+        ref: b9517bb4cf095a28a4ab7b2c18ca1d4e3528e640
         ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
         persist-credentials: false
         fetch-depth: 9
@@ -150,15 +150,15 @@ jobs:
     timeout-minutes: 30
     env:
       CI: '1'
-      SOURCE_SHA: 71b20498923202092834869205a3cb6884de48fb
-      DEPLOY_VERSION: v3.7.180
-      KITABCHA_BUILD_VERSION: v3.7.180
+      SOURCE_SHA: b9517bb4cf095a28a4ab7b2c18ca1d4e3528e640
+      DEPLOY_VERSION: v3.7.181
+      KITABCHA_BUILD_VERSION: v3.7.181
       EXPO_PUBLIC_API_URL: https://app.kitabcha.app
     steps:
     - uses: actions/checkout@v4
       with:
         repository: xecdev/kitabcha-app
-        ref: 71b20498923202092834869205a3cb6884de48fb
+        ref: b9517bb4cf095a28a4ab7b2c18ca1d4e3528e640
         ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
         persist-credentials: false
         fetch-depth: 9
@@ -182,7 +182,7 @@ jobs:
     - uses: actions/checkout@v4
       with:
         repository: xecdev/kitabcha-app
-        ref: 71b20498923202092834869205a3cb6884de48fb
+        ref: b9517bb4cf095a28a4ab7b2c18ca1d4e3528e640
         ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
         persist-credentials: false
     - name: Verify isolated PostgreSQL backup and restore
