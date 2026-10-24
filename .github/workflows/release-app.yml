@@ -1,4 +1,4 @@
-name: Publish verified Android 2.0.97 from successful signed build
+name: Web scanner re-entry and mobile width constraints
 permissions:
   contents: read
   actions: read
@@ -6,66 +6,73 @@ concurrency:
   group: production-web-v3-release
   cancel-in-progress: false
 jobs:
-  android_publish:
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
+  web:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 35
     env:
-      GH_TOKEN: ${{ github.token }}
-      SOURCE_SHA: f6d6e198c4ff23c072cc5273b27a976584aace71
-      DEPLOY_VERSION: v3.7.176
+      CI: '1'
+      SOURCE_SHA: 831412924e4a4211cf5c092152cfab9427df6058
+      DEPLOY_VERSION: v3.7.177
+      KITABCHA_BUILD_VERSION: v3.7.177
+      EXPO_PUBLIC_API_URL: https://app.kitabcha.app
     steps:
     - uses: actions/checkout@v4
       with:
         repository: xecdev/kitabcha-app
-        ref: 6b594f906340421f777385d3557097c029d8464b
+        ref: 831412924e4a4211cf5c092152cfab9427df6058
         ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
         persist-credentials: false
+        fetch-depth: 9
     - uses: actions/setup-node@v4
       with:
         node-version: 24.22.1
-    - uses: actions/download-artifact@v4
-      with:
-        name: Kitabcha-2.0.97-android
-        path: ${{ runner.temp }}/mobile
-        run-id: 40068574961
-        github-token: ${{ github.token }}
-        repository: xecdev/kitabcha-releases
-    - name: Install landing build dependencies
-      run: npm ci --include=dev --no-audit --no-fund > "$RUNNER_TEMP/publish-install.log" 2>&1
-    - name: Prepare verified Android publication
+    - name: Build tested web and API package
       run: 'set -euo pipefail
 
-        package="$RUNNER_TEMP/package"
+        npm ci --include=dev --no-audit --no-fund > "$RUNNER_TEMP/install.log" 2>&1
 
-        mkdir -p "$package/mobile" "$package/site/landing" "$package/deploy"
+        npm run db:generate > "$RUNNER_TEMP/prisma.log" 2>&1
 
-        apk="$RUNNER_TEMP/mobile/Kitabcha-2.0.97-android.apk"
+        GITHUB_SHA="$SOURCE_SHA" npm run build:web > "$RUNNER_TEMP/web-build.log" 2>&1
 
-        python3 scripts/verify-mobile-release.py "$apk" 2.0.97 94 "$RUNNER_TEMP/mobile/release.json"
+        update="$RUNNER_TEMP/package"
 
-        cp "$apk" "$package/mobile/"
+        mkdir -p "$update/site" "$update/deploy" "$update/apps/api/src" "$update/apps/api/assets" "$update/apps/api/prisma" "$update/packages/domain/src"
+        "$update/node_modules"
 
-        cp "$RUNNER_TEMP/mobile/release.json" "$package/mobile/"
+        cp -r apps/client/dist/. "$update/site/"
 
-        node --input-type=module <<''JS''
+        rm -rf "$update/site/landing" "$update/site/downloads"
 
-        import fs from ''node:fs'';
+        rm -f "$update/site/website-sw.js" "$update/site/android-release.json"
 
-        const p=''apps/client/marketing/releases.json'';const d=JSON.parse(fs.readFileSync(p));d.android=JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP+''/mobile/release.json''));fs.writeFileSync(p,JSON.stringify(d,null,2)+''\n'');
+        cp -r apps/api/src/. "$update/apps/api/src/"
 
-        JS
+        cp apps/api/assets/* "$update/apps/api/assets/"
 
-        node scripts/build-landing.mjs > "$RUNNER_TEMP/android-landing.log" 2>&1
+        cp -r packages/domain/src/. "$update/packages/domain/src/"
 
-        cp -r apps/client/public/landing/. "$package/site/landing/"
+        cp packages/domain/package.json "$update/packages/domain/"
 
-        cp "$RUNNER_TEMP/mobile/release.json" "$package/site/android-release.json"
+        node scripts/copy-runtime-deps.mjs "$update" sharp qrcode firebase-admin web-push fflate @fastify/jwt > "$RUNNER_TEMP/runtime.log" 2>&1
 
-        cp deploy/android-assets-release.sh "$package/deploy/release.sh"
+        cp apps/api/package.json "$update/apps/api/"
 
-        cp deploy/prune-android-downloads.py "$package/deploy/"
+        cp package-lock.json "$update/"
 
-        tar --mtime=@0 --owner=0 --group=0 --numeric-owner -czf "$RUNNER_TEMP/update.tar.gz" -C "$package" .
+        cp -r apps/api/prisma/. "$update/apps/api/prisma/"
+
+        cp deploy/commercial-release.sh "$update/deploy/release.sh"
+
+        cp deploy/patch-public-pages.sh "$update/deploy/"
+
+        mkdir -p "$update/site/landing"
+
+        cp -r apps/client/public/landing/. "$update/site/landing/"
+
+        tar --mtime=@0 --owner=0 --group=0 --numeric-owner -czf "$RUNNER_TEMP/update.tar.gz" -C "$update" .
+
+        echo ''Production package prepared without publishing private source.''
 
         '
     - name: Publish through restricted receiver
@@ -80,11 +87,105 @@ jobs:
         \ > \"$RUNNER_TEMP/receiver.log\" 2>&1; then\n    cat \"$RUNNER_TEMP/receiver.log\"\n    exit 0\n  fi\n  cat \"$RUNNER_TEMP/receiver.log\"\
         \n  if ! grep -Eq 'Another CI deployment is running|Another deployment is running' \"$RUNNER_TEMP/receiver.log\"; then exit 1; fi\n  sleep\
         \ 30\ndone\nexit 1\n"
-    - name: Verify published Android APK and latest-only download links
-      run: "python3 - <<'PY'\nimport hashlib,json,os,urllib.request\nexpected=json.load(open(os.environ['RUNNER_TEMP']+'/mobile/release.json'))\n\
-        actual=json.load(urllib.request.urlopen('https://app.kitabcha.app/android-release.json',timeout=30));assert actual==expected\nwith urllib.request.urlopen('https://app.kitabcha.app'+actual['url'],timeout=120)\
-        \ as response: data=response.read()\nassert len(data)==expected['bytes'] and hashlib.sha256(data).hexdigest()==expected['sha256']\nfor\
-        \ route in ['', 'fa/', 'ps/']:\n assert actual['url'] in urllib.request.urlopen('https://kitabcha.app/'+route,timeout=30).read().decode()\n\
-        print('Signed Android release and all landing links verified.')\nPY\n"
+    - name: Verify web publication
+      run: 'curl --fail --retry 5 https://app.kitabcha.app/web-release.json -o "$RUNNER_TEMP/web-release.json"
+
+        node -e "const r=require(process.env.RUNNER_TEMP+''/web-release.json'');if(r.commit!==process.env.SOURCE_SHA||r.version!==process.env.DEPLOY_VERSION)process.exit(1);console.log(r)"
+
+        curl --fail --retry 5 https://app.kitabcha.app/health
+
+        '
+    needs:
+    - browser
+    - unit
+    - recovery
+  browser:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        specs:
+        - slow-network-stock barcode-scanner quotations online-only team-identity notification-settings trade-editor-ui record-payment-mode theme-speed
+          bahij-web transaction-receipts team-access screen-recovery refresh-interruption auth landing mobile-keyboard background-saves mobile-responsive
+        - backup-restore contact-input-ui push-notifications creator-ui payment-pane website-language reset-backup more-hub bill-actions profile-stock-premium
+          pane-drafts forms-refresh
+        - sale-visibility-units access-recovery navigation-expiry plan-tiers marketing-v3 app-language-ux reset-cache-boundaries book-deletion
+          accounts-workspace
+        - onboarding-prefill notification-inbox bill-confirmation cashbook website-pages switcher-animations transaction-drafts financial-reports
+          people-currency-selection report-attachments
+    env:
+      CI: '1'
+      SOURCE_SHA: 831412924e4a4211cf5c092152cfab9427df6058
+      KITABCHA_BUILD_VERSION: v3.7.177
+      EXPO_PUBLIC_API_URL: http://localhost:3001
+      SPECS: ${{ matrix.specs }}
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        repository: xecdev/kitabcha-app
+        ref: 831412924e4a4211cf5c092152cfab9427df6058
+        ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
+        persist-credentials: false
+        fetch-depth: 9
+    - uses: actions/setup-node@v4
+      with:
+        node-version: 24.22.1
+    - name: Install browser validation dependencies
+      run: 'npm ci --include=dev --no-audit --no-fund > "$RUNNER_TEMP/browser-install.log" 2>&1
+
+        npm run db:generate > "$RUNNER_TEMP/browser-prisma.log" 2>&1'
+    - name: Validate plans, owner dashboard, permissions and existing browser flows
+      run: "set -euo pipefail\nnpx playwright install --with-deps chromium > \"$RUNNER_TEMP/validation-browser-install.log\" 2>&1\nEXPO_PUBLIC_API_URL=http://localhost:3001\
+        \ GITHUB_SHA=\"$SOURCE_SHA\" npm run build:web > \"$RUNNER_TEMP/validation-web.log\" 2>&1\nfor spec in $SPECS; do\n  echo \"Checking $spec\
+        \ in an isolated test server.\"\n  if ! npx playwright test \"tests/e2e/$spec.spec.ts\" > \"$RUNNER_TEMP/validation-browser.log\" 2>&1;\
+        \ then\n    python3 - <<'PY'\nimport re,pathlib,os\nlog=re.sub(r'\\x1b\\[[0-9;]*m','',pathlib.Path(os.environ['RUNNER_TEMP'],'validation-browser.log').read_text())\n\
+        for line in log.splitlines():\n    if re.match(r'^\\s*(Error:|TimeoutError:|Expected:|Received:|Locator:|Test timeout|[0-9]+ failed|[0-9]+\
+        \ passed|at .*\\.spec\\.ts:)',line):\n        print(re.sub(r'\\b[0-9]{6}\\b','[redacted]',line)[:500])\nfor file in pathlib.Path('test-results').glob('*/error-context.md'):\n\
+        \    text=file.read_text()\n    if '```yaml' in text:\n        snapshot=text.split('```yaml',1)[1].split('```',1)[0]\n        print(re.sub(r'\\\
+        b[0-9]{6}\\b','[redacted]',snapshot)[:10000])\nPY\n    exit 1\n  fi\ndone\necho 'Owner notifications, invoice links, team access and expiry\
+        \ browser checks passed.'\n"
+  unit:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    env:
+      CI: '1'
+      SOURCE_SHA: 831412924e4a4211cf5c092152cfab9427df6058
+      DEPLOY_VERSION: v3.7.177
+      KITABCHA_BUILD_VERSION: v3.7.177
+      EXPO_PUBLIC_API_URL: https://app.kitabcha.app
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        repository: xecdev/kitabcha-app
+        ref: 831412924e4a4211cf5c092152cfab9427df6058
+        ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
+        persist-credentials: false
+        fetch-depth: 9
+    - uses: actions/setup-node@v4
+      with:
+        node-version: 24.22.1
+    - name: Validate private source without publishing logs
+      run: "set -euo pipefail\necho \"Installing validation dependencies\"\nnpm ci --include=dev --no-audit --no-fund > \"$RUNNER_TEMP/validation-install.log\"\
+        \ 2>&1\necho \"Generating database client\"\nnpm run db:generate > \"$RUNNER_TEMP/validation-prisma.log\" 2>&1\necho \"Checking types\"\
+        \nnpm run typecheck > \"$RUNNER_TEMP/validation-types.log\" 2>&1\necho \"Checking lint\"\nnpm run lint > \"$RUNNER_TEMP/validation-lint.log\"\
+        \ 2>&1\nfor pattern in 'tests/*.test.ts' 'tests/*.test.mjs'; do\n  if [[ \"$pattern\" == *'.test.ts' ]]; then\n    command=(node --import\
+        \ tsx --test --test-reporter=tap --test-concurrency=2 --test-timeout=120000)\n  else\n    command=(node --test --test-reporter=tap)\n\
+        \  fi\n  echo \"Running $pattern\"\n  if ! \"${command[@]}\" $pattern > \"$RUNNER_TEMP/validation-tests.log\" 2>&1; then\n    python3\
+        \ - <<'PYTEST'\nimport pathlib,os,re\nlog=pathlib.Path(os.environ['RUNNER_TEMP'],'validation-tests.log').read_text()\nfor line in log.splitlines():\n\
+        \ if re.match(r'^\\s*(not ok|# (tests|pass|fail|skipped)|error:)',line):print(line[:300])\nPYTEST\n    exit 1\n  fi\n  grep -E '^# (tests|pass|fail|skipped)'\
+        \ \"$RUNNER_TEMP/validation-tests.log\" || true\ndone\necho 'Types, lint, full API/unit and session/owner/native regressions passed.'\n"
+  recovery:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        repository: xecdev/kitabcha-app
+        ref: 831412924e4a4211cf5c092152cfab9427df6058
+        ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
+        persist-credentials: false
+    - name: Verify isolated PostgreSQL backup and restore
+      run: python3 scripts/verify-postgres-recovery.py
 'on':
   workflow_dispatch: null
