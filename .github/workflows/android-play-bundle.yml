@@ -219,6 +219,25 @@ jobs:
         echo "Build signed AAB passed."
 
         '
+    - name: Verify R8 did not disable optimization
+      run: 'python3 - <<''PY''
+
+        from pathlib import Path
+
+        p = Path(''apps/client/android/app/build/outputs/mapping/release/configuration.txt'')
+
+        s = p.read_text()
+
+        assert not any(line.strip() in (''-dontoptimize'', ''-dontshrink'', ''-dontobfuscate'') for line in s.splitlines()),
+        ''R8 processing disabled by merged rules''
+
+        assert Path(''apps/client/android/app/build/outputs/mapping/release/mapping.txt'').stat().st_size > 1000
+
+        print(''R8 code optimization, shrinking and obfuscation are enabled in merged release rules.'')
+
+        PY
+
+        '
     - name: Native cache statistics
       if: always()
       run: ccache --show-stats
