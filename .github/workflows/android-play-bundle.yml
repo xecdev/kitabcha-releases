@@ -331,8 +331,9 @@ jobs:
       with:
         name: Kitabcha-${{ steps.version.outputs.version }}-${{ steps.version.outputs.code }}-play
         path: ${{ runner.temp }}/play-output/*
-        if-no-files-found: error
+        if-no-files-found: warn
         retention-days: 30
+      if: always()
     - name: Remove temporary signing files
       if: always()
       run: rm -f "$RUNNER_TEMP/kitabcha-signing.p12" "$RUNNER_TEMP/kitabcha-signing-password"
