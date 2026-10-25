@@ -23,7 +23,7 @@ jobs:
       CCACHE_BASEDIR: ${{ github.workspace }}
       CCACHE_MAXSIZE: 2G
       CCACHE_COMPILERCHECK: content
-      KITABCHA_BUILD_VERSION: 2.0.98
+      KITABCHA_BUILD_VERSION: 2.0.99
       SOURCE_SHA: ${{ inputs.source_ref }}
     steps:
     - uses: actions/checkout@v4
@@ -142,7 +142,8 @@ jobs:
 
         '
     - name: Verify native scanner adapter
-      run: node --test tests/native-barcode-scanner.test.mjs tests/native-barcode-camera.test.mjs > "$RUNNER_TEMP/native-scanner.log" 2>&1
+      run: node --test tests/native-barcode-scanner.test.mjs tests/native-barcode-camera.test.mjs tests/android-release.test.mjs
+        > "$RUNNER_TEMP/native-scanner.log" 2>&1
     - name: Generate Android project
       working-directory: apps/client
       run: 'set -euo pipefail
@@ -253,6 +254,13 @@ jobs:
 
         cp "${bundle%.aab}.json" "$RUNNER_TEMP/play-output/Kitabcha-${APP_VERSION}-${APP_VERSION_CODE}-play.json"
 
+
+        mapping=apps/client/android/app/build/outputs/mapping/release/mapping.txt
+
+        test -s "$mapping"
+
+        cp "$mapping" "$RUNNER_TEMP/play-output/Kitabcha-${APP_VERSION}-${APP_VERSION_CODE}-mapping.txt"
+
         '
     - name: Verify Play APK generation
       working-directory: apps/client
@@ -272,6 +280,34 @@ jobs:
         echo ''Play-style APK generation and signature/alignment verification passed.''
 
         '
+    - name: Enable Android emulator acceleration
+      run: 'echo ''KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"'' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+
+        sudo udevadm control --reload-rules
+
+        sudo udevadm trigger --name-match=kvm
+
+        '
+    - name: Smoke-test the optimized Play APK on Android 16
+      uses: reactivecircus/android-emulator-runner@v2
+      with:
+        api-level: 36
+        arch: x86_64
+        target: google_apis
+        profile: pixel_6
+        disk-size: 3G
+        ram-size: 2048M
+        emulator-boot-timeout: 180
+        disable-animations: true
+        script: python3 scripts/android-play-smoke.py
+    - name: Save optimized APK runtime evidence
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: optimized-play-smoke
+        path: ${{ runner.temp }}/play-smoke/
+        if-no-files-found: warn
+        retention-days: 7
     - uses: actions/upload-artifact@v4
       with:
         name: Kitabcha-${{ steps.version.outputs.version }}-${{ steps.version.outputs.code }}-play
