@@ -1,4 +1,4 @@
-name: Rename public Branding page to Brand
+name: Provision isolated Google Play review account
 permissions:
   contents: read
   actions: read
@@ -11,15 +11,15 @@ jobs:
     timeout-minutes: 35
     env:
       CI: '1'
-      SOURCE_SHA: b9517bb4cf095a28a4ab7b2c18ca1d4e3528e640
-      DEPLOY_VERSION: v3.7.181
-      KITABCHA_BUILD_VERSION: v3.7.181
+      SOURCE_SHA: eb9b9c64efcf7fea6e8b4376b325c0804b890d56
+      DEPLOY_VERSION: v3.7.182
+      KITABCHA_BUILD_VERSION: v3.7.182
       EXPO_PUBLIC_API_URL: https://app.kitabcha.app
     steps:
     - uses: actions/checkout@v4
       with:
         repository: xecdev/kitabcha-app
-        ref: b9517bb4cf095a28a4ab7b2c18ca1d4e3528e640
+        ref: eb9b9c64efcf7fea6e8b4376b325c0804b890d56
         ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
         persist-credentials: false
         fetch-depth: 9
@@ -66,6 +66,9 @@ jobs:
 
         cp deploy/patch-public-pages.sh "$update/deploy/"
 
+        if [ -n "${REVIEWER_SETUP_JSON:-}" ]; then printf ''%s'' "$REVIEWER_SETUP_JSON" > "$update/deploy/reviewer-config.json"; chmod 600 "$update/deploy/reviewer-config.json";
+        fi
+
         mkdir -p "$update/site/landing"
 
         cp -r apps/client/public/landing/. "$update/site/landing/"
@@ -75,6 +78,8 @@ jobs:
         echo ''Production package prepared without publishing private source.''
 
         '
+      env:
+        REVIEWER_SETUP_JSON: ${{ secrets.REVIEWER_SETUP_JSON }}
     - name: Publish through restricted receiver
       env:
         VPS_HOST: ${{ secrets.VPS_HOST }}
@@ -116,15 +121,15 @@ jobs:
           people-currency-selection report-attachments
     env:
       CI: '1'
-      SOURCE_SHA: b9517bb4cf095a28a4ab7b2c18ca1d4e3528e640
-      KITABCHA_BUILD_VERSION: v3.7.181
+      SOURCE_SHA: eb9b9c64efcf7fea6e8b4376b325c0804b890d56
+      KITABCHA_BUILD_VERSION: v3.7.182
       EXPO_PUBLIC_API_URL: http://localhost:3001
       SPECS: ${{ matrix.specs }}
     steps:
     - uses: actions/checkout@v4
       with:
         repository: xecdev/kitabcha-app
-        ref: b9517bb4cf095a28a4ab7b2c18ca1d4e3528e640
+        ref: eb9b9c64efcf7fea6e8b4376b325c0804b890d56
         ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
         persist-credentials: false
         fetch-depth: 9
@@ -150,15 +155,15 @@ jobs:
     timeout-minutes: 30
     env:
       CI: '1'
-      SOURCE_SHA: b9517bb4cf095a28a4ab7b2c18ca1d4e3528e640
-      DEPLOY_VERSION: v3.7.181
-      KITABCHA_BUILD_VERSION: v3.7.181
+      SOURCE_SHA: eb9b9c64efcf7fea6e8b4376b325c0804b890d56
+      DEPLOY_VERSION: v3.7.182
+      KITABCHA_BUILD_VERSION: v3.7.182
       EXPO_PUBLIC_API_URL: https://app.kitabcha.app
     steps:
     - uses: actions/checkout@v4
       with:
         repository: xecdev/kitabcha-app
-        ref: b9517bb4cf095a28a4ab7b2c18ca1d4e3528e640
+        ref: eb9b9c64efcf7fea6e8b4376b325c0804b890d56
         ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
         persist-credentials: false
         fetch-depth: 9
@@ -182,7 +187,7 @@ jobs:
     - uses: actions/checkout@v4
       with:
         repository: xecdev/kitabcha-app
-        ref: b9517bb4cf095a28a4ab7b2c18ca1d4e3528e640
+        ref: eb9b9c64efcf7fea6e8b4376b325c0804b890d56
         ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
         persist-credentials: false
     - name: Verify isolated PostgreSQL backup and restore
