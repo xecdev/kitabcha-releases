@@ -1,0 +1,283 @@
+name: Build Google Play closed-test bundle
+'on':
+  workflow_dispatch:
+    inputs:
+      source_ref:
+        description: Immutable Kitabcha source commit
+        required: true
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: kitabcha-play-bundle
+  cancel-in-progress: false
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      CI: '1'
+      NODE_ENV: production
+      EXPO_PUBLIC_API_URL: https://app.kitabcha.app
+      CCACHE_DIR: ${{ github.workspace }}/.ccache
+      CCACHE_BASEDIR: ${{ github.workspace }}
+      CCACHE_MAXSIZE: 2G
+      CCACHE_COMPILERCHECK: content
+      KITABCHA_BUILD_VERSION: 2.0.98
+      SOURCE_SHA: ${{ inputs.source_ref }}
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        repository: xecdev/kitabcha-app
+        ref: ${{ inputs.source_ref }}
+        ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
+        persist-credentials: false
+    - name: Read app version
+      id: version
+      run: '# Tag-scoped caches cannot be reused by the next release tag.
+
+        # Build on a stable branch; publication still uses an immutable tag.
+
+        test "$GITHUB_REF_TYPE" = branch || { echo ''Dispatch APK builds on the release branch, not a version tag.''; exit
+        1; }
+
+        node -e "const {expo}=require(''./apps/client/app.json''); console.log(''version=''+expo.version); console.log(''code=''+expo.android.versionCode)"
+        >> "$GITHUB_OUTPUT"
+
+        node <<''JS'' >> "$GITHUB_OUTPUT"
+
+        const {createHash}=require(''crypto'');
+
+        const {expo}=require(''./apps/client/app.json'');
+
+        delete expo.version;
+
+        delete expo.android.versionCode;
+
+        if(expo.ios) delete expo.ios.buildNumber;
+
+        console.log(''native=''+createHash(''sha256'').update(JSON.stringify(expo)).digest(''hex''));
+
+        JS
+
+        '
+    - uses: actions/setup-node@v4
+      with:
+        node-version: 24.22.1
+        cache: npm
+    - uses: actions/setup-java@v4
+      with:
+        distribution: temurin
+        java-version: '21'
+    - name: Restore Gradle dependencies and compiled tasks
+      uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a
+      with:
+        cache-read-only: false
+    - name: Restore native compiler cache
+      uses: actions/cache@v4
+      with:
+        path: .ccache
+        key: android-ccache-v1-${{ runner.os }}-${{ hashFiles('package-lock.json', 'apps/client/plugins/**', 'apps/client/modules/**')
+          }}-${{ github.run_id }}-${{ github.run_attempt }}
+        restore-keys: 'android-ccache-v1-${{ runner.os }}-${{ hashFiles(''package-lock.json'', ''apps/client/plugins/**'',
+          ''apps/client/modules/**'') }}-
+
+          android-ccache-v1-${{ runner.os }}-
+
+          '
+    - name: Install native compiler cache
+      run: 'sudo apt-get update -qq
+
+        sudo apt-get install --no-install-recommends -y ccache
+
+        ccache --zero-stats
+
+        '
+    - name: Install Android SDK components
+      run: 'sdk=$(find "$ANDROID_HOME/cmdline-tools" -path ''*/bin/sdkmanager'' -print -quit)
+
+        test -n "$sdk"
+
+        yes | "$sdk" --licenses >/dev/null || true
+
+        "$sdk" ''platforms;android-36'' ''build-tools;36.0.0'' ''ndk;27.1.12297006'' ''cmake;3.22.1''
+
+        '
+    - name: Install JavaScript dependencies
+      run: 'set -euo pipefail
+
+        (
+
+        npm ci --include=dev --no-audit --no-fund
+
+        ) > "$RUNNER_TEMP/android-install-javascript-dependencies.log" 2>&1
+
+        echo "Install JavaScript dependencies passed."
+
+        '
+    - name: Check Home swipe behavior and login translations
+      run: 'set -euo pipefail
+
+        (
+
+        node --import tsx --test tests/home-swipe.test.ts tests/localization.test.ts
+
+        ) > "$RUNNER_TEMP/android-check-home-swipe-behavior-and-login-translations.log" 2>&1
+
+        echo "Check Home swipe behavior and login translations passed."
+
+        '
+    - name: Verify native notification destinations
+      run: node --import tsx --test tests/push-navigation.test.ts > "$RUNNER_TEMP/push-navigation.log" 2>&1
+    - name: Verify native commerce file and draft adapters
+      run: 'set -euo pipefail
+
+        (
+
+        node --test tests/native-commerce.test.mjs tests/bahij-fonts.test.mjs tests/receipt-sharing.test.mjs tests/session-forms.test.mjs
+
+        ) > "$RUNNER_TEMP/android-verify-native-commerce-file-and-draft-adapters.log" 2>&1
+
+        echo "Verify native commerce file and draft adapters passed."
+
+        '
+    - name: Verify native scanner adapter
+      run: node --test tests/native-barcode-scanner.test.mjs tests/native-barcode-camera.test.mjs > "$RUNNER_TEMP/native-scanner.log" 2>&1
+    - name: Generate Android project
+      working-directory: apps/client
+      run: 'set -euo pipefail
+
+        (
+
+        npx expo prebuild --platform android --no-install --no-clean
+
+        ) > "$RUNNER_TEMP/android-generate-android-project.log" 2>&1
+
+        echo "Generate Android project passed."
+
+        '
+    - name: Restore compiled native dependencies
+      uses: actions/cache@v4
+      with:
+        path: 'node_modules/**/android/.cxx
+
+          node_modules/**/android/build
+
+          node_modules/react-native/ReactAndroid/.cxx
+
+          node_modules/react-native/ReactAndroid/build
+
+          apps/client/android/app/.cxx
+
+          apps/client/android/app/build/intermediates/cxx
+
+          '
+        key: android-native-v1-${{ runner.os }}-${{ steps.version.outputs.native }}-${{ hashFiles('package-lock.json', 'apps/client/plugins/**',
+          'apps/client/modules/**') }}-${{ github.run_id }}
+        restore-keys: 'android-native-v1-${{ runner.os }}-${{ steps.version.outputs.native }}-${{ hashFiles(''package-lock.json'',
+          ''apps/client/plugins/**'', ''apps/client/modules/**'') }}-
+
+          '
+    - name: Configure release signing
+      working-directory: apps/client
+      env:
+        SIGNING_KEY_BASE64: ${{ secrets.ANDROID_SIGNING_KEY_BASE64 }}
+        SIGNING_PASSWORD: ${{ secrets.ANDROID_SIGNING_PASSWORD }}
+      run: "set -euo pipefail\n(\nset -euo pipefail\ntest -n \"$SIGNING_KEY_BASE64\"\ntest -n \"$SIGNING_PASSWORD\"\nprintf\
+        \ '%s' \"$SIGNING_KEY_BASE64\" | base64 -d > \"$RUNNER_TEMP/kitabcha-signing.p12\"\nprintf '%s' \"$SIGNING_PASSWORD\"\
+        \ > \"$RUNNER_TEMP/kitabcha-signing-password\"\nchmod 600 \"$RUNNER_TEMP/kitabcha-signing.p12\" \"$RUNNER_TEMP/kitabcha-signing-password\"\
+        \nnode <<'JS'\nconst fs = require('fs');\nconst path = 'android/app/build.gradle';\nlet source = fs.readFileSync(path,\
+        \ 'utf8');\nif (!source.includes('signingConfigs {') || !source.includes('signingConfig signingConfigs.debug')) throw\
+        \ Error('Unexpected Gradle signing configuration');\nsource = source.replace('signingConfigs {', `signingConfigs {\n\
+        \        kitabchaRelease {\n            storeFile file(System.getenv('RUNNER_TEMP') + '/kitabcha-signing.p12')\n \
+        \           storePassword new File(System.getenv('RUNNER_TEMP') + '/kitabcha-signing-password').text.trim()\n    \
+        \        keyAlias 'kitabcha-test'\n            keyPassword new File(System.getenv('RUNNER_TEMP') + '/kitabcha-signing-password').text.trim()\n\
+        \        }`);\nsource = source.replaceAll('signingConfig signingConfigs.debug', 'signingConfig signingConfigs.kitabchaRelease');\n\
+        fs.writeFileSync(path, source);\n// Do not persist configuration-cache data: signing is read at runtime.\nfs.appendFileSync('android/gradle.properties',\
+        \ '\\norg.gradle.caching=true\\norg.gradle.configuration-cache=false\\norg.gradle.workers.max=2\\norg.gradle.parallel=true\\\
+        norg.gradle.jvmargs=-Xmx3072m -XX:MaxMetaspaceSize=768m -XX:ReservedCodeCacheSize=256m\\nkotlin.compiler.execution.strategy=in-process\\\
+        n');\nJS\n\n) > \"$RUNNER_TEMP/android-configure-release-signing.log\" 2>&1\necho \"Configure release signing passed.\"\
+        \n"
+    - name: Build signed Play app bundle
+      working-directory: apps/client/android
+      run: 'set -euo pipefail
+
+        (
+
+        set -euo pipefail
+
+        start=$SECONDS
+
+        ./gradlew :app:bundleRelease --no-daemon --build-cache --max-workers=2 -PreactNativeArchitectures=arm64-v8a,armeabi-v7a,x86_64
+
+        echo "ANDROID_BUILD_SECONDS=$((SECONDS-start))" >> "$GITHUB_ENV"
+
+
+        ) > "$RUNNER_TEMP/android-build-signed-aab.log" 2>&1
+
+        echo "Build signed AAB passed."
+
+        '
+    - name: Native cache statistics
+      if: always()
+      run: ccache --show-stats
+    - name: Verify bundle identity, signature and 16 KB compatibility
+      env:
+        APP_VERSION: ${{ steps.version.outputs.version }}
+        APP_VERSION_CODE: ${{ steps.version.outputs.code }}
+      run: 'set -euo pipefail
+
+        bundle=apps/client/android/app/build/outputs/bundle/release/app-release.aab
+
+        curl --fail --silent --show-error --location --retry 3 https://github.com/google/bundletool/releases/download/1.18.3/bundletool-all-1.18.3.jar
+        -o "$RUNNER_TEMP/bundletool.jar"
+
+        java -jar "$RUNNER_TEMP/bundletool.jar" validate --bundle="$bundle" > "$RUNNER_TEMP/bundle-validation.log" 2>&1
+
+        java -jar "$RUNNER_TEMP/bundletool.jar" dump manifest --bundle="$bundle" --module=base > "$RUNNER_TEMP/bundle-manifest.xml"
+
+        java -jar "$RUNNER_TEMP/bundletool.jar" dump config --bundle="$bundle" > "$RUNNER_TEMP/bundle-config.json"
+
+        jarsigner -verify "$bundle" > "$RUNNER_TEMP/bundle-signature.txt" 2>&1
+
+        grep -q ''jar verified'' "$RUNNER_TEMP/bundle-signature.txt"
+
+        keytool -printcert -jarfile "$bundle" > "$RUNNER_TEMP/bundle-cert.txt"
+
+        python3 scripts/verify-play-bundle.py "$bundle" "$RUNNER_TEMP/bundle-manifest.xml" "$RUNNER_TEMP/bundle-config.json"
+        "$RUNNER_TEMP/bundle-cert.txt"
+
+        mkdir -p "$RUNNER_TEMP/play-output"
+
+        cp "$bundle" "$RUNNER_TEMP/play-output/Kitabcha-${APP_VERSION}-${APP_VERSION_CODE}-play.aab"
+
+        cp "${bundle%.aab}.json" "$RUNNER_TEMP/play-output/Kitabcha-${APP_VERSION}-${APP_VERSION_CODE}-play.json"
+
+        '
+    - name: Verify Play APK generation
+      working-directory: apps/client
+      run: 'set -euo pipefail
+
+        java -jar "$RUNNER_TEMP/bundletool.jar" build-apks --bundle=android/app/build/outputs/bundle/release/app-release.aab
+        --output="$RUNNER_TEMP/play-check.apks" --mode=universal --ks="$RUNNER_TEMP/kitabcha-signing.p12" --ks-key-alias=kitabcha-test
+        --ks-pass=file:"$RUNNER_TEMP/kitabcha-signing-password" --key-pass=file:"$RUNNER_TEMP/kitabcha-signing-password" >
+        "$RUNNER_TEMP/play-apks.log" 2>&1
+
+        unzip -p "$RUNNER_TEMP/play-check.apks" universal.apk > "$RUNNER_TEMP/play-universal.apk"
+
+        "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify "$RUNNER_TEMP/play-universal.apk"
+
+        "$ANDROID_HOME/build-tools/36.0.0/zipalign" -c -P 16 4 "$RUNNER_TEMP/play-universal.apk"
+
+        echo ''Play-style APK generation and signature/alignment verification passed.''
+
+        '
+    - uses: actions/upload-artifact@v4
+      with:
+        name: Kitabcha-${{ steps.version.outputs.version }}-${{ steps.version.outputs.code }}-play
+        path: ${{ runner.temp }}/play-output/*
+        if-no-files-found: error
+        retention-days: 30
+    - name: Remove temporary signing files
+      if: always()
+      run: rm -f "$RUNNER_TEMP/kitabcha-signing.p12" "$RUNNER_TEMP/kitabcha-signing-password"
