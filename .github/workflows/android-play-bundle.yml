@@ -350,7 +350,8 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       SOURCE_SHA: ${{ inputs.source_ref }}
-      DEPLOY_VERSION: v3.7.193
+      # Asset-only publication uses the native version namespace, separate from the web package.
+      DEPLOY_VERSION: v2.0.108
     steps:
       - uses: actions/checkout@v4
         with:
