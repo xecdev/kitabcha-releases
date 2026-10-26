@@ -1,64 +1,119 @@
-name: Publish verified Kitabcha Android release
-on:
-  workflow_dispatch:
+name: Publish verified Kitabcha Android website APK
+'on':
+  workflow_dispatch: {}
 permissions:
-  contents: write
+  contents: read
+  actions: read
 jobs:
-  publish:
+  android_publish:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     env:
       GH_TOKEN: ${{ github.token }}
+      SOURCE_SHA: 4c6be18c12bb303ea6cfdf592e9ecc4396681895
+      DEPLOY_VERSION: v3.7.193
     steps:
-      - name: Download prepared distribution package
-        run: gh release download android-2.0.48 --repo "$GITHUB_REPOSITORY" --pattern android-2.0.48.tar.gz --dir "$RUNNER_TEMP"
-      - name: Verify package and signed APK
-        run: |
-          set -euo pipefail
-          cd "$RUNNER_TEMP"
-          echo 'a2034d68c1fcfc3ac8de0a378d434270947cdb3442e7f09776938111f45aece8  android-2.0.48.tar.gz' | sha256sum -c -
-          mkdir package
-          python3 - <<'PY'
-          import tarfile,pathlib
-          allowed={'mobile/Kitabcha-2.0.48-android.apk','mobile/release.json','site/android-release.json','site/landing/index.html','site/landing/fa/index.html','site/landing/ps/index.html','deploy/release.sh'}
-          with tarfile.open('android-2.0.48.tar.gz') as archive:
-              assert set(archive.getnames())==allowed
-              assert all(m.isfile() for m in archive.getmembers())
-              archive.extractall('package',filter='data')
-          PY
-          apk=package/mobile/Kitabcha-2.0.48-android.apk
-          echo '482a66f72e98d262087d112547c5bc5083076cb790abca242c01b53b26e01717  package/mobile/Kitabcha-2.0.48-android.apk' | sha256sum -c -
-          sdk="$ANDROID_HOME/build-tools/36.0.0"
-          "$sdk/apksigner" verify --verbose --print-certs "$apk" > signature.txt
-          grep -qi 'b294227ba98c244a37dbbf35ac2e01940506847d0fa959183d7400dc4310e674' signature.txt
-          "$sdk/aapt" dump badging "$apk" > metadata.txt
-          grep -q "package: name='com.kitabcha.app'.*versionCode='45'.*versionName='2.0.48'" metadata.txt
-          ! grep -q application-debuggable metadata.txt
-          "$sdk/zipalign" -c -P 16 4 "$apk"
-      - name: Publish through existing restricted receiver
-        env:
-          VPS_HOST: ${{ secrets.VPS_HOST }}
-          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
-          VPS_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
-        run: |
-          set -euo pipefail
-          install -m 700 -d ~/.ssh
-          trap 'rm -f ~/.ssh/id_ed25519' EXIT
-          printf '%s\n' "$VPS_SSH_KEY" > ~/.ssh/id_ed25519
-          printf '%s\n' "$VPS_KNOWN_HOSTS" > ~/.ssh/known_hosts
-          chmod 600 ~/.ssh/id_ed25519 ~/.ssh/known_hosts
-          ssh -T -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=20 -o ServerAliveInterval=15 deploy@"$VPS_HOST" 'v3.6.70 b05551adf12b22aee613e23fe921aa0f0a72386e a2034d68c1fcfc3ac8de0a378d434270947cdb3442e7f09776938111f45aece8' < "$RUNNER_TEMP/android-2.0.48.tar.gz"
-      - name: Verify public release and all landing links
-        run: |
-          python3 - <<'PY'
-          import json,hashlib,urllib.request,os,pathlib
-          expected=json.loads((pathlib.Path(os.environ['RUNNER_TEMP'])/'package/mobile/release.json').read_text())
-          actual=json.load(urllib.request.urlopen('https://app.kitabcha.app/android-release.json',timeout=30))
-          assert actual==expected
-          data=urllib.request.urlopen('https://app.kitabcha.app'+expected['url'],timeout=90).read()
-          assert len(data)==expected['bytes'] and hashlib.sha256(data).hexdigest()==expected['sha256']
-          for route in ['', 'fa/', 'ps/']:
-              html=urllib.request.urlopen('https://kitabcha.app/'+route,timeout=30).read().decode()
-              assert expected['url'] in html
-          print('Android release and download links verified.')
-          PY
+    - name: Require the successful verified Android workflow
+      run: |-
+        set -euo pipefail
+        gh api "repos/$GITHUB_REPOSITORY/actions/runs/40359934410" > "$RUNNER_TEMP/source-run.json"
+        gh api "repos/$GITHUB_REPOSITORY/actions/runs/40359934410/artifacts" > "$RUNNER_TEMP/source-artifacts.json"
+        node --input-type=module <<'JS'
+        import fs from 'node:fs';
+        const r=JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP+'/source-run.json'));
+        if(r.id!==40359934410||r.status!=='completed'||r.conclusion!=='success'||r.path!=='.github/workflows/android-play-bundle.yml')throw Error('The entire verified Android workflow must succeed');
+        const a=JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP+'/source-artifacts.json')).artifacts.find(a=>a.id===12669196604&&a.name==='Kitabcha-2.0.108-android'&&!a.expired);
+        if(!a||a.digest!=='sha256:ba11c09919e518584d4b807db8529403417b1f8e0efcaa0ed6c5e301a7e27c6e')throw Error('Unexpected verified APK artifact');
+        console.log('Successful Android workflow and pinned artifact confirmed.');
+        JS
+    - uses: actions/checkout@v4
+      with:
+        repository: xecdev/kitabcha-app
+        ref: 4c6be18c12bb303ea6cfdf592e9ecc4396681895
+        ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
+        persist-credentials: false
+    - name: Require the matching successful web release
+      run: |-
+        set -euo pipefail
+        curl --fail --silent --show-error https://app.kitabcha.app/web-release.json -o "$RUNNER_TEMP/required-web.json"
+        node -e "const r=require(process.env.RUNNER_TEMP+'/required-web.json');if(r.commit!==process.env.SOURCE_SHA||r.version!=='v3.7.193')throw Error('Matching web release has not passed deployment gates');"
+    - uses: actions/setup-node@v4
+      with:
+        node-version: 24
+    - uses: actions/download-artifact@v4
+      with:
+        name: Kitabcha-2.0.108-android
+        path: ${{ runner.temp }}/mobile
+        run-id: 40359934410
+        github-token: ${{ github.token }}
+    - name: Install landing build dependencies
+      run: npm ci --include=dev --no-audit --no-fund > "$RUNNER_TEMP/publish-install.log" 2>&1
+    - name: Recheck existing APK signing, identity and alignment
+      run: "set -euo pipefail\nsdk=\"$ANDROID_HOME/build-tools/36.0.0\"\nif [[ ! -x \"$sdk/apksigner\" ]]; then\n  manager=$(find\
+        \ \"$ANDROID_HOME/cmdline-tools\" -path '*/bin/sdkmanager' -print -quit)\n  \"$manager\" 'build-tools;36.0.0' > \"\
+        $RUNNER_TEMP/sdk-install.log\" 2>&1\nfi\npython3 scripts/verify-mobile-release.py \"$RUNNER_TEMP/mobile/Kitabcha-2.0.108-android.apk\"\
+        \ 2.0.108 104 \"$RUNNER_TEMP/rechecked-release.json\" > \"$RUNNER_TEMP/apk-recheck.log\" 2>&1\ncmp \"$RUNNER_TEMP/mobile/release.json\"\
+        \ \"$RUNNER_TEMP/rechecked-release.json\"\necho 'Existing signing identity, version, release features and 16 KB alignment\
+        \ reverified.' "
+    - name: Prepare verified Android publication
+      run: |
+        set -euo pipefail
+        package="$RUNNER_TEMP/package"
+        mkdir -p "$package/mobile" "$package/site/landing" "$package/deploy"
+        apk="$RUNNER_TEMP/mobile/Kitabcha-2.0.108-android.apk"
+        node --input-type=module <<'VERIFY'
+        import fs from 'node:fs';import{createHash}from'node:crypto';
+        const dir=process.env.RUNNER_TEMP+'/mobile';const r=JSON.parse(fs.readFileSync(dir+'/release.json'));const b=fs.readFileSync(dir+'/Kitabcha-2.0.108-android.apk');
+        if(r.version!=='2.0.108'||r.versionCode!==104||r.bytes!==b.length||r.sha256!==createHash('sha256').update(b).digest('hex'))throw Error('APK verification manifest mismatch');
+        VERIFY
+        cp "$apk" "$package/mobile/"
+        cp "$RUNNER_TEMP/mobile/release.json" "$package/mobile/"
+        node --input-type=module <<'JS'
+        import fs from 'node:fs';
+        const p='apps/client/marketing/releases.json';const d=JSON.parse(fs.readFileSync(p));d.android=JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP+'/mobile/release.json'));fs.writeFileSync(p,JSON.stringify(d,null,2)+'\n');
+        JS
+        node scripts/build-landing.mjs > "$RUNNER_TEMP/android-landing.log" 2>&1
+        cp -r apps/client/public/landing/. "$package/site/landing/"
+        cp "$RUNNER_TEMP/mobile/release.json" "$package/site/android-release.json"
+        cp deploy/android-assets-release.sh "$package/deploy/release.sh"
+        cp deploy/prune-android-downloads.py "$package/deploy/"
+        tar --mtime=@0 --owner=0 --group=0 --numeric-owner -czf "$RUNNER_TEMP/update.tar.gz" -C "$package" .
+    - name: Publish through restricted receiver
+      env:
+        VPS_HOST: ${{ secrets.VPS_HOST }}
+        VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+        VPS_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+      run: |
+        export GITHUB_SHA="$SOURCE_SHA"
+        set -euo pipefail
+        install -m 700 -d ~/.ssh
+        trap 'rm -f ~/.ssh/id_ed25519' EXIT
+        printf '%s\n' "$VPS_SSH_KEY" > ~/.ssh/id_ed25519
+        printf '%s\n' "$VPS_KNOWN_HOSTS" > ~/.ssh/known_hosts
+        chmod 600 ~/.ssh/id_ed25519 ~/.ssh/known_hosts
+        sum=$(sha256sum "$RUNNER_TEMP/update.tar.gz" | cut -d' ' -f1)
+        for attempt in $(seq 1 20); do
+          if ssh -T -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=20 -o ServerAliveInterval=15 deploy@"$VPS_HOST" "$DEPLOY_VERSION $SOURCE_SHA $sum" < "$RUNNER_TEMP/update.tar.gz" > "$RUNNER_TEMP/receiver.log" 2>&1; then
+            echo 'Receiver status captured privately.'
+            exit 0
+          fi
+          echo 'Receiver status captured privately.'
+          if ! grep -Eq 'Another CI deployment is running|Another deployment is running' "$RUNNER_TEMP/receiver.log"; then exit 1; fi
+          sleep 30
+        done
+        exit 1
+    - name: Verify published Android APK and latest-only download links
+      run: |
+        python3 - <<'PY'
+        import hashlib,json,os,urllib.request
+        expected=json.load(open(os.environ['RUNNER_TEMP']+'/mobile/release.json'))
+        actual=json.load(urllib.request.urlopen('https://app.kitabcha.app/android-release.json',timeout=30));assert actual==expected
+        with urllib.request.urlopen('https://app.kitabcha.app'+actual['url'],timeout=120) as response: data=response.read()
+        assert len(data)==expected['bytes'] and hashlib.sha256(data).hexdigest()==expected['sha256']
+        for route in ['', 'fa/', 'ps/']:
+         assert actual['url'] in urllib.request.urlopen('https://kitabcha.app/'+route,timeout=30).read().decode()
+        print('Signed Android release and all landing links verified.')
+        PY
+    concurrency:
+      group: production-web-v3-release
+      cancel-in-progress: false
