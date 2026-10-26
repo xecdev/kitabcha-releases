@@ -11,7 +11,7 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       SOURCE_SHA: 4c6be18c12bb303ea6cfdf592e9ecc4396681895
-      DEPLOY_VERSION: v3.7.193
+      DEPLOY_VERSION: v2.0.108
     steps:
     - name: Require the successful verified Android workflow
       run: |-
