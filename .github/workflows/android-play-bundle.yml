@@ -363,7 +363,7 @@ jobs:
         run: |-
           set -euo pipefail
           for attempt in $(seq 1 40); do
-            if curl --fail --silent --show-error https://app.kitabcha.app/web-release.json -o "$RUNNER_TEMP/required-web.json" && node -e "const r=require(process.env.RUNNER_TEMP+'/required-web.json');if(r.commit!==process.env.SOURCE_SHA||r.version!=='v3.7.198')process.exit(1)"; then
+            if curl --fail --silent --show-error https://app.kitabcha.app/web-release.json -o "$RUNNER_TEMP/required-web.json" && node -e "const r=require(process.env.RUNNER_TEMP+'/required-web.json');if(r.commit!==process.env.SOURCE_SHA||r.version!=='v3.7.200')process.exit(1)"; then
               echo 'Matching web release passed deployment gates.'
               exit 0
             fi
