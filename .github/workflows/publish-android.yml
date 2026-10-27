@@ -10,49 +10,55 @@ jobs:
     timeout-minutes: 20
     env:
       GH_TOKEN: ${{ github.token }}
-      SOURCE_SHA: 4c6be18c12bb303ea6cfdf592e9ecc4396681895
-      DEPLOY_VERSION: v2.0.108
+      SOURCE_SHA: 30a636336ffc77e52585e511f673e408d99a35bc
+      DEPLOY_VERSION: v2.0.111
     steps:
     - name: Require the successful verified Android workflow
       run: |-
         set -euo pipefail
-        gh api "repos/$GITHUB_REPOSITORY/actions/runs/40359934410" > "$RUNNER_TEMP/source-run.json"
-        gh api "repos/$GITHUB_REPOSITORY/actions/runs/40359934410/artifacts" > "$RUNNER_TEMP/source-artifacts.json"
+        gh api "repos/$GITHUB_REPOSITORY/actions/runs/40528623610" > "$RUNNER_TEMP/source-run.json"
+        gh api "repos/$GITHUB_REPOSITORY/actions/runs/40528623610/artifacts" > "$RUNNER_TEMP/source-artifacts.json"
         node --input-type=module <<'JS'
         import fs from 'node:fs';
         const r=JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP+'/source-run.json'));
-        if(r.id!==40359934410||r.status!=='completed'||r.conclusion!=='success'||r.path!=='.github/workflows/android-play-bundle.yml')throw Error('The entire verified Android workflow must succeed');
-        const a=JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP+'/source-artifacts.json')).artifacts.find(a=>a.id===12669196604&&a.name==='Kitabcha-2.0.108-android'&&!a.expired);
-        if(!a||a.digest!=='sha256:ba11c09919e518584d4b807db8529403417b1f8e0efcaa0ed6c5e301a7e27c6e')throw Error('Unexpected verified APK artifact');
+        if(r.id!==40528623610||r.status!=='completed'||r.conclusion!=='success'||r.path!=='.github/workflows/android-play-bundle.yml')throw Error('The entire verified Android workflow must succeed');
+        const a=JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP+'/source-artifacts.json')).artifacts.find(a=>a.id===12747161315&&a.name==='Kitabcha-2.0.111-android'&&!a.expired);
+        if(!a||a.digest!=='sha256:dd96fba45be76102ec51cc331b4920a3e236da25953e2608eb26eebc2e2eb1f9')throw Error('Unexpected verified APK artifact');
         console.log('Successful Android workflow and pinned artifact confirmed.');
         JS
     - uses: actions/checkout@v4
       with:
         repository: xecdev/kitabcha-app
-        ref: 4c6be18c12bb303ea6cfdf592e9ecc4396681895
+        ref: 30a636336ffc77e52585e511f673e408d99a35bc
         ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
         persist-credentials: false
+        fetch-depth: 9
+    - name: Verify compiled source matches current application source
+      run: |-
+        set -euo pipefail
+        git diff --quiet e504e94a931b66c2ea2c096df53488173caac998 "$SOURCE_SHA" -- . ':!tests'
+        echo 'Compiled application matches the live web source; only test files differ.'
     - name: Require the matching successful web release
       run: |-
         set -euo pipefail
         curl --fail --silent --show-error https://app.kitabcha.app/web-release.json -o "$RUNNER_TEMP/required-web.json"
-        node -e "const r=require(process.env.RUNNER_TEMP+'/required-web.json');if(r.commit!==process.env.SOURCE_SHA||r.version!=='v3.7.193')throw Error('Matching web release has not passed deployment gates');"
+        node -e "const r=require(process.env.RUNNER_TEMP+'/required-web.json');if(r.commit!==process.env.SOURCE_SHA||r.version!=='v3.7.204')throw Error('Matching web release has not passed deployment gates');"
     - uses: actions/setup-node@v4
       with:
         node-version: 24
     - uses: actions/download-artifact@v4
       with:
-        name: Kitabcha-2.0.108-android
+        name: Kitabcha-2.0.111-android
         path: ${{ runner.temp }}/mobile
-        run-id: 40359934410
+        run-id: 40528623610
         github-token: ${{ github.token }}
     - name: Install landing build dependencies
       run: npm ci --include=dev --no-audit --no-fund > "$RUNNER_TEMP/publish-install.log" 2>&1
     - name: Recheck existing APK signing, identity and alignment
       run: "set -euo pipefail\nsdk=\"$ANDROID_HOME/build-tools/36.0.0\"\nif [[ ! -x \"$sdk/apksigner\" ]]; then\n  manager=$(find\
         \ \"$ANDROID_HOME/cmdline-tools\" -path '*/bin/sdkmanager' -print -quit)\n  \"$manager\" 'build-tools;36.0.0' > \"\
-        $RUNNER_TEMP/sdk-install.log\" 2>&1\nfi\npython3 scripts/verify-mobile-release.py \"$RUNNER_TEMP/mobile/Kitabcha-2.0.108-android.apk\"\
-        \ 2.0.108 104 \"$RUNNER_TEMP/rechecked-release.json\" > \"$RUNNER_TEMP/apk-recheck.log\" 2>&1\ncmp \"$RUNNER_TEMP/mobile/release.json\"\
+        $RUNNER_TEMP/sdk-install.log\" 2>&1\nfi\npython3 scripts/verify-mobile-release.py \"$RUNNER_TEMP/mobile/Kitabcha-2.0.111-android.apk\"\
+        \ 2.0.111 107 \"$RUNNER_TEMP/rechecked-release.json\" > \"$RUNNER_TEMP/apk-recheck.log\" 2>&1\ncmp \"$RUNNER_TEMP/mobile/release.json\"\
         \ \"$RUNNER_TEMP/rechecked-release.json\"\necho 'Existing signing identity, version, release features and 16 KB alignment\
         \ reverified.' "
     - name: Prepare verified Android publication
@@ -60,11 +66,11 @@ jobs:
         set -euo pipefail
         package="$RUNNER_TEMP/package"
         mkdir -p "$package/mobile" "$package/site/landing" "$package/deploy"
-        apk="$RUNNER_TEMP/mobile/Kitabcha-2.0.108-android.apk"
+        apk="$RUNNER_TEMP/mobile/Kitabcha-2.0.111-android.apk"
         node --input-type=module <<'VERIFY'
         import fs from 'node:fs';import{createHash}from'node:crypto';
-        const dir=process.env.RUNNER_TEMP+'/mobile';const r=JSON.parse(fs.readFileSync(dir+'/release.json'));const b=fs.readFileSync(dir+'/Kitabcha-2.0.108-android.apk');
-        if(r.version!=='2.0.108'||r.versionCode!==104||r.bytes!==b.length||r.sha256!==createHash('sha256').update(b).digest('hex'))throw Error('APK verification manifest mismatch');
+        const dir=process.env.RUNNER_TEMP+'/mobile';const r=JSON.parse(fs.readFileSync(dir+'/release.json'));const b=fs.readFileSync(dir+'/Kitabcha-2.0.111-android.apk');
+        if(r.version!=='2.0.111'||r.versionCode!==107||r.bytes!==b.length||r.sha256!==createHash('sha256').update(b).digest('hex'))throw Error('APK verification manifest mismatch');
         VERIFY
         cp "$apk" "$package/mobile/"
         cp "$RUNNER_TEMP/mobile/release.json" "$package/mobile/"
@@ -142,7 +148,7 @@ jobs:
     - uses: actions/upload-artifact@v4
       if: ${{ failure() }}
       with:
-        name: apk108-receiver-encrypted-diagnostic
+        name: apk111-receiver-encrypted-diagnostic
         path: ${{ runner.temp }}/receiver-diagnostic.enc
         retention-days: 1
         if-no-files-found: ignore
