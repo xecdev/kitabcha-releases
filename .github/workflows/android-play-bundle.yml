@@ -21,14 +21,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 120
     env:
-      CI: "1"
+      CI: '1'
       NODE_ENV: production
       EXPO_PUBLIC_API_URL: https://app.kitabcha.app
       CCACHE_DIR: ${{ github.workspace }}/.ccache
       CCACHE_BASEDIR: ${{ github.workspace }}
       CCACHE_MAXSIZE: 2G
       CCACHE_COMPILERCHECK: content
-      KITABCHA_BUILD_VERSION: 2.0.112
+      KITABCHA_BUILD_VERSION: 2.0.113
       SOURCE_SHA: ${{ inputs.source_ref }}
     steps:
       - name: Require immutable private source SHA
@@ -61,7 +61,7 @@ jobs:
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: "21"
+          java-version: '21'
       - name: Restore Gradle dependencies and compiled tasks
         uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a
         with:
@@ -351,8 +351,8 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       SOURCE_SHA: ${{ inputs.source_ref }}
       # Asset-only publication uses the native version namespace, separate from the web package.
-      DEPLOY_VERSION: v2.0.112
-      WEB_SOURCE_SHA: 30a636336ffc77e52585e511f673e408d99a35bc
+      DEPLOY_VERSION: v2.0.113
+      WEB_SOURCE_SHA: ${{ inputs.source_ref }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -364,7 +364,7 @@ jobs:
         run: |-
           set -euo pipefail
           for attempt in $(seq 1 40); do
-            if curl --fail --silent --show-error https://app.kitabcha.app/web-release.json -o "$RUNNER_TEMP/required-web.json" && node -e "const r=require(process.env.RUNNER_TEMP+'/required-web.json');if(r.commit!==process.env.WEB_SOURCE_SHA||r.version!=='v3.7.204')process.exit(1)"; then
+            if curl --fail --silent --show-error https://app.kitabcha.app/web-release.json -o "$RUNNER_TEMP/required-web.json" && node -e "const r=require(process.env.RUNNER_TEMP+'/required-web.json');if(r.commit!==process.env.WEB_SOURCE_SHA||r.version!=='v3.7.207')process.exit(1)"; then
               echo 'Approved live web release confirmed; publish APK assets only.'
               exit 0
             fi
@@ -378,7 +378,7 @@ jobs:
           node-version: 24
       - uses: actions/download-artifact@v4
         with:
-          name: Kitabcha-2.0.112-android
+          name: Kitabcha-2.0.113-android
           path: ${{ runner.temp }}/mobile
       - name: Install landing build dependencies
         run: npm ci --include=dev --no-audit --no-fund >
@@ -388,11 +388,11 @@ jobs:
           set -euo pipefail
           package="$RUNNER_TEMP/package"
           mkdir -p "$package/mobile" "$package/site/landing" "$package/deploy"
-          apk="$RUNNER_TEMP/mobile/Kitabcha-2.0.112-android.apk"
+          apk="$RUNNER_TEMP/mobile/Kitabcha-2.0.113-android.apk"
           node --input-type=module <<'VERIFY'
           import fs from 'node:fs';import{createHash}from'node:crypto';
-          const dir=process.env.RUNNER_TEMP+'/mobile';const r=JSON.parse(fs.readFileSync(dir+'/release.json'));const b=fs.readFileSync(dir+'/Kitabcha-2.0.112-android.apk');
-          if(r.version!=='2.0.112'||r.versionCode!==108||r.bytes!==b.length||r.sha256!==createHash('sha256').update(b).digest('hex'))throw Error('APK verification manifest mismatch');
+          const dir=process.env.RUNNER_TEMP+'/mobile';const r=JSON.parse(fs.readFileSync(dir+'/release.json'));const b=fs.readFileSync(dir+'/Kitabcha-2.0.113-android.apk');
+          if(r.version!=='2.0.113'||r.versionCode!==109||r.bytes!==b.length||r.sha256!==createHash('sha256').update(b).digest('hex'))throw Error('APK verification manifest mismatch');
           VERIFY
           cp "$apk" "$package/mobile/"
           cp "$RUNNER_TEMP/mobile/release.json" "$package/mobile/"
