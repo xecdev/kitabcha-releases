@@ -1,0 +1,96 @@
+name: Build signed iOS release on public macOS runner
+on:
+  workflow_dispatch:
+    inputs:
+      source_ref:
+        description: Immutable private-source commit
+        required: true
+permissions:
+  contents: read
+concurrency:
+  group: ios-production-build
+  cancel-in-progress: false
+jobs:
+  ios:
+    runs-on: macos-26
+    timeout-minutes: 120
+    env:
+      CI: '1'
+      EXPO_NO_TELEMETRY: '1'
+      EAS_NO_TELEMETRY: '1'
+      EAS_SKIP_AUTO_FINGERPRINT: '1'
+      EXPO_PUBLIC_API_URL: https://app.kitabcha.app
+      KITABCHA_BUILD_VERSION: 2.0.113
+      SOURCE_SHA: ${{ inputs.source_ref }}
+    steps:
+      - name: Require immutable source
+        shell: bash
+        run: '[[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]'
+      - uses: actions/checkout@v4
+        with:
+          repository: xecdev/kitabcha-app
+          ref: ${{ inputs.source_ref }}
+          ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.22.1
+          cache: npm
+      - name: Install private dependencies
+        shell: bash
+        run: |
+          if ! npm ci --include=dev --no-audit --no-fund > "$RUNNER_TEMP/private-install.log" 2>&1; then
+            echo 'Dependency installation failed; private logs were retained only on this runner.'; exit 1
+          fi
+          npm install --global eas-cli@26.0.0 > "$RUNNER_TEMP/eas-install.log" 2>&1
+      - name: Restore existing signing and Expo session
+        env:
+          IOS_BUILD_CREDENTIALS: ${{ secrets.IOS_BUILD_CREDENTIALS }}
+        shell: bash
+        run: |
+          node --input-type=module <<'JS'
+          import fs from 'node:fs';import os from 'node:os';
+          const s=JSON.parse(process.env.IOS_BUILD_CREDENTIALS),dir='apps/client/.credentials';
+          fs.mkdirSync(dir,{recursive:true});fs.writeFileSync(dir+'/production.mobileprovision',Buffer.from(s.profile,'base64'),{mode:0o600});fs.writeFileSync(dir+'/distribution.p12',Buffer.from(s.certificate,'base64'),{mode:0o600});
+          fs.writeFileSync('apps/client/credentials.json',JSON.stringify({ios:{provisioningProfilePath:'.credentials/production.mobileprovision',distributionCertificate:{path:'.credentials/distribution.p12',password:s.password}}}),{mode:0o600});
+          fs.mkdirSync(os.homedir()+'/.expo',{recursive:true});fs.writeFileSync(os.homedir()+'/.expo/state.json',JSON.stringify(s.expoState),{mode:0o600});
+          const app=JSON.parse(fs.readFileSync('apps/client/app.json')).expo;if(app.version!=='2.0.113'||app.ios.buildNumber!=='27'||app.ios.bundleIdentifier!=='com.kitabcha.app')throw Error('Release identity mismatch');
+          JS
+      - name: Build and sign iOS without EAS cloud build quota
+        working-directory: apps/client
+        env:
+          EAS_LOCAL_BUILD_WORKINGDIR: ${{ runner.temp }}/eas-local
+        shell: bash
+        run: |
+          mkdir -p "$RUNNER_TEMP/ios-release"
+          if ! eas build --platform ios --profile production --local --non-interactive --freeze-credentials --output "$RUNNER_TEMP/ios-release/Kitabcha-2.0.113-27.ipa" > "$RUNNER_TEMP/private-ios-build.log" 2>&1; then
+            echo 'iOS local build failed. Raw private build output is not published.'
+            exit 1
+          fi
+      - name: Verify signed package
+        shell: bash
+        run: |
+          python3 <<'PY'
+          import zipfile,plistlib,hashlib,json,os,subprocess,tempfile
+          from pathlib import Path
+          p=Path(os.environ['RUNNER_TEMP'])/'ios-release/Kitabcha-2.0.113-27.ipa'
+          with zipfile.ZipFile(p) as z:
+            assert z.testzip() is None
+            n=next(n for n in z.namelist() if n.startswith('Payload/') and n.endswith('/Info.plist') and n.count('/')==2)
+            i=plistlib.loads(z.read(n));assert i['CFBundleIdentifier']=='com.kitabcha.app' and i['CFBundleShortVersionString']=='2.0.113' and i['CFBundleVersion']=='27'
+            profile=Path(os.environ['RUNNER_TEMP'])/'profile.mobileprovision';profile.write_bytes(z.read(n.rsplit('/',1)[0]+'/embedded.mobileprovision'))
+            v=subprocess.run(['security','cms','-D','-i',str(profile)],capture_output=True,check=True);e=plistlib.loads(v.stdout)['Entitlements'];assert e['application-identifier']=='HQSHUAD342.com.kitabcha.app' and e['aps-environment']=='production'
+          r={'package':'com.kitabcha.app','version':'2.0.113','build':'27','source':os.environ['SOURCE_SHA'],'bytes':p.stat().st_size,'sha256':hashlib.file_digest(p.open('rb'),'sha256').hexdigest(),'productionPush':True}
+          (p.parent/'verification.json').write_text(json.dumps(r,indent=2));print(json.dumps(r))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Kitabcha-2.0.113-27-ios
+          path: ${{ runner.temp }}/ios-release/
+          retention-days: 7
+      - name: Remove signing material and private logs
+        if: always()
+        shell: bash
+        run: |
+          rm -f apps/client/credentials.json apps/client/.credentials/distribution.p12 apps/client/.credentials/production.mobileprovision "$HOME/.expo/state.json"
+          rm -f "$RUNNER_TEMP/private-install.log" "$RUNNER_TEMP/private-ios-build.log"
