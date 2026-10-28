@@ -88,6 +88,34 @@ jobs:
           name: Kitabcha-2.0.113-27-ios
           path: ${{ runner.temp }}/ios-release/
           retention-days: 7
+      - name: Encrypt failure diagnostics for local inspection
+        if: failure()
+        env:
+          DIAGNOSTIC_PUBLIC_KEY: |
+            -----BEGIN PUBLIC KEY-----
+            MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAtg3UeD8IE9A0fOZ1Oaal
+            1pSoJkxstU4Nmi6qZ0qFRkgn5j9Hzm34TqjwEQVRCbujBSipjcdctR6rxToAbk8N
+            WhaofmJnVgh8hCUytqi6JTNA2d11Ej/mIgPLwX0dgLdh4yPJsPotHSmolv+4rdcL
+            PajxEksQbpaHPqwrkAk6UXhKCxn3dbVeOBNQ/CkIEA+uVF6RvQq8QQU+LN3tqPZg
+            pGkJRY5M/ZnAnqe5FTd8M8SkWLbOd/dlu/ffWzZzsyr+bw6DR+PMSR6dE2thjLh+
+            AHG0RBX+sSqTA1o6fSMRIn+/Pk3BwvTrPiDVKE5LzSRHzonkcGOXBOFVQkgaBT/w
+            kwIDAQAB
+            -----END PUBLIC KEY-----
+        shell: bash
+        run: |
+          node --input-type=module <<'JS'
+          import fs from 'node:fs';import{randomBytes,createCipheriv,publicEncrypt,constants}from'node:crypto';
+          const file=process.env.RUNNER_TEMP+'/private-ios-build.log';if(!fs.existsSync(file))process.exit(0);
+          const raw=fs.readFileSync(file),key=randomBytes(32),iv=randomBytes(12),cipher=createCipheriv('aes-256-gcm',key,iv),data=Buffer.concat([cipher.update(raw),cipher.final()]);
+          const wrapped=publicEncrypt({key:process.env.DIAGNOSTIC_PUBLIC_KEY,oaepHash:'sha256',padding:constants.RSA_PKCS1_OAEP_PADDING},key);
+          fs.writeFileSync(process.env.RUNNER_TEMP+'/ios-diagnostic.enc.json',JSON.stringify({key:wrapped.toString('base64'),iv:iv.toString('base64'),tag:cipher.getAuthTag().toString('base64'),data:data.toString('base64')}));
+          JS
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: encrypted-ios-diagnostic
+          path: ${{ runner.temp }}/ios-diagnostic.enc.json
+          retention-days: 1
       - name: Remove signing material and private logs
         if: always()
         shell: bash
