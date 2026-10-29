@@ -12,8 +12,8 @@ jobs:
     env:
       CI: "1"
       SOURCE_SHA: dbc391b7a6dbb43f952610bb787c3007b1eab26d
-      DEPLOY_VERSION: v3.7.210
-      KITABCHA_BUILD_VERSION: v3.7.210
+      DEPLOY_VERSION: v3.7.211
+      KITABCHA_BUILD_VERSION: v3.7.211
       EXPO_PUBLIC_API_URL: https://app.kitabcha.app
     steps:
       - uses: actions/checkout@v4
@@ -149,7 +149,7 @@ jobs:
     env:
       CI: "1"
       SOURCE_SHA: dbc391b7a6dbb43f952610bb787c3007b1eab26d
-      KITABCHA_BUILD_VERSION: v3.7.210
+      KITABCHA_BUILD_VERSION: v3.7.211
       EXPO_PUBLIC_API_URL: http://localhost:3001
       SPECS: ${{ matrix.specs }}
     steps:
@@ -195,8 +195,8 @@ jobs:
     env:
       CI: "1"
       SOURCE_SHA: dbc391b7a6dbb43f952610bb787c3007b1eab26d
-      DEPLOY_VERSION: v3.7.210
-      KITABCHA_BUILD_VERSION: v3.7.210
+      DEPLOY_VERSION: v3.7.211
+      KITABCHA_BUILD_VERSION: v3.7.211
       EXPO_PUBLIC_API_URL: https://app.kitabcha.app
     steps:
       - uses: actions/checkout@v4
