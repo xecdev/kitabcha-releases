@@ -28,14 +28,41 @@ jobs:
           const file=await api('/contents/.github/workflows/release-app.yml?ref='+run.head_sha),text=Buffer.from(file.content,'base64').toString();
           const pins=[...text.matchAll(/(?:SOURCE_SHA:|ref:)\s+([a-f0-9]{40})/g)].map(m=>m[1]);
           if(pins.length<6||pins.some(p=>p!=='a79a6faefe9f235d0584cf5315c8dc92058b4a34'))throw Error('Validation source is not the publication source');
-          console.log('Reusing successful unit, four browser and PostgreSQL recovery gates for immutable source a79a6faefe9f235d0584cf5315c8dc92058b4a34.');
+          console.log('Reusing successful unit, four browser and PostgreSQL recovery gates for validated application source a79a6faefe9f235d0584cf5315c8dc92058b4a34.');
           NODE
+      - uses: actions/checkout@v4
+        with:
+          repository: xecdev/kitabcha-app
+          ref: dbc391b7a6dbb43f952610bb787c3007b1eab26d
+          ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
+          persist-credentials: false
+          fetch-depth: 9
+      - name: Require only the reviewed deployment CLI-link repair
+        run: >-
+          set -euo pipefail
+
+          count=$(git diff --name-only a79a6faefe9f235d0584cf5315c8dc92058b4a34 HEAD | wc -l)
+
+          test "$count" -eq 1
+
+          read -r added removed file < <(git diff --numstat a79a6faefe9f235d0584cf5315c8dc92058b4a34 HEAD)
+
+          test "$added" -eq 1
+
+          test "$removed" -eq 0
+
+          test "$file" = deploy/commercial-release.sh
+
+          git diff --exit-code a79a6faefe9f235d0584cf5315c8dc92058b4a34 HEAD -- apps packages tests
+          package-lock.json
+
+          echo 'Application, schema, dependencies and tests exactly match the passed validation source.'
   web:
     runs-on: ubuntu-22.04
     timeout-minutes: 35
     env:
       CI: "1"
-      SOURCE_SHA: a79a6faefe9f235d0584cf5315c8dc92058b4a34
+      SOURCE_SHA: dbc391b7a6dbb43f952610bb787c3007b1eab26d
       DEPLOY_VERSION: v3.7.210
       KITABCHA_BUILD_VERSION: v3.7.210
       EXPO_PUBLIC_API_URL: https://app.kitabcha.app
@@ -43,7 +70,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: xecdev/kitabcha-app
-          ref: a79a6faefe9f235d0584cf5315c8dc92058b4a34
+          ref: dbc391b7a6dbb43f952610bb787c3007b1eab26d
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
           fetch-depth: 9
