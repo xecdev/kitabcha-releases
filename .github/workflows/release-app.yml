@@ -11,15 +11,15 @@ jobs:
     timeout-minutes: 35
     env:
       CI: "1"
-      SOURCE_SHA: 501f73945b8dab1b95c1d609b04bab7f8d93023b
-      DEPLOY_VERSION: v3.7.209
-      KITABCHA_BUILD_VERSION: v3.7.209
+      SOURCE_SHA: 7ae62544283595bf36880b2a84b66cad590a80d8
+      DEPLOY_VERSION: v3.7.210
+      KITABCHA_BUILD_VERSION: v3.7.210
       EXPO_PUBLIC_API_URL: https://app.kitabcha.app
     steps:
       - uses: actions/checkout@v4
         with:
           repository: xecdev/kitabcha-app
-          ref: 501f73945b8dab1b95c1d609b04bab7f8d93023b
+          ref: 7ae62544283595bf36880b2a84b66cad590a80d8
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
           fetch-depth: 9
@@ -58,8 +58,7 @@ jobs:
 
           cp packages/domain/package.json "$update/packages/domain/"
 
-          node scripts/copy-runtime-deps.mjs "$update" sharp qrcode
-          firebase-admin web-push fflate @fastify/jwt >
+          node scripts/copy-runtime-deps.mjs "$update" $(node -e "console.log(Object.keys(require('./apps/api/package.json').dependencies).filter(n=>!n.startsWith('@kitabcha/')).join(' '))") tsx >
           "$RUNNER_TEMP/runtime.log" 2>&1
 
           cp apps/api/package.json "$update/apps/api/"
@@ -71,6 +70,8 @@ jobs:
           cp deploy/commercial-release.sh "$update/deploy/release.sh"
 
           cp deploy/patch-public-pages.sh "$update/deploy/"
+
+          cp deploy/owner-readiness.sh "$update/deploy/"
 
           mkdir -p "$update/site/landing"
 
@@ -104,6 +105,8 @@ jobs:
 
           for attempt in $(seq 1 20); do
             if ssh -T -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=20 -o ServerAliveInterval=15 deploy@"$VPS_HOST" "$DEPLOY_VERSION $SOURCE_SHA $sum" < "$RUNNER_TEMP/update.tar.gz" > "$RUNNER_TEMP/receiver.log" 2>&1; then
+              python3 -c 'import json,sys; allowed={"databasePortsPrivate","apiPortsPrivate","apiNonRoot","apiNoNewPrivileges","apiCapabilitiesDropped","sshPasswordDisabled","sshRootDisabled","hostFirewallActive","fail2banActive","automaticUpdatesActive","backupKeyConfigured","diskFreeBytes","diskTotalBytes"}; [print("Server readiness: "+json.dumps({k:v for k,v in json.loads(line.split("=",1)[1]).items() if k in allowed and (isinstance(v,(bool,int,float)) or v is None)})) for line in open(sys.argv[1]) if line.startswith("KITABCHA_READINESS=")]' "$RUNNER_TEMP/receiver.log"
+
               echo 'Receiver status captured privately.'
               exit 0
             fi
@@ -145,15 +148,15 @@ jobs:
             financial-reports people-currency-selection report-attachments
     env:
       CI: "1"
-      SOURCE_SHA: 501f73945b8dab1b95c1d609b04bab7f8d93023b
-      KITABCHA_BUILD_VERSION: v3.7.209
+      SOURCE_SHA: 7ae62544283595bf36880b2a84b66cad590a80d8
+      KITABCHA_BUILD_VERSION: v3.7.210
       EXPO_PUBLIC_API_URL: http://localhost:3001
       SPECS: ${{ matrix.specs }}
     steps:
       - uses: actions/checkout@v4
         with:
           repository: xecdev/kitabcha-app
-          ref: 501f73945b8dab1b95c1d609b04bab7f8d93023b
+          ref: 7ae62544283595bf36880b2a84b66cad590a80d8
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
           fetch-depth: 9
@@ -191,15 +194,15 @@ jobs:
     timeout-minutes: 30
     env:
       CI: "1"
-      SOURCE_SHA: 501f73945b8dab1b95c1d609b04bab7f8d93023b
-      DEPLOY_VERSION: v3.7.209
-      KITABCHA_BUILD_VERSION: v3.7.209
+      SOURCE_SHA: 7ae62544283595bf36880b2a84b66cad590a80d8
+      DEPLOY_VERSION: v3.7.210
+      KITABCHA_BUILD_VERSION: v3.7.210
       EXPO_PUBLIC_API_URL: https://app.kitabcha.app
     steps:
       - uses: actions/checkout@v4
         with:
           repository: xecdev/kitabcha-app
-          ref: 501f73945b8dab1b95c1d609b04bab7f8d93023b
+          ref: 7ae62544283595bf36880b2a84b66cad590a80d8
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
           fetch-depth: 9
@@ -236,6 +239,11 @@ jobs:
             fi
             grep -E '^# (tests|pass|fail|skipped)' "$RUNNER_TEMP/validation-tests.log" || true
           done
+          if ! node tests/admin-backup-ui-smoke.mjs > "$RUNNER_TEMP/owner-backup-browser.log" 2>&1; then
+            echo 'Owner backup browser regression failed; private diagnostics retained on runner.'
+            exit 1
+          fi
+          echo 'Owner encrypted backup download, upload review and restore browser gate passed.'
           echo 'Types, lint, full API/unit and session/owner/native regressions passed.'
   recovery:
     runs-on: ubuntu-22.04
@@ -244,7 +252,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: xecdev/kitabcha-app
-          ref: 501f73945b8dab1b95c1d609b04bab7f8d93023b
+          ref: 7ae62544283595bf36880b2a84b66cad590a80d8
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
       - name: Verify isolated PostgreSQL backup and restore
