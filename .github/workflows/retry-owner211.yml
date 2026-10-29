@@ -1,0 +1,167 @@
+name: Retry validated Kitabcha v3.7.211 publication
+on:
+  workflow_dispatch: {}
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: production-web-v3-release
+  cancel-in-progress: false
+jobs:
+  validated-source:
+    runs-on: ubuntu-22.04
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - name: Require all passed production gates for the identical source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |-
+          node --input-type=module <<'NODE'
+          const base='https://api.github.com/repos/xecdev/kitabcha-releases';
+          async function api(path){const r=await fetch(base+path,{headers:{Authorization:'Bearer '+process.env.GH_TOKEN,Accept:'application/vnd.github+json'}});if(!r.ok)throw Error('Validation metadata unavailable');return r.json();}
+          const run=await api('/actions/runs/40872228319');if(run.status!=='completed'||run.head_sha!=='e144fc19802d76c817493dcb92185398fc7015f9')throw Error('Unexpected validated workflow revision');
+          const jobs=(await api('/actions/runs/40872228319/jobs?per_page=100')).jobs;
+          const gates=jobs.filter(j=>j.name==='unit'||j.name==='recovery'||j.name.startsWith('browser ('));
+          if(gates.length!==6||gates.some(j=>j.conclusion!=='success'))throw Error('Required production gates are not all successful');
+          const file=await api('/contents/.github/workflows/release-app.yml?ref='+run.head_sha),text=Buffer.from(file.content,'base64').toString();
+          const pins=[...text.matchAll(/(?:SOURCE_SHA:|ref:)\s+([a-f0-9]{40})/g)].map(m=>m[1]);
+          if(pins.length<6||pins.some(p=>p!=='a79a6faefe9f235d0584cf5315c8dc92058b4a34'))throw Error('Validation source is not the publication source');
+          console.log('Reusing successful unit, four browser and PostgreSQL recovery gates for validated application source a79a6faefe9f235d0584cf5315c8dc92058b4a34.');
+          NODE
+      - uses: actions/checkout@v4
+        with:
+          repository: xecdev/kitabcha-app
+          ref: dbc391b7a6dbb43f952610bb787c3007b1eab26d
+          ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
+          persist-credentials: false
+          fetch-depth: 9
+      - name: Require only the reviewed deployment CLI-link repair
+        run: >-
+          set -euo pipefail
+
+          count=$(git diff --name-only a79a6faefe9f235d0584cf5315c8dc92058b4a34 HEAD | wc -l)
+
+          test "$count" -eq 1
+
+          read -r added removed file < <(git diff --numstat a79a6faefe9f235d0584cf5315c8dc92058b4a34 HEAD)
+
+          test "$added" -eq 1
+
+          test "$removed" -eq 0
+
+          test "$file" = deploy/commercial-release.sh
+
+          git diff --exit-code a79a6faefe9f235d0584cf5315c8dc92058b4a34 HEAD -- apps packages tests
+          package-lock.json
+
+          echo 'Application, schema, dependencies and tests exactly match the passed validation source.'
+  web:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 35
+    env:
+      CI: "1"
+      SOURCE_SHA: dbc391b7a6dbb43f952610bb787c3007b1eab26d
+      DEPLOY_VERSION: v3.7.211
+      KITABCHA_BUILD_VERSION: v3.7.211
+      EXPO_PUBLIC_API_URL: https://app.kitabcha.app
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: xecdev/kitabcha-app
+          ref: dbc391b7a6dbb43f952610bb787c3007b1eab26d
+          ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
+          persist-credentials: false
+          fetch-depth: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.22.1
+      - name: Build tested web and API package
+        run: |
+          set -euo pipefail
+          npm ci --include=dev --no-audit --no-fund > "$RUNNER_TEMP/install.log" 2>&1
+          npm run db:generate > "$RUNNER_TEMP/prisma.log" 2>&1
+          GITHUB_SHA="$SOURCE_SHA" npm run build:web > "$RUNNER_TEMP/web-build.log" 2>&1
+          update="$RUNNER_TEMP/package"
+          mkdir -p "$update/site" "$update/deploy" "$update/apps/api/src" "$update/apps/api/assets" "$update/apps/api/prisma" "$update/packages/domain/src" "$update/node_modules"
+          cp -r apps/client/dist/. "$update/site/"
+          rm -rf "$update/site/landing" "$update/site/downloads"
+          rm -f "$update/site/website-sw.js" "$update/site/android-release.json"
+          cp -r apps/api/src/. "$update/apps/api/src/"
+          cp apps/api/assets/* "$update/apps/api/assets/"
+          cp -r packages/domain/src/. "$update/packages/domain/src/"
+          cp packages/domain/package.json "$update/packages/domain/"
+          node scripts/copy-runtime-deps.mjs "$update" $(node -e "console.log(Object.keys(require('./apps/api/package.json').dependencies).filter(n=>!n.startsWith('@kitabcha/')).join(' '))") tsx > "$RUNNER_TEMP/runtime.log" 2>&1
+          cp apps/api/package.json "$update/apps/api/"
+          cp package-lock.json "$update/"
+          cp -r apps/api/prisma/. "$update/apps/api/prisma/"
+          cp deploy/commercial-release.sh "$update/deploy/release.sh"
+          cp deploy/patch-public-pages.sh "$update/deploy/"
+          cp deploy/owner-readiness.sh "$update/deploy/"
+          mkdir -p "$update/site/landing"
+          cp -r apps/client/public/landing/. "$update/site/landing/"
+          tar --mtime=@0 --owner=0 --group=0 --numeric-owner -czf "$RUNNER_TEMP/update.tar.gz" -C "$update" .
+          echo 'Production package prepared without publishing private source.'
+      - name: Publish through restricted receiver
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          VPS_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+        run: >
+          export GITHUB_SHA="$SOURCE_SHA"
+
+          set -euo pipefail
+
+          install -m 700 -d ~/.ssh
+
+          trap 'rm -f ~/.ssh/id_ed25519' EXIT
+
+          printf '%s\n' "$VPS_SSH_KEY" > ~/.ssh/id_ed25519
+
+          printf '%s\n' "$VPS_KNOWN_HOSTS" > ~/.ssh/known_hosts
+
+          chmod 600 ~/.ssh/id_ed25519 ~/.ssh/known_hosts
+
+          sum=$(sha256sum "$RUNNER_TEMP/update.tar.gz" | cut -d' ' -f1)
+
+          for attempt in $(seq 1 20); do
+            if ssh -T -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=20 -o ServerAliveInterval=15 deploy@"$VPS_HOST" "$DEPLOY_VERSION $SOURCE_SHA $sum" < "$RUNNER_TEMP/update.tar.gz" > "$RUNNER_TEMP/receiver.log" 2>&1; then
+              python3 -c 'import json,sys; allowed={"databasePortsPrivate","apiPortsPrivate","apiNonRoot","apiNoNewPrivileges","apiCapabilitiesDropped","sshPasswordDisabled","sshRootDisabled","hostFirewallActive","fail2banActive","automaticUpdatesActive","backupKeyConfigured","diskFreeBytes","diskTotalBytes"}; [print("Server readiness: "+json.dumps({k:v for k,v in json.loads(line.split("=",1)[1]).items() if k in allowed and (isinstance(v,(bool,int,float)) or v is None)})) for line in open(sys.argv[1]) if line.startswith("KITABCHA_READINESS=")]' "$RUNNER_TEMP/receiver.log"
+
+              echo 'Receiver status captured privately.'
+              exit 0
+            fi
+            echo 'Receiver status captured privately.'
+            if ! grep -Eq 'Another CI deployment is running|Another deployment is running' "$RUNNER_TEMP/receiver.log"; then exit 1; fi
+            sleep 30
+          done
+
+          exit 1
+      - name: Encrypt failed receiver diagnostics
+        if: failure()
+        env:
+          DIAGNOSTIC_PUBLIC_KEY: LS0tLS1CRUdJTiBQVUJMSUMgS0VZLS0tLS0KTUlJQm9qQU5CZ2txaGtpRzl3MEJBUUVGQUFPQ0FZOEFNSUlCaWdLQ0FZRUFqOThYbmtjWGpBbEt3SG0reHFLcApReUtrc3ZnTlRtS0tNeWlpRjNnVi9NNEpHV0xOaGlTRGhRYVZyMHNqTG5GYWJrbVFjZkUrZ2oyTUMvUnZ4SVVECm8wSW9HY21JVzltbExYeEtUVWNsTnpKdTlPM1pJSVI2WXdGbDBRR1NaVEN3QTIvR0tlL1h5S2xwWHBMSDJ2aHAKQU9JVjQxaFdYWlRtS0Fra3Y5VnBSa3B0SWMwZWtwQkJXTTZaaGMxa21BSU9mRmdLNUg0ZEZXVHFYaWVkenVvcApaYlE4R2ZnRmE2QWhUUGpxTncwNStLZW1SME5LbHRKdUhVc2xqQm1JcDZyaGtJaG4wRE9zRExKYWp4MkJ6V05OCkQvUTE2YkNzVUh2aUk0MURUb0w3UUU4M2FZL3crYjVpbUs0Qlh2UDJJM3JYZUlvcWJJZGhtdTFEemVJZXZxNXkKR090b09iQ3E1Z3RQZDVkTFdTM01VZWtrUE1PRnVtSGtlNmlqV2swOXlvL2lsWVlnUXdmV1Q5M2lvdG54c2JvQQpjTWpHZ0xpc2RmY0VUTlh0bGdCWEcyNmRNTzR2M3h3UStwbHdKbW9WWFc3UUpQR0VaZVhuQzg3ZlRDZTZTZnRuCnBscThEUjBtMEQxVlozemRkdXA3S1RwQ1cyS2JqNGpsRkhWZEovaXNQLzNUQWdNQkFBRT0KLS0tLS1FTkQgUFVCTElDIEtFWS0tLS0tCg==
+        run: |-
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';import path from 'node:path';import {randomBytes,createCipheriv,publicEncrypt,constants} from 'node:crypto';
+          const logs={};for(const name of ['receiver.log','install.log','prisma.log','web-build.log','runtime.log']){const p=path.join(process.env.RUNNER_TEMP,name);if(fs.existsSync(p))logs[name]=fs.readFileSync(p,'utf8');}
+          const key=randomBytes(32),iv=randomBytes(12),cipher=createCipheriv('aes-256-gcm',key,iv),data=Buffer.concat([cipher.update(JSON.stringify(logs)),cipher.final()]);
+          const sealed={key:publicEncrypt({key:Buffer.from(process.env.DIAGNOSTIC_PUBLIC_KEY,'base64'),padding:constants.RSA_PKCS1_OAEP_PADDING,oaepHash:'sha256'},key).toString('base64'),iv:iv.toString('base64'),tag:cipher.getAuthTag().toString('base64'),data:data.toString('base64')};
+          fs.writeFileSync(path.join(process.env.RUNNER_TEMP,'owner211-diagnostic.enc'),JSON.stringify(sealed));console.log('Diagnostic encrypted for the local decryption key; raw logs are not published.');
+          NODE
+      - name: Upload encrypted failure diagnostic
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: owner211-diagnostic-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/owner211-diagnostic.enc
+          retention-days: 2
+          if-no-files-found: ignore
+      - name: Verify web publication
+        run: |
+          curl --fail --retry 5 https://app.kitabcha.app/web-release.json -o "$RUNNER_TEMP/web-release.json"
+          node -e "const r=require(process.env.RUNNER_TEMP+'/web-release.json');if(r.commit!==process.env.SOURCE_SHA||r.version!==process.env.DEPLOY_VERSION)process.exit(1);console.log(r)"
+          curl --fail --retry 5 https://app.kitabcha.app/health
+    needs:
+      - validated-source
