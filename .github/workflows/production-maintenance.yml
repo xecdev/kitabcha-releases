@@ -45,6 +45,7 @@ jobs:
           curl --fail -sS --max-time 20 https://app.kitabcha.app/web-release.json > "$RUNNER_TEMP/marker-before.json"
           mkdir -p "$RUNNER_TEMP/probe/deploy"
           (cd source && python3 tests/production-maintenance.test.py > "$RUNNER_TEMP/ops-tests.log" 2>&1)
+          if test -f source/tests/request-history.test.py; then (cd source && python3 tests/request-history.test.py >> "$RUNNER_TEMP/ops-tests.log" 2>&1); fi
           case "$MODE" in inventory|cleanup|install|verify) ;; *) exit 1 ;; esac
           if [[ "$MODE" == cleanup ]]; then [[ "$PLAN_DIGEST" =~ ^[a-f0-9]{64}$ ]]; fi
           printf '%s' "$MODE" > "$RUNNER_TEMP/probe/deploy/mode"
