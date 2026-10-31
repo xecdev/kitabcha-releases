@@ -11,12 +11,12 @@ jobs:
     runs-on: ubuntu-22.04
     timeout-minutes: 12
     env:
-      SOURCE_SHA: 65e9c877c63ec347d62441997cd7c96627e30b94
+      SOURCE_SHA: 00b9a732b6ba5e18f59669a3089f3ef1951e2c21
     steps:
       - uses: actions/checkout@v4
         with:
           repository: xecdev/kitabcha-app
-          ref: 65e9c877c63ec347d62441997cd7c96627e30b94
+          ref: 00b9a732b6ba5e18f59669a3089f3ef1951e2c21
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
           path: source
