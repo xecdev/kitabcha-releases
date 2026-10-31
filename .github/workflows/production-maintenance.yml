@@ -19,14 +19,14 @@ jobs:
     runs-on: ubuntu-22.04
     timeout-minutes: 12
     env:
-      SOURCE_SHA: 9f346e2dd9f050ab7f328b64a8a145c0610614f1
+      SOURCE_SHA: 52d41a2092dffcb3657432057b5f9354f8b52eab
       MODE: ${{ inputs.mode }}
       PLAN_DIGEST: ${{ inputs.plan_digest }}
     steps:
       - uses: actions/checkout@v4
         with:
           repository: xecdev/kitabcha-app
-          ref: 9f346e2dd9f050ab7f328b64a8a145c0610614f1
+          ref: 52d41a2092dffcb3657432057b5f9354f8b52eab
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
           path: source
