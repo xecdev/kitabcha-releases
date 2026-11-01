@@ -1,0 +1,31 @@
+name: Check public website reachability
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  public:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 4
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Read public release markers and health only
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const out={checkedAt:new Date().toISOString()};
+          for(const [key,path] of [['web','web-release.json'],['health','health'],['android','android-release.json']]) {
+            const r=await fetch('https://app.kitabcha.app/'+path,{signal:AbortSignal.timeout(45000),cache:'no-store'});
+            if(!r.ok)throw Error(path+' '+r.status);
+            out[key]=await r.json();
+          }
+          fs.writeFileSync('public-site-state.json',JSON.stringify(out,null,2));
+          console.log('PUBLIC_SITE_STATE='+JSON.stringify(out));
+          NODE
+      - uses: actions/upload-artifact@v4
+        with:
+          name: public-site-state
+          path: public-site-state.json
+          retention-days: 1
