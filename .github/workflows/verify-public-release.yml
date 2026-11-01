@@ -1,0 +1,77 @@
+name: Verify public web release
+on:
+  workflow_dispatch:
+    inputs:
+      expected_version:
+        required: true
+        type: string
+      expected_sha:
+        required: true
+        type: string
+      android_marker_hash:
+        required: true
+        type: string
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 8
+    env:
+      EXPECTED_VERSION: ${{ inputs.expected_version }}
+      EXPECTED_SHA: ${{ inputs.expected_sha }}
+      ANDROID_MARKER_HASH: ${{ inputs.android_marker_hash }}
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Verify public endpoints and indexing boundaries
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';import assert from 'node:assert/strict';import{createHash}from'node:crypto';
+          const out={verifiedAt:new Date().toISOString()};
+          async function get(url){const r=await fetch(url,{cache:'no-store',signal:AbortSignal.timeout(30000)});assert.equal(r.status,200,url);return r;}
+          out.marker=await(await get('https://app.kitabcha.app/web-release.json')).json();
+          assert.equal(out.marker.version,process.env.EXPECTED_VERSION);assert.equal(out.marker.commit,process.env.EXPECTED_SHA);
+          out.health=await(await get('https://app.kitabcha.app/health')).json();assert.equal(out.health.status,'ok');
+          const app=await(await get('https://app.kitabcha.app/')).text();assert.ok(!app.includes('data-kitabcha-analytics'));
+          const entry=app.match(/src="([^\"]*\/entry-[^\"]+\.js)"/)?.[1];assert.ok(entry);
+          const bundle=await(await get(new URL(entry,'https://app.kitabcha.app'))).text();assert.ok(bundle.includes('chart-values'));assert.ok(bundle.includes('aria-describedby'));out.uiBundleVerified=true;
+          const root=await get('https://kitabcha.app/'),html=await root.text();assert.equal((html.match(/data-kitabcha-analytics/g)??[]).length,1);
+          const csp=root.headers.get('content-security-policy');assert.ok(csp.includes('https://www.googletagmanager.com'));assert.ok(!csp.includes('unsafe-inline')&&!csp.includes('unsafe-eval'));out.publicCspVerified=true;
+          const script=await get('https://kitabcha.app/landing/analytics.js');assert.ok(script.headers.get('cache-control')?.includes('no-cache'));assert.ok((await script.text()).includes('G-3VS962MFYP'));
+          const sitemap=await(await get('https://kitabcha.app/sitemap.xml')).text();const urls=[...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map(m=>new URL(m[1]));assert.equal(urls.length,81);assert.equal(new Set(urls.map(u=>u.href)).size,81);assert.ok(urls.every(u=>u.origin==='https://kitabcha.app'&&!/\/(owner|admin|api|customers|suppliers)(\/|$)/.test(u.pathname)));assert.ok(sitemap.includes('xmlns:xhtml'));out.sitemapUrls=urls.length;
+          const robots=await(await get('https://kitabcha.app/robots.txt')).text();assert.ok(robots.includes('Sitemap: https://kitabcha.app/sitemap.xml'));out.sitemapDiscoverable=true;
+          const owner=await get('https://app.kitabcha.app/owner/');assert.ok(!owner.headers.get('content-security-policy')?.includes('googletagmanager'));assert.ok(owner.headers.get('x-robots-tag')?.includes('noindex'));assert.ok(!(await owner.text()).includes('analytics.js'));out.ownerExcluded=true;
+          out.pages=[];for(const path of ['/help/record-transactions/','/fa/help/reports-and-pdf/','/ps/help/reports-and-pdf/']){const r=await get('https://kitabcha.app'+path),text=await r.text();if(path.includes('reports-and-pdf'))assert.ok(text.includes('report-charts'));else assert.ok(text.includes('amount field is selected'));assert.equal((text.match(/data-kitabcha-analytics/g)??[]).length,1);out.pages.push({path,status:r.status});}
+          const android=await(await get('https://app.kitabcha.app/android-release.json')).json();assert.equal(createHash('sha256').update(JSON.stringify(android)).digest('hex'),process.env.ANDROID_MARKER_HASH);out.androidUnchanged=true;
+          fs.writeFileSync('public-release-verification.json',JSON.stringify(out,null,2));console.log('Public release, sitemap, security and APK-marker checks passed.');
+          NODE
+      - name: Install anonymous public-site browser check
+        run: |
+          npm install --no-audit --no-fund --ignore-scripts playwright@1.63.0 > "$RUNNER_TEMP/public-browser-install.log" 2>&1
+          npx playwright install --with-deps chromium > "$RUNNER_TEMP/public-chromium-install.log" 2>&1
+      - name: Verify public Google tag loads and sends a page view
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from'node:fs';import assert from'node:assert/strict';import{chromium}from'playwright';
+          const browser=await chromium.launch({headless:true});
+          try{
+            const page=await browser.newPage();const violations=[];
+            page.on('console',message=>{if(message.type()==='error'&&/content.security.policy|violates.*directive/i.test(message.text()))violations.push(message.text());});
+            const loader=page.waitForResponse(r=>r.url().startsWith('https://www.googletagmanager.com/gtag/js')&&new URL(r.url()).searchParams.get('id')==='G-3VS962MFYP',{timeout:30000});
+            const collected=page.waitForResponse(r=>/google-analytics\.com\/g\/collect/.test(r.url())&&new URL(r.url()).searchParams.get('tid')==='G-3VS962MFYP',{timeout:30000});
+            await page.goto('https://kitabcha.app/',{waitUntil:'domcontentloaded',timeout:30000});
+            await page.waitForFunction(()=>window.dataLayer?.some(args=>args[0]==='config'&&args[1]==='G-3VS962MFYP'),{},{timeout:15000});
+            assert.equal((await loader).status(),200);assert.ok([200,204].includes((await collected).status()));assert.equal(violations.length,0,'Unexpected public-site CSP violations');
+            const out=JSON.parse(fs.readFileSync('public-release-verification.json'));out.googleTagLoaded=true;out.analyticsPageViewAccepted=true;out.publicCspViolations=0;fs.writeFileSync('public-release-verification.json',JSON.stringify(out,null,2));
+            console.log('Anonymous public-site Analytics loader and collection checks passed.');
+          }finally{await browser.close();}
+          NODE
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: public-release-verification
+          path: public-release-verification.json
+          retention-days: 2
+          if-no-files-found: ignore
