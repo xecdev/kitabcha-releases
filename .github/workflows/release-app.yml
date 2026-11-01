@@ -11,7 +11,7 @@ jobs:
     timeout-minutes: 35
     env:
       CI: "1"
-      SOURCE_SHA: ab037f836efc8b59e40941254f70cca02d03e9cd
+      SOURCE_SHA: 6a0d036e07459d8e9ca9ec9ef1a38d5c2da84708
       DEPLOY_VERSION: v3.7.226
       KITABCHA_BUILD_VERSION: v3.7.226
       EXPO_PUBLIC_API_URL: https://app.kitabcha.app
@@ -19,7 +19,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: xecdev/kitabcha-app
-          ref: ab037f836efc8b59e40941254f70cca02d03e9cd
+          ref: 6a0d036e07459d8e9ca9ec9ef1a38d5c2da84708
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
           fetch-depth: 9
@@ -149,7 +149,7 @@ jobs:
             financial-reports people-currency-selection report-attachments form-experience ui-polish interaction-motion
     env:
       CI: "1"
-      SOURCE_SHA: ab037f836efc8b59e40941254f70cca02d03e9cd
+      SOURCE_SHA: 6a0d036e07459d8e9ca9ec9ef1a38d5c2da84708
       KITABCHA_BUILD_VERSION: v3.7.226
       EXPO_PUBLIC_API_URL: http://localhost:3001
       SPECS: ${{ matrix.specs }}
@@ -157,7 +157,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: xecdev/kitabcha-app
-          ref: ab037f836efc8b59e40941254f70cca02d03e9cd
+          ref: 6a0d036e07459d8e9ca9ec9ef1a38d5c2da84708
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
           fetch-depth: 9
@@ -211,7 +211,7 @@ jobs:
     timeout-minutes: 30
     env:
       CI: "1"
-      SOURCE_SHA: ab037f836efc8b59e40941254f70cca02d03e9cd
+      SOURCE_SHA: 6a0d036e07459d8e9ca9ec9ef1a38d5c2da84708
       DEPLOY_VERSION: v3.7.226
       KITABCHA_BUILD_VERSION: v3.7.226
       EXPO_PUBLIC_API_URL: https://app.kitabcha.app
@@ -219,7 +219,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: xecdev/kitabcha-app
-          ref: ab037f836efc8b59e40941254f70cca02d03e9cd
+          ref: 6a0d036e07459d8e9ca9ec9ef1a38d5c2da84708
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
           fetch-depth: 9
@@ -320,7 +320,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: xecdev/kitabcha-app
-          ref: ab037f836efc8b59e40941254f70cca02d03e9cd
+          ref: 6a0d036e07459d8e9ca9ec9ef1a38d5c2da84708
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
       - name: Verify isolated PostgreSQL backup and restore
