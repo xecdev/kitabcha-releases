@@ -91,7 +91,11 @@ jobs:
           if [[ "$mode" == runtime ]]; then
             test -z "$(sudo -n dpkg --audit)"
             runtime=$(apt-cache madison containerd.io | awk '$3 ~ /^2\.3\.7-/ && !found {print $3; found=1}')
-            test -n "$runtime"
+            if [[ -z "$runtime" ]]; then
+              runtime=$(apt-cache policy containerd.io | awk '/Candidate:/ {print $2}')
+              [[ "$runtime" == 2.4.2-* ]]
+            fi
+            echo "CONTAINERD_TARGET=$runtime"
             packages=(docker-ce docker-ce-cli docker-ce-rootless-extras "containerd.io=$runtime" docker-buildx-plugin docker-compose-plugin)
             sudo -n apt-get -s --no-remove install "${packages[@]}"
             trap 'sudo -n systemctl start docker; docker start kitabcha-db-1 kitabcha-api-1 kitabcha-web-1 > /dev/null' EXIT
