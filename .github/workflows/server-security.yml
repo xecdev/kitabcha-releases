@@ -67,7 +67,7 @@ jobs:
             backup="/opt/kitabcha/shared/backups/kitabcha-security-$(date -u +%Y%m%dT%H%M%SZ).dump"
             docker exec kitabcha-db-1 pg_dump -U kitabcha -d kitabcha -Fc | sudo -n tee "$backup" > /dev/null
             sudo -n chmod 600 "$backup"
-            sudo -n cat "$backup" | docker exec -i kitabcha-db-1 pg_restore --list > /dev/null
+            sudo -n sh -c 'docker exec -i kitabcha-db-1 pg_restore --list < "$1" > /dev/null' sh "$backup"
             sudo -n sha256sum "$backup"
             docker inspect --format '{{.Name}} {{range .Mounts}}{{.Type}}:{{.Name}}:{{.Destination}} {{end}}' kitabcha-db-1
             sudo -n apt-get update -qq
@@ -106,6 +106,21 @@ jobs:
             docker inspect --format '{{.Name}} {{.State.Status}} {{if .State.Health}}{{.State.Health.Status}}{{end}} {{range .Mounts}}{{.Type}}:{{.Name}}:{{.Destination}} {{end}}' kitabcha-db-1 kitabcha-api-1 kitabcha-web-1
             curl -fsS --max-time 20 https://app.kitabcha.app/health
             curl -fsS --max-time 20 https://app.kitabcha.app/web-release.json
+            curl -fsS --max-time 20 -o /dev/null https://app.kitabcha.app/api/v1/auth/options
+            backup=$(sudo -n find /opt/kitabcha/shared/backups -maxdepth 1 -type f -name 'kitabcha-security-*.dump' -printf '%T@ %p\n' | sort -nr | head -1 | cut -d' ' -f2-)
+            test -n "$backup"
+            restore="kitabcha-security-restore-$$"
+            trap 'docker rm -f "$restore" > /dev/null 2>&1 || true' EXIT
+            docker run -d --name "$restore" --network none --memory=2g --tmpfs /var/lib/postgresql/data:rw,size=1536m -e POSTGRES_HOST_AUTH_METHOD=trust -e POSTGRES_USER=kitabcha -e POSTGRES_DB=kitabcha postgres:17-alpine > /dev/null
+            for i in {1..30}; do
+              if docker exec "$restore" pg_isready -U kitabcha -d kitabcha > /dev/null 2>&1; then break; fi
+              sleep 2
+            done
+            sudo -n cat "$backup" | docker exec -i "$restore" pg_restore --exit-on-error --no-owner --no-privileges -U kitabcha -d kitabcha
+            docker exec "$restore" psql -U kitabcha -d kitabcha -Atc "SELECT count(*) FROM information_schema.tables WHERE table_schema='public' AND table_type='BASE TABLE'"
+            docker rm -f "$restore" > /dev/null
+            trap - EXIT
+            echo BACKUP_RESTORE_VERIFIED
             echo SECURITY_REMAINING
             python3 - <<'PY'
           import apt
