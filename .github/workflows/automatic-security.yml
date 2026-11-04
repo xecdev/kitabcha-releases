@@ -54,8 +54,122 @@ jobs:
             docker inspect --format '{{.Name}} {{.State.StartedAt}} {{.RestartCount}} {{.State.Status}}' kitabcha-api-1 kitabcha-db-1 kitabcha-web-1
             exit
           fi
+          if [[ "$mode" == install ]]; then
+            before=$(docker inspect --format '{{.Id}} {{.State.StartedAt}} {{.RestartCount}}' kitabcha-api-1 kitabcha-db-1 kitabcha-web-1)
+            boot=$(cat /proc/sys/kernel/random/boot_id)
+            sudo -n bash <<'ROOT'
+          set -Eeuo pipefail
+          umask 077
+          backup=/opt/kitabcha/shared/security-config-backup-$(date -u +%Y%m%dT%H%M%SZ)
+          mkdir -p "$backup"
+          tar -czf "$backup/before.tar.gz" /etc/apt/apt.conf.d /etc/needrestart/conf.d /etc/systemd/system/apt-daily.timer.d /etc/systemd/system/apt-daily-upgrade.timer.d /etc/systemd/system/apt-daily-upgrade.service.d 2>/dev/null || test $? = 2
+          install -d /etc/needrestart/conf.d /etc/systemd/system/apt-daily.timer.d /etc/systemd/system/apt-daily-upgrade.timer.d /etc/systemd/system/apt-daily-upgrade.service.d
+          cat > /etc/apt/apt.conf.d/99zz-kitabcha-security <<'APT'
+          APT::Periodic::Enable "1";
+          APT::Periodic::Update-Package-Lists "1";
+          APT::Periodic::Unattended-Upgrade "1";
+          #clear Unattended-Upgrade::Allowed-Origins;
+          #clear Unattended-Upgrade::Origins-Pattern;
+          Unattended-Upgrade::Allowed-Origins {
+            "${distro_id}:${distro_codename}-security";
+            "${distro_id}ESMApps:${distro_codename}-apps-security";
+            "${distro_id}ESM:${distro_codename}-infra-security";
+          };
+          Unattended-Upgrade::Automatic-Reboot "false";
+          Unattended-Upgrade::Automatic-Reboot-WithUsers "false";
+          Unattended-Upgrade::Remove-Unused-Kernel-Packages "false";
+          Unattended-Upgrade::Remove-New-Unused-Dependencies "false";
+          Unattended-Upgrade::Remove-Unused-Dependencies "false";
+          Unattended-Upgrade::Package-Blacklist {
+            "^docker.*"; "^containerd.*"; "^runc$"; "^crun$";
+            "^systemd.*"; "^libsystemd.*"; "^libnss-systemd$"; "^libpam-systemd$"; "^udev$"; "^libudev.*";
+            "^netplan.*"; "^network-manager.*"; "^ifupdown.*"; "^isc-dhcp.*"; "^dhcpcd.*";
+            "^iptables$"; "^nftables$"; "^ufw$"; "^firewalld$"; "^apparmor$";
+            "^caddy$"; "^nginx.*"; "^haproxy.*"; "^postgresql.*"; "^redis-server$";
+          };
+          APT
+          cat > /etc/needrestart/conf.d/99-kitabcha-no-restarts.conf <<'PERL'
+          # Security fixes that need service restarts are activated during planned maintenance.
+          $nrconf{restart} = 'l';
+          $nrconf{override_rc}->{qr(.*)} = 0;
+          PERL
+          cat > /etc/systemd/system/apt-daily.timer.d/kitabcha.conf <<'UNIT'
+          [Timer]
+          OnCalendar=
+          OnCalendar=*-*-* 22:15:00 UTC
+          RandomizedDelaySec=5m
+          Persistent=false
+          UNIT
+          cat > /etc/systemd/system/apt-daily-upgrade.timer.d/kitabcha.conf <<'UNIT'
+          [Timer]
+          OnCalendar=
+          OnCalendar=*-*-* 22:30:00 UTC
+          RandomizedDelaySec=15m
+          Persistent=false
+          UNIT
+          cat > /etc/systemd/system/apt-daily-upgrade.service.d/kitabcha.conf <<'UNIT'
+          [Service]
+          Environment=NEEDRESTART_MODE=l
+          Nice=10
+          IOSchedulingClass=idle
+          CPUWeight=20
+          IOWeight=20
+          UNIT
+          chmod 644 /etc/apt/apt.conf.d/99zz-kitabcha-security /etc/needrestart/conf.d/99-kitabcha-no-restarts.conf /etc/systemd/system/apt-daily*.d/kitabcha.conf
+          perl -c /etc/needrestart/conf.d/99-kitabcha-no-restarts.conf
+          apt-config dump > "$backup/effective-apt.conf"
+          systemctl daemon-reload
+          systemctl enable apt-daily.timer apt-daily-upgrade.timer
+          systemctl restart apt-daily.timer apt-daily-upgrade.timer
+          unattended-upgrade --dry-run --debug > "$backup/unattended-dry-run.log" 2>&1
+          echo UNATTENDED_DRY_RUN_PASSED
+          systemctl list-timers apt-daily.timer apt-daily-upgrade.timer --no-pager
+          ROOT
+            test "$before" = "$(docker inspect --format '{{.Id}} {{.State.StartedAt}} {{.RestartCount}}' kitabcha-api-1 kitabcha-db-1 kitabcha-web-1)"
+            test "$boot" = "$(cat /proc/sys/kernel/random/boot_id)"
+            echo NO_APP_RESTARTS_CONFIRMED
+          fi
+          if [[ "$mode" == install || "$mode" == status ]]; then
+            sudo -n python3 - <<'PY'
+          import apt, apt_pkg, datetime, json, pathlib, re, subprocess
+          def cmd(args):
+              r=subprocess.run(args,text=True,capture_output=True,timeout=90)
+              return r.stdout.strip(),r.returncode
+          apt_pkg.init_config();apt_pkg.init_system()
+          c=apt.Cache()
+          blocked=[];runtime=[]
+          patterns=apt_pkg.config.value_list('Unattended-Upgrade::Package-Blacklist')
+          for p in c:
+              if not p.is_installed or not p.is_upgradable: continue
+              if any(o.origin=='Ubuntu' and o.archive.endswith('-security') for o in p.candidate.origins) and any(re.match(x,p.name) for x in patterns): blocked.append(p.name)
+              if p.name in ['docker-ce','containerd.io','runc']: runtime.append({'package':p.name,'installed':p.installed.version,'available':p.candidate.version})
+          restart,rc=cmd(['needrestart','-b','-r','l'])
+          services=[l.split(':',1)[1].strip() for l in restart.splitlines() if l.startswith('NEEDRESTART-SVC:')]
+          timers={n:cmd(['systemctl','is-enabled',n])[0] for n in ['apt-daily.timer','apt-daily-upgrade.timer']}
+          result=cmd(['systemctl','show','apt-daily-upgrade.service','-p','Result','--value'])[0]
+          stamp=pathlib.Path('/var/lib/apt/periodic/upgrade-stamp')
+          log=pathlib.Path('/var/log/unattended-upgrades/unattended-upgrades.log')
+          last_error=None;last_success=None
+          if log.exists():
+              for line in log.read_text(errors='replace').splitlines()[-3000:]:
+                  if 'ERROR ' in line: last_error=line[:23]
+                  if 'All upgrades installed' in line or 'No packages found that can be upgraded unattended' in line: last_success=line[:23]
+          failed=cmd(['systemctl','--failed','--no-legend','--plain','--no-pager'])[0]
+          containers=json.loads(cmd(['docker','inspect','--format','{{json .State}}','kitabcha-api-1'])[0])
+          report={'checkedAt':datetime.datetime.now(datetime.timezone.utc).isoformat(),'kernel':cmd(['uname','-r'])[0],
+          'rebootRequired':pathlib.Path('/run/reboot-required').exists(),'rebootPackages':pathlib.Path('/run/reboot-required.pkgs').read_text().splitlines() if pathlib.Path('/run/reboot-required.pkgs').exists() else [],
+          'automaticReboot':apt_pkg.config.find_b('Unattended-Upgrade::Automatic-Reboot',False),'periodicEnabled':apt_pkg.config.find('APT::Periodic::Unattended-Upgrade'),
+          'origins':apt_pkg.config.value_list('Unattended-Upgrade::Allowed-Origins'),'needrestartListOnly':pathlib.Path('/etc/needrestart/conf.d/99-kitabcha-no-restarts.conf').exists(),
+          'timers':timers,'lastUpgradeStamp':datetime.datetime.fromtimestamp(stamp.stat().st_mtime,datetime.timezone.utc).isoformat() if stamp.exists() else None,
+          'upgradeServiceResult':result,'lastUpdateErrorAt':last_error,'lastUpdateSuccessAt':last_success,'restartServices':services,'needrestartCheckOk':rc==0,
+          'blockedSecurityUpdates':sorted(blocked),'runtimeUpdatesAvailable':runtime,'failedUnits':[l.split()[0] for l in failed.splitlines() if l.strip()],
+          'apiContainerHealthy':containers.get('Health',{}).get('Status')=='healthy'}
+          print('SECURITY_STATUS_JSON='+json.dumps(report,separators=(',',':')))
+          PY
+            curl -fsS --max-time 20 https://app.kitabcha.app/health
+          fi
           SECURITY_SCRIPT
-          printf '%s\n' '#!/bin/bash' 'set -Eeuo pipefail' 'bash "$(dirname "$0")/security.sh" inspect' > "$RUNNER_TEMP/probe/deploy/release.sh"
+          printf '%s\n' '#!/bin/bash' 'set -Eeuo pipefail' 'bash "$(dirname "$0")/security.sh" install' > "$RUNNER_TEMP/probe/deploy/release.sh"
           tar -czf "$RUNNER_TEMP/probe.tar.gz" -C "$RUNNER_TEMP/probe" .
           sum=$(sha256sum "$RUNNER_TEMP/probe.tar.gz" | cut -d' ' -f1)
           ssh -T -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=20 -o ServerAliveInterval=15 deploy@"$VPS_HOST" "v0.0.$GITHUB_RUN_ID $SOURCE_SHA $sum" < "$RUNNER_TEMP/probe.tar.gz" > "$RUNNER_TEMP/aggregate.json" 2> "$RUNNER_TEMP/probe-error.log"
