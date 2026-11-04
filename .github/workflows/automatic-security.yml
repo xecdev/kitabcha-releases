@@ -1,13 +1,11 @@
 name: Automatic security updates and monitoring
 on:
-  schedule:
-    - cron: '17 */6 * * *'
   workflow_dispatch:
     inputs:
       mode:
         type: choice
         required: true
-        options: [status]
+        options: [inspect, install, status]
       plan_digest:
         type: string
         required: false
@@ -62,6 +60,7 @@ jobs:
             sudo -n bash <<'ROOT'
           set -Eeuo pipefail
           umask 077
+          test "$(date +%z)" = +0000
           backup=/opt/kitabcha/shared/security-config-backup-$(date -u +%Y%m%dT%H%M%SZ)
           mkdir -p "$backup"
           tar -czf "$backup/before.tar.gz" /etc/apt/apt.conf.d /etc/needrestart/conf.d /etc/systemd/system/apt-daily.timer.d /etc/systemd/system/apt-daily-upgrade.timer.d /etc/systemd/system/apt-daily-upgrade.service.d 2>/dev/null || test $? = 2
@@ -77,8 +76,9 @@ jobs:
             "${distro_id}ESMApps:${distro_codename}-apps-security";
             "${distro_id}ESM:${distro_codename}-infra-security";
           };
-          Unattended-Upgrade::Automatic-Reboot "false";
+          Unattended-Upgrade::Automatic-Reboot "true";
           Unattended-Upgrade::Automatic-Reboot-WithUsers "false";
+          Unattended-Upgrade::Automatic-Reboot-Time "23:00";
           Unattended-Upgrade::Remove-Unused-Kernel-Packages "false";
           Unattended-Upgrade::Remove-New-Unused-Dependencies "false";
           Unattended-Upgrade::Remove-Unused-Dependencies "false";
@@ -166,12 +166,20 @@ jobs:
           'upgradeServiceResult':result,'lastUpdateErrorAt':last_error,'lastUpdateSuccessAt':last_success,'restartServices':services,'needrestartCheckOk':rc==0,
           'blockedSecurityUpdates':sorted(blocked),'runtimeUpdatesAvailable':runtime,'failedUnits':[l.split()[0] for l in failed.splitlines() if l.strip()],
           'apiContainerHealthy':containers.get('Health',{}).get('Status')=='healthy'}
+          report['bootId']=pathlib.Path('/proc/sys/kernel/random/boot_id').read_text().strip()
+          report['automaticRebootTimeServer']=apt_pkg.config.find('Unattended-Upgrade::Automatic-Reboot-Time')
+          report['serverTimezone']=cmd(['timedatectl','show','-p','Timezone','--value'])[0]
+          report['lastSecurityRebootScheduledAt']=None
+          if log.exists():
+              for line in log.read_text(errors='replace').splitlines()[-3000:]:
+                  if 'Found /var/run/reboot-required, rebooting' in line: report['lastSecurityRebootScheduledAt']=line[:23]
+          report['timerNextRuns']={n:cmd(['systemctl','show',n,'-p','NextElapseUSecRealtime','--value'])[0] for n in timers}
           print('SECURITY_STATUS_JSON='+json.dumps(report,separators=(',',':')))
           PY
             curl -fsS --max-time 20 https://app.kitabcha.app/health
           fi
           SECURITY_SCRIPT
-          printf '%s\n' '#!/bin/bash' 'set -Eeuo pipefail' 'bash "$(dirname "$0")/security.sh" status' > "$RUNNER_TEMP/probe/deploy/release.sh"
+          printf '%s\n' '#!/bin/bash' 'set -Eeuo pipefail' 'bash "$(dirname "$0")/security.sh" install' > "$RUNNER_TEMP/probe/deploy/release.sh"
           tar -czf "$RUNNER_TEMP/probe.tar.gz" -C "$RUNNER_TEMP/probe" .
           sum=$(sha256sum "$RUNNER_TEMP/probe.tar.gz" | cut -d' ' -f1)
           ssh -T -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=20 -o ServerAliveInterval=15 deploy@"$VPS_HOST" "v0.0.$GITHUB_RUN_ID $SOURCE_SHA $sum" < "$RUNNER_TEMP/probe.tar.gz" > "$RUNNER_TEMP/aggregate.json" 2> "$RUNNER_TEMP/probe-error.log"
@@ -197,5 +205,5 @@ jobs:
         with:
           name: automatic-security-${{ github.run_id }}
           path: ${{ runner.temp }}/automatic-security.enc
-          retention-days: 7
+          retention-days: 1
           if-no-files-found: error
