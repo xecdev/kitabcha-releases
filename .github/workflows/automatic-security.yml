@@ -1,11 +1,13 @@
 name: Automatic security updates and monitoring
 on:
+  schedule:
+    - cron: '47 * * * *'
   workflow_dispatch:
     inputs:
       mode:
         type: choice
         required: true
-        options: [inspect, install, status]
+        options: [status]
       plan_digest:
         type: string
         required: false
@@ -179,7 +181,7 @@ jobs:
             curl -fsS --max-time 20 https://app.kitabcha.app/health
           fi
           SECURITY_SCRIPT
-          printf '%s\n' '#!/bin/bash' 'set -Eeuo pipefail' 'bash "$(dirname "$0")/security.sh" install' > "$RUNNER_TEMP/probe/deploy/release.sh"
+          printf '%s\n' '#!/bin/bash' 'set -Eeuo pipefail' 'bash "$(dirname "$0")/security.sh" status' > "$RUNNER_TEMP/probe/deploy/release.sh"
           tar -czf "$RUNNER_TEMP/probe.tar.gz" -C "$RUNNER_TEMP/probe" .
           sum=$(sha256sum "$RUNNER_TEMP/probe.tar.gz" | cut -d' ' -f1)
           ssh -T -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=20 -o ServerAliveInterval=15 deploy@"$VPS_HOST" "v0.0.$GITHUB_RUN_ID $SOURCE_SHA $sum" < "$RUNNER_TEMP/probe.tar.gz" > "$RUNNER_TEMP/aggregate.json" 2> "$RUNNER_TEMP/probe-error.log"
@@ -205,5 +207,5 @@ jobs:
         with:
           name: automatic-security-${{ github.run_id }}
           path: ${{ runner.temp }}/automatic-security.enc
-          retention-days: 1
+          retention-days: 7
           if-no-files-found: error
