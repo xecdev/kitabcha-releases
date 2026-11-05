@@ -69,8 +69,9 @@ jobs:
           install -d /etc/needrestart/conf.d /etc/systemd/system/apt-daily.timer.d /etc/systemd/system/apt-daily-upgrade.timer.d /etc/systemd/system/apt-daily-upgrade.service.d
           cat > /etc/apt/apt.conf.d/99zz-kitabcha-security <<'APT'
           APT::Periodic::Enable "1";
-          APT::Periodic::Update-Package-Lists "1";
-          APT::Periodic::Unattended-Upgrade "1";
+          // The systemd timers control cadence; stamps must not skip a scheduled run.
+          APT::Periodic::Update-Package-Lists "always";
+          APT::Periodic::Unattended-Upgrade "always";
           #clear Unattended-Upgrade::Allowed-Origins;
           #clear Unattended-Upgrade::Origins-Pattern;
           Unattended-Upgrade::Allowed-Origins {
@@ -176,6 +177,9 @@ jobs:
               for line in log.read_text(errors='replace').splitlines()[-3000:]:
                   if 'Found /var/run/reboot-required, rebooting' in line: report['lastSecurityRebootScheduledAt']=line[:23]
           report['timerNextRuns']={n:cmd(['systemctl','show',n,'-p','NextElapseUSecRealtime','--value'])[0] for n in timers}
+          update_stamp=pathlib.Path('/var/lib/apt/periodic/update-stamp')
+          report['lastPackageListsStamp']=datetime.datetime.fromtimestamp(update_stamp.stat().st_mtime,datetime.timezone.utc).isoformat() if update_stamp.exists() else None
+          report['packageListsInterval']=apt_pkg.config.find('APT::Periodic::Update-Package-Lists')
           print('SECURITY_STATUS_JSON='+json.dumps(report,separators=(',',':')))
           PY
             curl -fsS --max-time 20 https://app.kitabcha.app/health
