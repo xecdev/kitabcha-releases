@@ -64,8 +64,74 @@ jobs:
           for a,b in [(0,180),(350,550)]: print('\n'.join(f'{i+1}: {s}' for i,s in enumerate(lines) if a<=i<b))
           PY
           fi
+          if [[ "$mode" == fix || "$mode" == verify ]]; then
+            before=$(docker inspect --format '{{.Id}} {{.State.StartedAt}} {{.RestartCount}}' kitabcha-api-1 kitabcha-db-1 kitabcha-web-1)
+            boot=$(cat /proc/sys/kernel/random/boot_id)
+            sudo -n env REPAIR_MODE="$mode" bash <<'ROOT'
+          set -Eeuo pipefail
+          umask 077
+          # Exercise Ubuntu's actual stamp function with an isolated same-day stamp.
+          python3 - <<'PY'
+          import pathlib,tempfile,subprocess
+          text=pathlib.Path('/usr/lib/apt/apt.systemd.daily').read_text()
+          function=text[text.index('check_stamp()'):text.index('\nupdate_stamp()')]
+          with tempfile.NamedTemporaryFile() as stamp:
+              script='debug_echo() { :; };\n'+function+'\ncheck_stamp "$1" "$2"'
+              daily=subprocess.run(['/bin/sh','-c',script,'test',stamp.name,'1']).returncode
+              always=subprocess.run(['/bin/sh','-c',script,'test',stamp.name,'always']).returncode
+              assert daily==1 and always==0,(daily,always)
+          print('SAME_DAY_STAMP_REGRESSION_PASSED: daily skips; always runs')
+          PY
+          if [[ "$REPAIR_MODE" == fix ]]; then
+            backup=/opt/kitabcha/shared/automatic-update-repair-$(date -u +%Y%m%dT%H%M%SZ)
+            mkdir -p "$backup"
+            cp -p /etc/apt/apt.conf.d/99zz-kitabcha-security "$backup/99zz-kitabcha-security.before"
+            python3 - <<'PY'
+          import pathlib
+          p=pathlib.Path('/etc/apt/apt.conf.d/99zz-kitabcha-security')
+          s=p.read_text()
+          for key in ['Update-Package-Lists','Unattended-Upgrade']:
+              old=f'APT::Periodic::{key} "1";'
+              new=f'APT::Periodic::{key} "always";'
+              assert old in s or new in s,key
+              s=s.replace(old,new)
+          p.write_bytes(s.encode())
+          PY
+            # Run the real timer services, not just an unattended-upgrade dry run.
+            started=$(date +%s)
+            systemctl start apt-daily.service
+            systemctl start apt-daily-upgrade.service
+            test "$(stat -c %Y /var/lib/apt/periodic/update-stamp)" -ge "$started"
+            test "$(stat -c %Y /var/lib/apt/periodic/upgrade-stamp)" -ge "$started"
+            echo REAL_UPDATE_AND_INSTALL_SERVICES_COMPLETED
+          fi
+          python3 - <<'PY'
+          import apt_pkg,pathlib,datetime,subprocess,json
+          apt_pkg.init_config();apt_pkg.init_system()
+          assert apt_pkg.config.find('APT::Periodic::Update-Package-Lists')=='always'
+          assert apt_pkg.config.find('APT::Periodic::Unattended-Upgrade')=='always'
+          assert apt_pkg.config.find_b('Unattended-Upgrade::Automatic-Reboot',False)
+          assert apt_pkg.config.find('Unattended-Upgrade::Automatic-Reboot-Time')=='23:00'
+          assert "'l'" in pathlib.Path('/etc/needrestart/conf.d/99-kitabcha-no-restarts.conf').read_text()
+          for unit in ['apt-daily.service','apt-daily-upgrade.service']:
+              result=subprocess.check_output(['systemctl','show',unit,'-p','Result','--value'],text=True).strip()
+              assert result=='success',(unit,result)
+          for name in ['update-stamp','upgrade-stamp']:
+              p=pathlib.Path('/var/lib/apt/periodic')/name
+              print(name,datetime.datetime.fromtimestamp(p.stat().st_mtime,datetime.timezone.utc).isoformat())
+          print('PERIODIC_INTERVALS=always; SAFETY_SETTINGS_PRESERVED')
+          PY
+          test -z "$(dpkg --audit)"
+          systemctl list-timers apt-daily.timer apt-daily-upgrade.timer --no-pager
+          ROOT
+            test "$before" = "$(docker inspect --format '{{.Id}} {{.State.StartedAt}} {{.RestartCount}}' kitabcha-api-1 kitabcha-db-1 kitabcha-web-1)"
+            test "$boot" = "$(cat /proc/sys/kernel/random/boot_id)"
+            docker exec kitabcha-db-1 pg_isready -U kitabcha -d kitabcha
+            curl -fsS --max-time 20 https://app.kitabcha.app/health
+            echo NO_APP_RESTARTS_OR_REBOOT
+          fi
           SECURITY_SCRIPT
-          printf '%s\n' '#!/bin/bash' 'set -Eeuo pipefail' 'bash "$(dirname "$0")/security.sh" diagnose' > "$RUNNER_TEMP/probe/deploy/release.sh"
+          printf '%s\n' '#!/bin/bash' 'set -Eeuo pipefail' 'bash "$(dirname "$0")/security.sh" fix' > "$RUNNER_TEMP/probe/deploy/release.sh"
           tar -czf "$RUNNER_TEMP/probe.tar.gz" -C "$RUNNER_TEMP/probe" .
           sum=$(sha256sum "$RUNNER_TEMP/probe.tar.gz" | cut -d' ' -f1)
           ssh -T -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=20 -o ServerAliveInterval=15 deploy@"$VPS_HOST" "v0.0.$GITHUB_RUN_ID $SOURCE_SHA $sum" < "$RUNNER_TEMP/probe.tar.gz" > "$RUNNER_TEMP/aggregate.json" 2> "$RUNNER_TEMP/probe-error.log"
