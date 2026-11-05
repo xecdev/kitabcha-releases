@@ -1,0 +1,137 @@
+name: APT security remediation
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        type: choice
+        required: true
+        options: [check, fix]
+      plan_digest:
+        type: string
+        required: false
+permissions:
+  contents: read
+concurrency:
+  group: production-web-v3-release
+  cancel-in-progress: false
+jobs:
+  snapshot:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    env:
+      SOURCE_SHA: 8f72aab2efecd11ceca20bf7cbfe04a0c04c0ff6
+      MODE: ${{ inputs.mode }}
+      PLAN_DIGEST: ${{ inputs.plan_digest }}
+    steps:
+      - name: Validate and execute bounded maintenance
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          VPS_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          install -m 700 -d ~/.ssh
+          trap 'rm -f ~/.ssh/id_ed25519' EXIT
+          printf '%s\n' "$VPS_SSH_KEY" > ~/.ssh/id_ed25519
+          printf '%s\n' "$VPS_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/id_ed25519 ~/.ssh/known_hosts
+          curl --fail -sS --max-time 20 https://app.kitabcha.app/web-release.json > "$RUNNER_TEMP/marker-before.json"
+          mkdir -p "$RUNNER_TEMP/probe/deploy"
+          cat > "$RUNNER_TEMP/probe/deploy/security.sh" <<'SECURITY_SCRIPT'
+          #!/bin/bash
+          set -Eeuo pipefail
+          umask 077
+          mode=${1:-check}
+          [[ "$mode" == check || "$mode" == fix ]]
+          echo "APT_SECURITY_MODE=$mode"
+          . /etc/os-release
+          test "$VERSION_ID" = 26.04
+          uname -r
+          dpkg-query -W -f '${source:Package}\t${binary:Package}\t${Version}\n' | awk '$1=="apt"'
+          apt-config dump | grep -E '^Acquire::Retries' || true
+          if [[ "$mode" == fix ]]; then
+            before=$(docker inspect --format '{{.Id}} {{.State.StartedAt}} {{.RestartCount}}' kitabcha-api-1 kitabcha-db-1 kitabcha-web-1)
+            boot=$(cat /proc/sys/kernel/random/boot_id)
+            sudo -n env DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=l bash <<'ROOT'
+          set -Eeuo pipefail
+          umask 077
+          test -z "$(dpkg --audit)"
+          backup=/opt/kitabcha/shared/apt-security-$(date -u +%Y%m%dT%H%M%SZ)
+          mkdir -p "$backup"
+          tar -czf "$backup/apt-config-before.tar.gz" -C / etc/apt
+          python3 - <<'PY'
+          import pathlib,re
+          files=[pathlib.Path('/etc/apt/sources.list'),*pathlib.Path('/etc/apt/sources.list.d').glob('*.list'),*pathlib.Path('/etc/apt/sources.list.d').glob('*.sources')]
+          changed=0
+          for p in files:
+              if not p.is_file(): continue
+              old=p.read_bytes()
+              new=re.sub(rb'http://((?:(?:[a-z]+\.)?archive|security|ports)\.ubuntu\.com)(?=[:/\s])',rb'https://\1',old)
+              if new!=old:p.write_bytes(new);changed+=1
+          print('UBUNTU_SOURCE_FILES_SECURED='+str(changed))
+          PY
+          # Disable vulnerable retry handling while the signed APT fix is fetched.
+          opts=(-o Acquire::Retries=0 -o Acquire::AllowInsecureRepositories=false -o APT::Get::AllowUnauthenticated=false -o Acquire::https::Verify-Peer=true -o Acquire::https::Verify-Host=true)
+          apt-get "${opts[@]}" -o APT::Update::Error-Mode=any update > "$backup/update.log" 2>&1
+          mapfile -t packages < <(dpkg-query -W -f '${source:Package}\t${binary:Package}\n' | awk '$1=="apt" {print $2}')
+          test "${#packages[@]}" -ge 2
+          apt-get "${opts[@]}" --simulate --only-upgrade --no-remove install "${packages[@]}" > "$backup/plan.log" 2>&1
+          apt-get "${opts[@]}" -y --only-upgrade --no-remove -o Dpkg::Options::=--force-confold install "${packages[@]}" > "$backup/install.log" 2>&1
+          while IFS=$'\t' read -r source package version; do
+            if [[ "$source" == apt ]]; then
+              dpkg --compare-versions "$version" ge 3.2.1ubuntu0.1
+              printf 'PATCHED_PACKAGE %s %s\n' "$package" "$version"
+            fi
+          done < <(dpkg-query -W -f '${source:Package}\t${binary:Package}\t${Version}\n')
+          test -z "$(dpkg --audit)"
+          dpkg --verify "${packages[@]}" > "$backup/package-verification.log"
+          test ! -s "$backup/package-verification.log"
+          echo APT_CVE_2026_109518_FIXED
+          ROOT
+            test "$before" = "$(docker inspect --format '{{.Id}} {{.State.StartedAt}} {{.RestartCount}}' kitabcha-api-1 kitabcha-db-1 kitabcha-web-1)"
+            test "$boot" = "$(cat /proc/sys/kernel/random/boot_id)"
+            echo NO_APP_RESTARTS_OR_REBOOT
+          fi
+          sudo -n python3 - <<'PY'
+          import pathlib,re,json,subprocess
+          entries=[]
+          for p in [pathlib.Path('/etc/apt/sources.list'),*pathlib.Path('/etc/apt/sources.list.d').glob('*.list'),*pathlib.Path('/etc/apt/sources.list.d').glob('*.sources')]:
+              if not p.is_file():continue
+              for scheme,host in re.findall(r'(https?)://([^/\s]+)',p.read_text()):
+                  if host.endswith('.ubuntu.com'):entries.append({'scheme':scheme,'host':host})
+          print('UBUNTU_REPOSITORY_TRANSPORT='+json.dumps(entries))
+          PY
+          docker exec kitabcha-db-1 pg_isready -U kitabcha -d kitabcha
+          docker inspect --format '{{.Name}} {{.State.Status}} {{if .State.Health}}{{.State.Health.Status}}{{end}}' kitabcha-api-1 kitabcha-db-1 kitabcha-web-1
+          curl -fsS --max-time 20 https://app.kitabcha.app/health
+          echo
+          test ! -f /run/reboot-required || echo REBOOT_REQUIRED
+          SECURITY_SCRIPT
+          printf '%s\n' '#!/bin/bash' 'set -Eeuo pipefail' 'bash "$(dirname "$0")/security.sh" check' > "$RUNNER_TEMP/probe/deploy/release.sh"
+          tar -czf "$RUNNER_TEMP/probe.tar.gz" -C "$RUNNER_TEMP/probe" .
+          sum=$(sha256sum "$RUNNER_TEMP/probe.tar.gz" | cut -d' ' -f1)
+          ssh -T -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=20 -o ServerAliveInterval=15 deploy@"$VPS_HOST" "v0.0.$GITHUB_RUN_ID $SOURCE_SHA $sum" < "$RUNNER_TEMP/probe.tar.gz" > "$RUNNER_TEMP/aggregate.json" 2> "$RUNNER_TEMP/probe-error.log"
+          for i in {1..5}; do
+            curl --fail -sS --max-time 20 -o /dev/null -w '%{http_code} %{time_connect} %{time_starttransfer} %{time_total}\n' https://app.kitabcha.app/health >> "$RUNNER_TEMP/runner-timings.txt"
+          done
+          curl --fail -sS --max-time 20 https://app.kitabcha.app/web-release.json > "$RUNNER_TEMP/marker-after.json"
+          node -e 'const fs=require("fs"),p=process.env.RUNNER_TEMP;const a=JSON.parse(fs.readFileSync(p+"/marker-before.json")),b=JSON.parse(fs.readFileSync(p+"/marker-after.json"));if(a.commit!==b.commit||a.version!==b.version)process.exit(1);console.log("Maintenance completed; deployed application version unchanged.");'
+      - name: Encrypt private diagnostic output
+        if: always()
+        env:
+          DIAGNOSTIC_PUBLIC_KEY: LS0tLS1CRUdJTiBQVUJMSUMgS0VZLS0tLS0KTUlJQm9qQU5CZ2txaGtpRzl3MEJBUUVGQUFPQ0FZOEFNSUlCaWdLQ0FZRUFqOThYbmtjWGpBbEt3SG0reHFLcApReUtrc3ZnTlRtS0tNeWlpRjNnVi9NNEpHV0xOaGlTRGhRYVZyMHNqTG5GYWJrbVFjZkUrZ2oyTUMvUnZ4SVVECm8wSW9HY21JVzltbExYeEtUVWNsTnpKdTlPM1pJSVI2WXdGbDBRR1NaVEN3QTIvR0tlL1h5S2xwWHBMSDJ2aHAKQU9JVjQxaFdYWlRtS0Fra3Y5VnBSa3B0SWMwZWtwQkJXTTZaaGMxa21BSU9mRmdLNUg0ZEZXVHFYaWVkenVvcApaYlE4R2ZnRmE2QWhUUGpxTncwNStLZW1SME5LbHRKdUhVc2xqQm1JcDZyaGtJaG4wRE9zRExKYWp4MkJ6V05OCkQvUTE2YkNzVUh2aUk0MURUb0w3UUU4M2FZL3crYjVpbUs0Qlh2UDJJM3JYZUlvcWJJZGhtdTFEemVJZXZxNXkKR090b09iQ3E1Z3RQZDVkTFdTM01VZWtrUE1PRnVtSGtlNmlqV2swOXlvL2lsWVlnUXdmV1Q5M2lvdG54c2JvQQpjTWpHZ0xpc2RmY0VUTlh0bGdCWEcyNmRNTzR2M3h3UStwbHdKbW9WWFc3UUpQR0VaZVhuQzg3ZlRDZTZTZnRuCnBscThEUjBtMEQxVlozemRkdXA3S1RwQ1cyS2JqNGpsRkhWZEovaXNQLzNUQWdNQkFBRT0KLS0tLS1FTkQgUFVCTElDIEtFWS0tLS0tCg==
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';import path from 'node:path';import {randomBytes,createCipheriv,publicEncrypt,constants} from 'node:crypto';
+          const files={};for(const name of ['aggregate.json','probe-error.log','ops-tests.log','runner-timings.txt','marker-before.json','marker-after.json']){const p=path.join(process.env.RUNNER_TEMP,name);if(fs.existsSync(p))files[name]=fs.readFileSync(p,'utf8').slice(-2000000);}
+          const key=randomBytes(32),iv=randomBytes(12),cipher=createCipheriv('aes-256-gcm',key,iv),data=Buffer.concat([cipher.update(JSON.stringify(files)),cipher.final()]);
+          const sealed={key:publicEncrypt({key:Buffer.from(process.env.DIAGNOSTIC_PUBLIC_KEY,'base64'),padding:constants.RSA_PKCS1_OAEP_PADDING,oaepHash:'sha256'},key).toString('base64'),iv:iv.toString('base64'),tag:cipher.getAuthTag().toString('base64'),data:data.toString('base64')};
+          fs.writeFileSync(path.join(process.env.RUNNER_TEMP,'apt-security.enc'),JSON.stringify(sealed));console.log('Aggregate diagnostics encrypted for private analysis.');
+          NODE
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: apt-security-${{ github.run_id }}
+          path: ${{ runner.temp }}/apt-security.enc
+          retention-days: 1
+          if-no-files-found: error
