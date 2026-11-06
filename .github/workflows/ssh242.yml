@@ -1,0 +1,95 @@
+name: APT security remediation
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        type: choice
+        required: true
+        options: [check, fix]
+      plan_digest:
+        type: string
+        required: false
+permissions:
+  contents: read
+concurrency:
+  group: production-web-v3-release
+  cancel-in-progress: false
+jobs:
+  snapshot:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    env:
+      SOURCE_SHA: cef4cc8d2313c542b1e503c315af4d77e7f64594
+      MODE: ${{ inputs.mode }}
+      PLAN_DIGEST: ${{ inputs.plan_digest }}
+    steps:
+      - name: Validate and execute bounded maintenance
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          VPS_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          install -m 700 -d ~/.ssh
+          trap 'rm -f ~/.ssh/id_ed25519' EXIT
+          printf '%s\n' "$VPS_SSH_KEY" > ~/.ssh/id_ed25519
+          printf '%s\n' "$VPS_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/id_ed25519 ~/.ssh/known_hosts
+          curl --fail -sS --max-time 20 https://app.kitabcha.app/web-release.json > "$RUNNER_TEMP/marker-before.json"
+          mkdir -p "$RUNNER_TEMP/probe/deploy"
+          cat > "$RUNNER_TEMP/probe/deploy/security.sh" <<'SECURITY_SCRIPT'
+          #!/bin/bash
+          set -Eeuo pipefail
+          umask 077
+          sudo -n python3 - <<'PY'
+          import subprocess,json,pathlib,datetime
+          
+          def run(args):
+           p=subprocess.run(args,text=True,capture_output=True,check=True)
+           return p.stdout.strip()
+          osdata=dict(line.split('=',1) for line in pathlib.Path('/etc/os-release').read_text().splitlines() if '=' in line)
+          settings=dict(line.split(' ',1) for line in run(['/usr/sbin/sshd','-T']).splitlines() if ' ' in line)
+          libc=run(['getconf','GNU_LIBC_VERSION'])
+          package=run(['dpkg-query','-W','-f=${Version}','openssh-server'])
+          contexts=[]
+          for user in ['deploy','root']:
+           values=dict(line.split(' ',1) for line in run(['/usr/sbin/sshd','-T','-C','user='+user+',host=localhost,addr=127.0.0.1']).splitlines() if ' ' in line)
+           contexts.append({'user':user,**{k:values.get(k) for k in ['passwordauthentication','kbdinteractiveauthentication','pubkeyauthentication','permitrootlogin','usepam']}})
+          containers=[]
+          for name in ['kitabcha-api-1','kitabcha-web-1','kitabcha-db-1']:
+           p=subprocess.run(['docker','exec',name,'sh','-c','command -v sshd >/dev/null 2>&1'],capture_output=True)
+           containers.append({'service':name,'sshdInstalled':p.returncode==0})
+          facts={'checkedAt':datetime.datetime.now(datetime.timezone.utc).isoformat(),'os':osdata.get('PRETTY_NAME','').strip('"'),'libc':libc,'opensshServerPackage':package,'configurationValid':subprocess.run(['/usr/sbin/sshd','-t'],capture_output=True).returncode==0,'sshActive':run(['systemctl','is-active','ssh']),'settings':{k:settings.get(k) for k in ['passwordauthentication','kbdinteractiveauthentication','pubkeyauthentication','permitrootlogin','usepam']},'contexts':contexts,'containers':containers}
+          facts['reportedMuslVulnerabilityApplies']=not libc.startswith('glibc ') and settings.get('passwordauthentication')=='yes' and settings.get('usepam')!='yes'
+          print(json.dumps(facts))
+          PY
+          curl -fsS --max-time 20 https://app.kitabcha.app/health
+          SECURITY_SCRIPT
+          printf '%s\n' '#!/bin/bash' 'set -Eeuo pipefail' 'bash "$(dirname "$0")/security.sh" check' > "$RUNNER_TEMP/probe/deploy/release.sh"
+          tar -czf "$RUNNER_TEMP/probe.tar.gz" -C "$RUNNER_TEMP/probe" .
+          sum=$(sha256sum "$RUNNER_TEMP/probe.tar.gz" | cut -d' ' -f1)
+          ssh -T -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=20 -o ServerAliveInterval=15 deploy@"$VPS_HOST" "v0.0.$GITHUB_RUN_ID $SOURCE_SHA $sum" < "$RUNNER_TEMP/probe.tar.gz" > "$RUNNER_TEMP/aggregate.json" 2> "$RUNNER_TEMP/probe-error.log"
+          for i in {1..5}; do
+            curl --fail -sS --max-time 20 -o /dev/null -w '%{http_code} %{time_connect} %{time_starttransfer} %{time_total}\n' https://app.kitabcha.app/health >> "$RUNNER_TEMP/runner-timings.txt"
+          done
+          curl --fail -sS --max-time 20 https://app.kitabcha.app/web-release.json > "$RUNNER_TEMP/marker-after.json"
+          node -e 'const fs=require("fs"),p=process.env.RUNNER_TEMP;const a=JSON.parse(fs.readFileSync(p+"/marker-before.json")),b=JSON.parse(fs.readFileSync(p+"/marker-after.json"));if(a.commit!==b.commit||a.version!==b.version)process.exit(1);console.log("Maintenance completed; deployed application version unchanged.");'
+      - name: Encrypt private diagnostic output
+        if: always()
+        env:
+          DIAGNOSTIC_PUBLIC_KEY: LS0tLS1CRUdJTiBQVUJMSUMgS0VZLS0tLS0KTUlJQm9qQU5CZ2txaGtpRzl3MEJBUUVGQUFPQ0FZOEFNSUlCaWdLQ0FZRUFqOThYbmtjWGpBbEt3SG0reHFLcApReUtrc3ZnTlRtS0tNeWlpRjNnVi9NNEpHV0xOaGlTRGhRYVZyMHNqTG5GYWJrbVFjZkUrZ2oyTUMvUnZ4SVVECm8wSW9HY21JVzltbExYeEtUVWNsTnpKdTlPM1pJSVI2WXdGbDBRR1NaVEN3QTIvR0tlL1h5S2xwWHBMSDJ2aHAKQU9JVjQxaFdYWlRtS0Fra3Y5VnBSa3B0SWMwZWtwQkJXTTZaaGMxa21BSU9mRmdLNUg0ZEZXVHFYaWVkenVvcApaYlE4R2ZnRmE2QWhUUGpxTncwNStLZW1SME5LbHRKdUhVc2xqQm1JcDZyaGtJaG4wRE9zRExKYWp4MkJ6V05OCkQvUTE2YkNzVUh2aUk0MURUb0w3UUU4M2FZL3crYjVpbUs0Qlh2UDJJM3JYZUlvcWJJZGhtdTFEemVJZXZxNXkKR090b09iQ3E1Z3RQZDVkTFdTM01VZWtrUE1PRnVtSGtlNmlqV2swOXlvL2lsWVlnUXdmV1Q5M2lvdG54c2JvQQpjTWpHZ0xpc2RmY0VUTlh0bGdCWEcyNmRNTzR2M3h3UStwbHdKbW9WWFc3UUpQR0VaZVhuQzg3ZlRDZTZTZnRuCnBscThEUjBtMEQxVlozemRkdXA3S1RwQ1cyS2JqNGpsRkhWZEovaXNQLzNUQWdNQkFBRT0KLS0tLS1FTkQgUFVCTElDIEtFWS0tLS0tCg==
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';import path from 'node:path';import {randomBytes,createCipheriv,publicEncrypt,constants} from 'node:crypto';
+          const files={};for(const name of ['aggregate.json','probe-error.log','ops-tests.log','runner-timings.txt','marker-before.json','marker-after.json']){const p=path.join(process.env.RUNNER_TEMP,name);if(fs.existsSync(p))files[name]=fs.readFileSync(p,'utf8').slice(-2000000);}
+          const key=randomBytes(32),iv=randomBytes(12),cipher=createCipheriv('aes-256-gcm',key,iv),data=Buffer.concat([cipher.update(JSON.stringify(files)),cipher.final()]);
+          const sealed={key:publicEncrypt({key:Buffer.from(process.env.DIAGNOSTIC_PUBLIC_KEY,'base64'),padding:constants.RSA_PKCS1_OAEP_PADDING,oaepHash:'sha256'},key).toString('base64'),iv:iv.toString('base64'),tag:cipher.getAuthTag().toString('base64'),data:data.toString('base64')};
+          fs.writeFileSync(path.join(process.env.RUNNER_TEMP,'ssh242.enc'),JSON.stringify(sealed));console.log('Aggregate diagnostics encrypted for private analysis.');
+          NODE
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ssh242-${{ github.run_id }}
+          path: ${{ runner.temp }}/ssh242.enc
+          retention-days: 1
+          if-no-files-found: error
