@@ -175,7 +175,7 @@ jobs:
           cd "$RUNNER_TEMP"
           curl --fail --location --retry 3 --silent --show-error https://github.com/caddyserver/caddy/releases/download/v2.11.9/caddy_2.11.9_linux_amd64.tar.gz -o caddy_2.11.9_linux_amd64.tar.gz
           curl --fail --location --retry 3 --silent --show-error https://github.com/caddyserver/caddy/releases/download/v2.11.9/caddy_2.11.9_checksums.txt -o caddy_checksums.txt
-          grep ' caddy_2.11.9_linux_amd64.tar.gz$' caddy_checksums.txt | sha256sum --check --status
+          grep ' caddy_2.11.9_linux_amd64.tar.gz$' caddy_checksums.txt | sha512sum --check --status
           tar -xzf caddy_2.11.9_linux_amd64.tar.gz caddy
           chmod 700 caddy
           echo "CADDY_EXECUTABLE=$RUNNER_TEMP/caddy" >> "$GITHUB_ENV"
