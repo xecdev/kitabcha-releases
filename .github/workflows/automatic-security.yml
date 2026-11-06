@@ -14,7 +14,7 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: production-web-v3-release
+  group: kitabcha-security-monitor
   cancel-in-progress: false
 jobs:
   snapshot:
@@ -37,7 +37,7 @@ jobs:
           printf '%s\n' "$VPS_SSH_KEY" > ~/.ssh/id_ed25519
           printf '%s\n' "$VPS_KNOWN_HOSTS" > ~/.ssh/known_hosts
           chmod 600 ~/.ssh/id_ed25519 ~/.ssh/known_hosts
-          curl --fail -sS --max-time 20 https://app.kitabcha.app/web-release.json > "$RUNNER_TEMP/marker-before.json"
+          curl --fail -sS --max-time 20 --retry 3 --retry-delay 2 --retry-connrefused https://app.kitabcha.app/web-release.json > "$RUNNER_TEMP/marker-before.json"
           mkdir -p "$RUNNER_TEMP/probe/deploy"
           cat > "$RUNNER_TEMP/probe/deploy/security.sh" <<'SECURITY_SCRIPT'
           #!/bin/bash
@@ -188,12 +188,23 @@ jobs:
           printf '%s\n' '#!/bin/bash' 'set -Eeuo pipefail' 'bash "$(dirname "$0")/security.sh" status' > "$RUNNER_TEMP/probe/deploy/release.sh"
           tar -czf "$RUNNER_TEMP/probe.tar.gz" -C "$RUNNER_TEMP/probe" .
           sum=$(sha256sum "$RUNNER_TEMP/probe.tar.gz" | cut -d' ' -f1)
-          ssh -T -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=20 -o ServerAliveInterval=15 deploy@"$VPS_HOST" "v0.0.$GITHUB_RUN_ID $SOURCE_SHA $sum" < "$RUNNER_TEMP/probe.tar.gz" > "$RUNNER_TEMP/aggregate.json" 2> "$RUNNER_TEMP/probe-error.log"
-          for i in {1..5}; do
-            curl --fail -sS --max-time 20 -o /dev/null -w '%{http_code} %{time_connect} %{time_starttransfer} %{time_total}\n' https://app.kitabcha.app/health >> "$RUNNER_TEMP/runner-timings.txt"
+          # Monitoring has its own runner queue but still honors the server's deployment lock.
+          for attempt in {1..40}; do
+            if ssh -T -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=20 -o ServerAliveInterval=15 deploy@"$VPS_HOST" "v0.0.$GITHUB_RUN_ID $SOURCE_SHA $sum" < "$RUNNER_TEMP/probe.tar.gz" > "$RUNNER_TEMP/aggregate.json" 2> "$RUNNER_TEMP/probe-error.log"; then
+              break
+            fi
+            if ! grep -Eq 'Another CI deployment is running|Another deployment is running|Connection timed out|Connection reset|Connection refused|Broken pipe' "$RUNNER_TEMP/aggregate.json" "$RUNNER_TEMP/probe-error.log"; then
+              exit 1
+            fi
+            if [[ "$attempt" == 40 ]]; then exit 75; fi
+            echo 'Security report waiting for the server to become available.'
+            sleep 15
           done
-          curl --fail -sS --max-time 20 https://app.kitabcha.app/web-release.json > "$RUNNER_TEMP/marker-after.json"
-          node -e 'const fs=require("fs"),p=process.env.RUNNER_TEMP;const a=JSON.parse(fs.readFileSync(p+"/marker-before.json")),b=JSON.parse(fs.readFileSync(p+"/marker-after.json"));if(a.commit!==b.commit||a.version!==b.version)process.exit(1);console.log("Maintenance completed; deployed application version unchanged.");'
+          for i in {1..5}; do
+            curl --fail -sS --max-time 20 --retry 3 --retry-delay 2 --retry-connrefused -o /dev/null -w '%{http_code} %{time_connect} %{time_starttransfer} %{time_total}\n' https://app.kitabcha.app/health >> "$RUNNER_TEMP/runner-timings.txt"
+          done
+          curl --fail -sS --max-time 20 --retry 3 --retry-delay 2 --retry-connrefused https://app.kitabcha.app/web-release.json > "$RUNNER_TEMP/marker-after.json"
+          node -e 'const fs=require("fs"),p=process.env.RUNNER_TEMP;const a=JSON.parse(fs.readFileSync(p+"/marker-before.json")),b=JSON.parse(fs.readFileSync(p+"/marker-after.json"));if(!a.commit||!b.commit||!a.version||!b.version)process.exit(1);console.log("Read-only security report completed; release markers recorded.");'
       - name: Encrypt private diagnostic output
         if: always()
         env:
