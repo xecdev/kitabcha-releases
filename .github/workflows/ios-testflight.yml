@@ -51,7 +51,7 @@ jobs:
           npm run typecheck >> "$RUNNER_TEMP/private-calendar-validation.log" 2>&1
           npm run lint >> "$RUNNER_TEMP/private-calendar-validation.log" 2>&1
           node --import tsx --test tests/date-calendar.test.ts tests/scroll-position.test.ts tests/date-range.test.ts tests/entry-due-date.test.ts tests/bill-draft-date.test.ts >> "$RUNNER_TEMP/private-calendar-validation.log" 2>&1
-          node --test tests/ios-date-field.test.mjs tests/session-recovery.test.mjs tests/ledger-command-confirmation.test.mjs tests/native-receipt-build.test.mjs tests/native-file-save.test.mjs tests/native-report-bridge.test.mjs tests/native-financial-export-query.test.mjs tests/native-number-direction.test.mjs >> "$RUNNER_TEMP/private-calendar-validation.log" 2>&1
+          node --test tests/ios-date-field.test.mjs tests/session-recovery.test.mjs tests/ledger-command-confirmation.test.mjs tests/native-receipt-build.test.mjs tests/native-file-save.test.mjs tests/native-signature-font.test.mjs tests/native-report-bridge.test.mjs tests/native-financial-export-query.test.mjs tests/native-number-direction.test.mjs >> "$RUNNER_TEMP/private-calendar-validation.log" 2>&1
           node --import tsx --test tests/report-frame.test.ts tests/multi-currency-reports.test.ts tests/contact-report-format.test.ts tests/report-portrait.test.ts >> "$RUNNER_TEMP/private-calendar-validation.log" 2>&1
           echo 'iOS calendar, language, due-date and date-range regressions passed.'
       - name: Restore existing signing and Expo session
