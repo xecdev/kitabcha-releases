@@ -119,7 +119,7 @@ jobs:
         run: |
           set -euo pipefail
           (
-          node --test tests/native-commerce.test.mjs tests/native-file-save.test.mjs tests/native-report-bridge.test.mjs tests/native-financial-export-query.test.mjs tests/native-number-direction.test.mjs tests/bahij-fonts.test.mjs tests/receipt-sharing.test.mjs tests/session-forms.test.mjs
+          node --test tests/native-commerce.test.mjs tests/native-file-save.test.mjs tests/native-report-bridge.test.mjs tests/native-financial-export-query.test.mjs tests/native-number-direction.test.mjs tests/bahij-fonts.test.mjs tests/receipt-sharing.test.mjs tests/session-forms.test.mjs tests/native-signature-font.test.mjs
           ) > "$RUNNER_TEMP/android-verify-native-commerce-file-and-draft-adapters.log" 2>&1
           echo "Verify native commerce file and draft adapters passed."
       - name: Verify native scanner adapter
@@ -571,7 +571,7 @@ jobs:
         run: |
           set -euo pipefail
           (
-          node --test tests/native-commerce.test.mjs tests/native-file-save.test.mjs tests/native-report-bridge.test.mjs tests/native-number-direction.test.mjs tests/bahij-fonts.test.mjs tests/receipt-sharing.test.mjs tests/session-forms.test.mjs
+          node --test tests/native-commerce.test.mjs tests/native-file-save.test.mjs tests/native-report-bridge.test.mjs tests/native-number-direction.test.mjs tests/bahij-fonts.test.mjs tests/receipt-sharing.test.mjs tests/session-forms.test.mjs tests/native-signature-font.test.mjs
           ) > "$RUNNER_TEMP/android-verify-native-commerce-file-and-draft-adapters.log" 2>&1
           echo "Verify native commerce file and draft adapters passed."
       - name: Verify native scanner adapter
