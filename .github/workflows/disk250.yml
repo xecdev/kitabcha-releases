@@ -57,7 +57,7 @@ jobs:
            help=command(['docker','builder','prune','--help'])
            option='--reserved-space' if '--reserved-space' in help else '--keep-storage' if '--keep-storage' in help else None
            if option is None: raise RuntimeError('No bounded cache retention option')
-           output=command(['docker','builder','prune','--all','--force',option,'5GB'])
+           output=command(['docker','builder','prune','--all','--force',option,'1GB'])
            result['cachePruneCompleted']=True
            result['diskAfter']=disk()
            result['databaseVolumesContainersImagesAndBackupsUntouched']=True
