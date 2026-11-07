@@ -95,10 +95,10 @@ jobs:
 
           for attempt in $(seq 1 12); do
             if ssh -T -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=20 -o ServerAliveInterval=15 deploy@"$VPS_HOST" "$DEPLOY_VERSION $SOURCE_SHA $sum" < "$RUNNER_TEMP/update.tar.gz" > "$RUNNER_TEMP/receiver.log" 2>&1; then
-              cat "$RUNNER_TEMP/receiver.log"
+              echo 'Receiver status captured privately.'
               exit 0
             fi
-            cat "$RUNNER_TEMP/receiver.log"
+            echo 'Receiver status captured privately.'
             if ! rg -q 'Another CI deployment is running|Another deployment is running' "$RUNNER_TEMP/receiver.log"; then exit 1; fi
             sleep 30
           done
