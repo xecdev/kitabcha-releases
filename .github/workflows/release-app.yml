@@ -55,7 +55,7 @@ jobs:
           mkdir -p "$update/packages/reporting"
           cp -r packages/reporting/. "$update/packages/reporting/"
           cmp packages/reporting/pdf-unicode.ts "$update/packages/reporting/pdf-unicode.ts"
-          node scripts/copy-runtime-deps.mjs "$update" $(node -e "console.log(Object.keys(require('./apps/api/package.json').dependencies).filter(n=>!n.startsWith('@kitabcha/')).join(' '))") tsx > "$RUNNER_TEMP/runtime.log" 2>&1
+          node scripts/copy-runtime-deps.mjs "$update" $(node -e "console.log([...new Set([...Object.keys(require('./apps/api/package.json').dependencies),...Object.keys(require('./packages/domain/package.json').dependencies)])].filter(n=>!n.startsWith('@kitabcha/')).join(' '))") tsx > "$RUNNER_TEMP/runtime.log" 2>&1
           mkdir -p "$update/node_modules/@kitabcha"
           ln -s ../../packages/domain "$update/node_modules/@kitabcha/domain"
           cp apps/api/package.json "$update/apps/api/"
