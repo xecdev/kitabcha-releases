@@ -236,7 +236,10 @@ jobs:
         run: |
           set -euo pipefail
           bundle=apps/client/android/app/build/outputs/bundle/release/app-release.aab
-          curl --fail --silent --show-error --location --retry 3 https://github.com/google/bundletool/releases/download/1.18.3/bundletool-all-1.18.3.jar -o "$RUNNER_TEMP/bundletool.jar"
+          if ! curl --fail --silent --show-error --location --retry 4 --retry-all-errors --connect-timeout 20 --max-time 180 -H 'Accept: application/octet-stream' "https://api.github.com/repos/google/bundletool/releases/assets/329035725?run=$GITHUB_RUN_ID&attempt=$GITHUB_RUN_ATTEMPT" -o "$RUNNER_TEMP/bundletool.jar"; then
+            curl --fail --silent --show-error --location --retry 4 --retry-all-errors --connect-timeout 20 --max-time 180 https://github.com/google/bundletool/releases/download/1.18.3/bundletool-all-1.18.3.jar -o "$RUNNER_TEMP/bundletool.jar"
+          fi
+          echo 'a099cfa1543f55593bc2ed16a70a7c67fe54b1747bb7301f37fdfd6d91028e29  '"$RUNNER_TEMP/bundletool.jar" | sha256sum -c -
           java -jar "$RUNNER_TEMP/bundletool.jar" validate --bundle="$bundle" > "$RUNNER_TEMP/bundle-validation.log" 2>&1
           java -jar "$RUNNER_TEMP/bundletool.jar" dump manifest --bundle="$bundle" --module=base > "$RUNNER_TEMP/bundle-manifest.xml"
           java -jar "$RUNNER_TEMP/bundletool.jar" dump config --bundle="$bundle" > "$RUNNER_TEMP/bundle-config.json"
