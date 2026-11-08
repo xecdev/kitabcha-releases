@@ -62,6 +62,8 @@ jobs:
           cp package-lock.json "$update/"
           cp -r apps/api/prisma/. "$update/apps/api/prisma/"
           (cd "$update" && node --import tsx --input-type=module -e "import('./apps/api/src/report-archive.ts').then(m=>{if(m.archiveReportFileCount!==22)throw Error('Report archive package incomplete')})") > "$RUNNER_TEMP/archive-runtime.log" 2>&1
+          rm "$update/node_modules/@kitabcha/domain"
+          test -z "$(find "$update" -type l -print -quit)"
           cp deploy/commercial-release.sh "$update/deploy/release.sh"
           cp deploy/patch-public-pages.sh "$update/deploy/"
           cp deploy/owner-readiness.sh "$update/deploy/"
