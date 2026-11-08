@@ -11,15 +11,15 @@ jobs:
     timeout-minutes: 35
     env:
       CI: "1"
-      SOURCE_SHA: 91129901b7f04e02668132a7415ce96f0c3b2179
-      DEPLOY_VERSION: v3.7.256
-      KITABCHA_BUILD_VERSION: v3.7.256
+      SOURCE_SHA: 7e877d55ded634d1e5c7778217ed2d89110b8a5f
+      DEPLOY_VERSION: v3.7.257
+      KITABCHA_BUILD_VERSION: v3.7.257
       EXPO_PUBLIC_API_URL: https://app.kitabcha.app
     steps:
       - uses: actions/checkout@v4
         with:
           repository: xecdev/kitabcha-app
-          ref: 91129901b7f04e02668132a7415ce96f0c3b2179
+          ref: 7e877d55ded634d1e5c7778217ed2d89110b8a5f
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
           fetch-depth: 9
@@ -32,7 +32,7 @@ jobs:
           const response=await fetch('https://app.kitabcha.app/web-release.json',{cache:'no-store',signal:AbortSignal.timeout(30000)});
           if(!response.ok)throw Error('Production marker HTTP '+response.status);
           const current=await response.json();
-          if(current.version!=='v3.7.255'||current.commit!=='16ffb71c11d64024a1a81f822c487b8b65d334c3')throw Error('Production changed since release preparation; inspect before deploying');
+          if(current.version!=='v3.7.256'||current.commit!=='91129901b7f04e02668132a7415ce96f0c3b2179')throw Error('Production changed since release preparation; inspect before deploying');
           console.log('Production release base confirmed:',current.version,current.commit);
           NODE
       - name: Build tested web and API package
@@ -61,7 +61,7 @@ jobs:
           cp apps/api/package.json "$update/apps/api/"
           cp package-lock.json "$update/"
           cp -r apps/api/prisma/. "$update/apps/api/prisma/"
-          (cd "$update" && node --import tsx --input-type=module -e "import('./apps/api/src/report-archive.ts').then(m=>{if(m.archiveReportFileCount!==22)throw Error('Report archive package incomplete')})") > "$RUNNER_TEMP/archive-runtime.log" 2>&1
+          (cd "$update" && node --import tsx --input-type=module -e "import('./apps/api/src/report-archive.ts').then(m=>{if(m.archiveReportFileCount!==24)throw Error('Report archive package incomplete')})") > "$RUNNER_TEMP/archive-runtime.log" 2>&1
           rm "$update/node_modules/@kitabcha/domain"
           test -z "$(find "$update" -type l -print -quit)"
           cp deploy/commercial-release.sh "$update/deploy/release.sh"
@@ -114,9 +114,9 @@ jobs:
       - name: Verify unchanged public Android download
         run: |
           set -euo pipefail
-          curl --fail --location --retry 3 --silent --show-error https://app.kitabcha.app/downloads/android/1e64b8838f97/Kitabcha-2.0.125-android.apk -o "$RUNNER_TEMP/current-android.apk"
-          test "$(stat -c %s "$RUNNER_TEMP/current-android.apk")" = 99661315
-          echo '1e64b8838f9709da4eeabf3e8f21635c2971e5d3d8d7c77ba6a652e43c408dc4  '"$RUNNER_TEMP/current-android.apk" | sha256sum --check --status
+          curl --fail --location --retry 3 --silent --show-error https://app.kitabcha.app/downloads/android/068936aea2a7/Kitabcha-2.0.126-android.apk -o "$RUNNER_TEMP/current-android.apk"
+          test "$(stat -c %s "$RUNNER_TEMP/current-android.apk")" = 99696351
+          echo '068936aea2a7b1baf5bb38e7e84ae4c6fe8959f647373ecb3cfbc454d3b4713f  '"$RUNNER_TEMP/current-android.apk" | sha256sum --check --status
           echo 'Existing Android download: byte count and SHA-256 verified.'
       - name: Encrypt private failure diagnostics
         if: failure()
@@ -128,14 +128,14 @@ jobs:
           const logs={};for(const name of fs.readdirSync(process.env.RUNNER_TEMP).filter(n=>n.endsWith('.log'))){const p=path.join(process.env.RUNNER_TEMP,name);if(fs.statSync(p).isFile())logs[name]=fs.readFileSync(p,'utf8').slice(-1500000);}
           const key=randomBytes(32),iv=randomBytes(12),cipher=createCipheriv('aes-256-gcm',key,iv),data=Buffer.concat([cipher.update(JSON.stringify(logs)),cipher.final()]);
           const sealed={key:publicEncrypt({key:Buffer.from(process.env.DIAGNOSTIC_PUBLIC_KEY,'base64'),padding:constants.RSA_PKCS1_OAEP_PADDING,oaepHash:'sha256'},key).toString('base64'),iv:iv.toString('base64'),tag:cipher.getAuthTag().toString('base64'),data:data.toString('base64')};
-          fs.writeFileSync(path.join(process.env.RUNNER_TEMP,'web256-diagnostic.enc'),JSON.stringify(sealed));console.log('Private diagnostics encrypted for the local decryption key.');
+          fs.writeFileSync(path.join(process.env.RUNNER_TEMP,'web257-diagnostic.enc'),JSON.stringify(sealed));console.log('Private diagnostics encrypted for the local decryption key.');
           NODE
       - name: Upload encrypted diagnostic
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: web256-web-${{ strategy.job-index }}-${{ github.run_id }}
-          path: ${{ runner.temp }}/web256-diagnostic.enc
+          name: web257-web-${{ strategy.job-index }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/web257-diagnostic.enc
           retention-days: 2
           if-no-files-found: ignore
     needs:
@@ -161,18 +161,18 @@ jobs:
           - people-entry-layout rejected-record-recovery help-center team-viewer onboarding-prefill
             notification-inbox bill-confirmation cashbook records-toolbars website-pages switcher-animations books book-switch-performance transaction-drafts
             financial-reports people-currency-selection report-attachments form-experience ui-polish interaction-motion workspace-followups ux-navigation-followups
-          - otp-ui form-enter setup-otp-enter account-contact landing-faq list-hover otp-auto quotation-header support-layout ui-feedback-regressions report-reminder-follow-up
+          - otp-ui form-enter setup-otp-enter account-contact landing-faq list-hover otp-auto quotation-header support-layout ui-feedback-regressions report-reminder-follow-up report-consistency
     env:
       CI: "1"
-      SOURCE_SHA: 91129901b7f04e02668132a7415ce96f0c3b2179
-      KITABCHA_BUILD_VERSION: v3.7.256
+      SOURCE_SHA: 7e877d55ded634d1e5c7778217ed2d89110b8a5f
+      KITABCHA_BUILD_VERSION: v3.7.257
       EXPO_PUBLIC_API_URL: http://localhost:3001
       SPECS: ${{ matrix.specs }}
     steps:
       - uses: actions/checkout@v4
         with:
           repository: xecdev/kitabcha-app
-          ref: 91129901b7f04e02668132a7415ce96f0c3b2179
+          ref: 7e877d55ded634d1e5c7778217ed2d89110b8a5f
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
           fetch-depth: 9
@@ -227,14 +227,14 @@ jobs:
           const logs={};for(const name of fs.readdirSync(process.env.RUNNER_TEMP).filter(n=>n.endsWith('.log'))){const p=path.join(process.env.RUNNER_TEMP,name);if(fs.statSync(p).isFile())logs[name]=fs.readFileSync(p,'utf8').slice(-1500000);}
           const key=randomBytes(32),iv=randomBytes(12),cipher=createCipheriv('aes-256-gcm',key,iv),data=Buffer.concat([cipher.update(JSON.stringify(logs)),cipher.final()]);
           const sealed={key:publicEncrypt({key:Buffer.from(process.env.DIAGNOSTIC_PUBLIC_KEY,'base64'),padding:constants.RSA_PKCS1_OAEP_PADDING,oaepHash:'sha256'},key).toString('base64'),iv:iv.toString('base64'),tag:cipher.getAuthTag().toString('base64'),data:data.toString('base64')};
-          fs.writeFileSync(path.join(process.env.RUNNER_TEMP,'web256-diagnostic.enc'),JSON.stringify(sealed));console.log('Private diagnostics encrypted for the local decryption key.');
+          fs.writeFileSync(path.join(process.env.RUNNER_TEMP,'web257-diagnostic.enc'),JSON.stringify(sealed));console.log('Private diagnostics encrypted for the local decryption key.');
           NODE
       - name: Upload encrypted diagnostic
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: web256-browser-${{ strategy.job-index }}-${{ github.run_id }}
-          path: ${{ runner.temp }}/web256-diagnostic.enc
+          name: web257-browser-${{ strategy.job-index }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/web257-diagnostic.enc
           retention-days: 2
           if-no-files-found: ignore
   unit:
@@ -242,15 +242,15 @@ jobs:
     timeout-minutes: 30
     env:
       CI: "1"
-      SOURCE_SHA: 91129901b7f04e02668132a7415ce96f0c3b2179
-      DEPLOY_VERSION: v3.7.256
-      KITABCHA_BUILD_VERSION: v3.7.256
+      SOURCE_SHA: 7e877d55ded634d1e5c7778217ed2d89110b8a5f
+      DEPLOY_VERSION: v3.7.257
+      KITABCHA_BUILD_VERSION: v3.7.257
       EXPO_PUBLIC_API_URL: https://app.kitabcha.app
     steps:
       - uses: actions/checkout@v4
         with:
           repository: xecdev/kitabcha-app
-          ref: 91129901b7f04e02668132a7415ce96f0c3b2179
+          ref: 7e877d55ded634d1e5c7778217ed2d89110b8a5f
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
           fetch-depth: 9
@@ -339,14 +339,14 @@ jobs:
           const logs={};for(const name of fs.readdirSync(process.env.RUNNER_TEMP).filter(n=>n.endsWith('.log'))){const p=path.join(process.env.RUNNER_TEMP,name);if(fs.statSync(p).isFile())logs[name]=fs.readFileSync(p,'utf8').slice(-1500000);}
           const key=randomBytes(32),iv=randomBytes(12),cipher=createCipheriv('aes-256-gcm',key,iv),data=Buffer.concat([cipher.update(JSON.stringify(logs)),cipher.final()]);
           const sealed={key:publicEncrypt({key:Buffer.from(process.env.DIAGNOSTIC_PUBLIC_KEY,'base64'),padding:constants.RSA_PKCS1_OAEP_PADDING,oaepHash:'sha256'},key).toString('base64'),iv:iv.toString('base64'),tag:cipher.getAuthTag().toString('base64'),data:data.toString('base64')};
-          fs.writeFileSync(path.join(process.env.RUNNER_TEMP,'web256-diagnostic.enc'),JSON.stringify(sealed));console.log('Private diagnostics encrypted for the local decryption key.');
+          fs.writeFileSync(path.join(process.env.RUNNER_TEMP,'web257-diagnostic.enc'),JSON.stringify(sealed));console.log('Private diagnostics encrypted for the local decryption key.');
           NODE
       - name: Upload encrypted diagnostic
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: web256-unit-${{ strategy.job-index }}-${{ github.run_id }}
-          path: ${{ runner.temp }}/web256-diagnostic.enc
+          name: web257-unit-${{ strategy.job-index }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/web257-diagnostic.enc
           retention-days: 2
           if-no-files-found: ignore
   recovery:
@@ -356,7 +356,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: xecdev/kitabcha-app
-          ref: 91129901b7f04e02668132a7415ce96f0c3b2179
+          ref: 7e877d55ded634d1e5c7778217ed2d89110b8a5f
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
       - name: Verify isolated PostgreSQL backup and restore
@@ -374,14 +374,14 @@ jobs:
           const logs={};for(const name of fs.readdirSync(process.env.RUNNER_TEMP).filter(n=>n.endsWith('.log'))){const p=path.join(process.env.RUNNER_TEMP,name);if(fs.statSync(p).isFile())logs[name]=fs.readFileSync(p,'utf8').slice(-1500000);}
           const key=randomBytes(32),iv=randomBytes(12),cipher=createCipheriv('aes-256-gcm',key,iv),data=Buffer.concat([cipher.update(JSON.stringify(logs)),cipher.final()]);
           const sealed={key:publicEncrypt({key:Buffer.from(process.env.DIAGNOSTIC_PUBLIC_KEY,'base64'),padding:constants.RSA_PKCS1_OAEP_PADDING,oaepHash:'sha256'},key).toString('base64'),iv:iv.toString('base64'),tag:cipher.getAuthTag().toString('base64'),data:data.toString('base64')};
-          fs.writeFileSync(path.join(process.env.RUNNER_TEMP,'web256-diagnostic.enc'),JSON.stringify(sealed));console.log('Private diagnostics encrypted for the local decryption key.');
+          fs.writeFileSync(path.join(process.env.RUNNER_TEMP,'web257-diagnostic.enc'),JSON.stringify(sealed));console.log('Private diagnostics encrypted for the local decryption key.');
           NODE
       - name: Upload encrypted diagnostic
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: web256-recovery-${{ strategy.job-index }}-${{ github.run_id }}
-          path: ${{ runner.temp }}/web256-diagnostic.enc
+          name: web257-recovery-${{ strategy.job-index }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/web257-diagnostic.enc
           retention-days: 2
           if-no-files-found: ignore
 on:
