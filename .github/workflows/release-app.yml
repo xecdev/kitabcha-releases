@@ -11,7 +11,7 @@ jobs:
     timeout-minutes: 35
     env:
       CI: "1"
-      SOURCE_SHA: e5e3919664e051b1ffd37da8ab271a1adee2d14b
+      SOURCE_SHA: 7408aed281cc5289be58dfa7412f4c1580934ee5
       DEPLOY_VERSION: v3.7.255
       KITABCHA_BUILD_VERSION: v3.7.255
       EXPO_PUBLIC_API_URL: https://app.kitabcha.app
@@ -19,7 +19,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: xecdev/kitabcha-app
-          ref: e5e3919664e051b1ffd37da8ab271a1adee2d14b
+          ref: 7408aed281cc5289be58dfa7412f4c1580934ee5
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
           fetch-depth: 9
@@ -56,6 +56,8 @@ jobs:
           cp -r packages/reporting/. "$update/packages/reporting/"
           cmp packages/reporting/pdf-unicode.ts "$update/packages/reporting/pdf-unicode.ts"
           node scripts/copy-runtime-deps.mjs "$update" $(node -e "console.log(Object.keys(require('./apps/api/package.json').dependencies).filter(n=>!n.startsWith('@kitabcha/')).join(' '))") tsx > "$RUNNER_TEMP/runtime.log" 2>&1
+          mkdir -p "$update/node_modules/@kitabcha"
+          ln -s ../../packages/domain "$update/node_modules/@kitabcha/domain"
           cp apps/api/package.json "$update/apps/api/"
           cp package-lock.json "$update/"
           cp -r apps/api/prisma/. "$update/apps/api/prisma/"
@@ -160,7 +162,7 @@ jobs:
           - otp-ui form-enter setup-otp-enter account-contact landing-faq list-hover otp-auto quotation-header support-layout ui-feedback-regressions report-reminder-follow-up
     env:
       CI: "1"
-      SOURCE_SHA: e5e3919664e051b1ffd37da8ab271a1adee2d14b
+      SOURCE_SHA: 7408aed281cc5289be58dfa7412f4c1580934ee5
       KITABCHA_BUILD_VERSION: v3.7.255
       EXPO_PUBLIC_API_URL: http://localhost:3001
       SPECS: ${{ matrix.specs }}
@@ -168,7 +170,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: xecdev/kitabcha-app
-          ref: e5e3919664e051b1ffd37da8ab271a1adee2d14b
+          ref: 7408aed281cc5289be58dfa7412f4c1580934ee5
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
           fetch-depth: 9
@@ -233,7 +235,7 @@ jobs:
     timeout-minutes: 30
     env:
       CI: "1"
-      SOURCE_SHA: e5e3919664e051b1ffd37da8ab271a1adee2d14b
+      SOURCE_SHA: 7408aed281cc5289be58dfa7412f4c1580934ee5
       DEPLOY_VERSION: v3.7.255
       KITABCHA_BUILD_VERSION: v3.7.255
       EXPO_PUBLIC_API_URL: https://app.kitabcha.app
@@ -241,7 +243,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: xecdev/kitabcha-app
-          ref: e5e3919664e051b1ffd37da8ab271a1adee2d14b
+          ref: 7408aed281cc5289be58dfa7412f4c1580934ee5
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
           fetch-depth: 9
@@ -347,7 +349,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: xecdev/kitabcha-app
-          ref: e5e3919664e051b1ffd37da8ab271a1adee2d14b
+          ref: 7408aed281cc5289be58dfa7412f4c1580934ee5
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
       - name: Verify isolated PostgreSQL backup and restore
