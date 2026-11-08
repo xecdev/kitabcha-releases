@@ -188,8 +188,13 @@ jobs:
         run: |
           set -euo pipefail
           cd "$RUNNER_TEMP"
+          curl --fail --location --retry 3 --retry-all-errors --connect-timeout 20 --max-time 120 --silent --show-error --header "Accept: application/octet-stream" "https://api.github.com/repos/caddyserver/caddy/releases/assets/711594947?run=$GITHUB_RUN_ID&attempt=$GITHUB_RUN_ATTEMPT" -o caddy_2.11.9_linux_amd64.tar.gz || \
           curl --fail --location --retry 3 --silent --show-error https://github.com/caddyserver/caddy/releases/download/v2.11.9/caddy_2.11.9_linux_amd64.tar.gz -o caddy_2.11.9_linux_amd64.tar.gz
+
+          curl --fail --location --retry 3 --retry-all-errors --connect-timeout 20 --max-time 120 --silent --show-error --header "Accept: application/octet-stream" "https://api.github.com/repos/caddyserver/caddy/releases/assets/711595488?run=$GITHUB_RUN_ID&attempt=$GITHUB_RUN_ATTEMPT" -o caddy_checksums.txt || \
           curl --fail --location --retry 3 --silent --show-error https://github.com/caddyserver/caddy/releases/download/v2.11.9/caddy_2.11.9_checksums.txt -o caddy_checksums.txt
+
+          echo '5b8cb7faf8726a2028ad96a66e54e6e81e8f361bc6175e5d22bbd997cc5177fb  caddy_2.11.9_linux_amd64.tar.gz' | sha256sum --check --status
           grep ' caddy_2.11.9_linux_amd64.tar.gz$' caddy_checksums.txt | sha512sum --check --status
           tar -xzf caddy_2.11.9_linux_amd64.tar.gz caddy
           chmod 700 caddy
