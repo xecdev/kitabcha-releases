@@ -1,0 +1,59 @@
+name: Verify Android window compatibility without publishing
+on:
+  workflow_dispatch:
+    inputs:
+      source_ref:
+        description: Immutable private source SHA
+        required: true
+        type: string
+permissions:
+  contents: read
+jobs:
+  window_compat:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CI: '1'
+      SOURCE_SHA: ${{ inputs.source_ref }}
+    steps:
+      - name: Require immutable source
+        run: '[[ "$SOURCE_SHA" =~ ^[a-f0-9]{40}$ ]]'
+      - uses: actions/checkout@v4
+        with:
+          repository: xecdev/kitabcha-app
+          ref: ${{ inputs.source_ref }}
+          ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.22.1
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a
+        with:
+          cache-read-only: false
+      - name: Install dependencies privately
+        run: npm ci --include=dev --no-audit --no-fund > "$RUNNER_TEMP/install.log" 2>&1
+      - name: Verify modern and legacy window behavior
+        run: |
+          set -euo pipefail
+          (
+          node --test tests/android-window-compat.test.mjs tests/android-release.test.mjs
+          curl --fail --silent --show-error --location https://repo.maven.apache.org/maven2/org/ow2/asm/asm/9.8/asm-9.8.jar --output "$RUNNER_TEMP/asm-9.8.jar"
+          echo "876eab6a83daecad5ca67eb9fcabb063c97b5aeb8cf1fca7a989ecde17522051  $RUNNER_TEMP/asm-9.8.jar" | sha256sum --check
+          ASM_JAR="$RUNNER_TEMP/asm-9.8.jar" node scripts/verify-android-edge-to-edge.mjs
+          ) > "$RUNNER_TEMP/window-tests.log" 2>&1
+          echo 'Window JVM and prebuild regressions passed.'
+      - name: Generate Android project
+        working-directory: apps/client
+        run: npx expo prebuild --platform android --no-install --no-clean > "$RUNNER_TEMP/prebuild.log" 2>&1
+      - name: Compile native build logic and configure actual app
+        working-directory: apps/client/android
+        run: |
+          set -euo pipefail
+          ./gradlew -p buildSrc classes --no-daemon > "$RUNNER_TEMP/build-logic.log" 2>&1
+          ./gradlew help --no-daemon > "$RUNNER_TEMP/app-configuration.log" 2>&1
+          echo 'AGP window visitor compiled and app variant instrumentation configured.'
