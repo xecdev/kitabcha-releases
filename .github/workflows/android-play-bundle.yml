@@ -28,7 +28,7 @@ jobs:
       CCACHE_BASEDIR: ${{ github.workspace }}
       CCACHE_MAXSIZE: 2G
       CCACHE_COMPILERCHECK: content
-      KITABCHA_BUILD_VERSION: 2.0.126
+      KITABCHA_BUILD_VERSION: 2.1.0
       SOURCE_SHA: ${{ inputs.source_ref }}
     steps:
       - name: Require immutable private source SHA
@@ -366,8 +366,8 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       SOURCE_SHA: ${{ inputs.source_ref }}
-      DEPLOY_VERSION: v2.0.126
-      WEB_SOURCE_SHA: 91129901b7f04e02668132a7415ce96f0c3b2179
+      DEPLOY_VERSION: v2.1.0
+      WEB_SOURCE_SHA: b7168acf2d2673577c03b0561803bfef07bff1ce
     steps:
       - uses: actions/checkout@v4
         with:
@@ -380,7 +380,7 @@ jobs:
           set -euo pipefail
 
           for attempt in $(seq 1 40); do
-            if curl --fail --silent --show-error https://app.kitabcha.app/web-release.json -o "$RUNNER_TEMP/required-web.json" && node -e "const r=require(process.env.RUNNER_TEMP+'/required-web.json');if(r.commit!==process.env.WEB_SOURCE_SHA||r.version!=='v3.7.256')process.exit(1)"; then
+            if curl --fail --silent --show-error https://app.kitabcha.app/web-release.json -o "$RUNNER_TEMP/required-web.json" && node -e "const r=require(process.env.RUNNER_TEMP+'/required-web.json');if(r.commit!==process.env.WEB_SOURCE_SHA||r.version!=='v3.7.261')process.exit(1)"; then
               echo 'Approved live web release confirmed; publish APK assets only.'
               exit 0
             fi
@@ -395,7 +395,7 @@ jobs:
           node-version: 24
       - uses: actions/download-artifact@v4
         with:
-          name: Kitabcha-2.0.126-android
+          name: Kitabcha-2.1.0-android
           path: ${{ runner.temp }}/mobile
       - name: Install landing build dependencies
         run: npm ci --include=dev --no-audit --no-fund >
@@ -405,11 +405,11 @@ jobs:
           set -euo pipefail
           package="$RUNNER_TEMP/package"
           mkdir -p "$package/mobile" "$package/site/landing" "$package/deploy"
-          apk="$RUNNER_TEMP/mobile/Kitabcha-2.0.126-android.apk"
+          apk="$RUNNER_TEMP/mobile/Kitabcha-2.1.0-android.apk"
           node --input-type=module <<'VERIFY'
           import fs from 'node:fs';import{createHash}from'node:crypto';
-          const dir=process.env.RUNNER_TEMP+'/mobile';const r=JSON.parse(fs.readFileSync(dir+'/release.json'));const b=fs.readFileSync(dir+'/Kitabcha-2.0.126-android.apk');
-          if(r.version!=='2.0.126'||r.versionCode!==126||r.bytes!==b.length||r.sha256!==createHash('sha256').update(b).digest('hex'))throw Error('APK verification manifest mismatch');
+          const dir=process.env.RUNNER_TEMP+'/mobile';const r=JSON.parse(fs.readFileSync(dir+'/release.json'));const b=fs.readFileSync(dir+'/Kitabcha-2.1.0-android.apk');
+          if(r.version!=='2.1.0'||r.versionCode!==127||r.bytes!==b.length||r.sha256!==createHash('sha256').update(b).digest('hex'))throw Error('APK verification manifest mismatch');
           VERIFY
           cp "$apk" "$package/mobile/"
           cp "$RUNNER_TEMP/mobile/release.json" "$package/mobile/"
@@ -483,7 +483,7 @@ jobs:
       CCACHE_BASEDIR: ${{ github.workspace }}
       CCACHE_MAXSIZE: 2G
       CCACHE_COMPILERCHECK: content
-      KITABCHA_BUILD_VERSION: 2.0.126
+      KITABCHA_BUILD_VERSION: 2.1.0
       SOURCE_SHA: ${{ inputs.source_ref }}
     steps:
       - name: Require immutable private source SHA
