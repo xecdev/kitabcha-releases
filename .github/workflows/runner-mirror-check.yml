@@ -7,20 +7,10 @@ jobs:
     runs-on: ubuntu-22.04
     timeout-minutes: 4
     steps:
-      - name: Resolve public package mirrors
+      - name: Check alternate signed Ubuntu archives
         run: |
-          for host in azure.archive.ubuntu.com archive.ubuntu.com security.ubuntu.com packages.microsoft.com; do
-            if timeout 15 getent ahostsv4 "$host" >/dev/null; then echo "$host resolves"; else echo "$host unavailable"; fi
+          for base in https://mirrors.edge.kernel.org/ubuntu https://mirror.math.princeton.edu/pub/ubuntu https://mirrors.mit.edu/ubuntu https://ubuntu.osuosl.org/ubuntu; do
+            for suite in jammy jammy-updates jammy-security; do
+              if curl --fail --silent --show-error --head --connect-timeout 5 --max-time 10 "$base/dists/$suite/InRelease" >/dev/null 2>&1; then echo "$base $suite available"; else echo "$base $suite unavailable"; fi
+            done
           done
-      - name: List configured public apt hostnames
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          import re
-          paths = [Path('/etc/apt/sources.list'), Path('/etc/apt/apt-mirrors.txt'), Path('/etc/apt/apt-mirrors-security.txt')]
-          paths += list(Path('/etc/apt/sources.list.d').glob('*')) + list(Path('/etc/apt/apt.conf.d').glob('*'))
-          for path in paths:
-              if path.is_file():
-                  hosts = sorted(set(re.findall(r'https?://(?:[^/@\s]+@)?([^/\s;\"]+)', path.read_text())))
-                  if hosts: print(path.name, ', '.join(hosts))
-          PY
