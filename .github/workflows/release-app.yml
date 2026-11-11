@@ -187,21 +187,35 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24.22.1
-      - name: Use official Ubuntu mirror for browser dependencies
+      - name: Select reachable signed Ubuntu archive
         run: |
           set -euo pipefail
-          sudo python3 - <<'PY'
+          mirror=''
+          for base in https://mirrors.edge.kernel.org/ubuntu https://mirror.math.princeton.edu/pub/ubuntu https://mirrors.mit.edu/ubuntu; do
+            if curl --fail --silent --show-error --head --connect-timeout 5 --max-time 15 "$base/dists/jammy/InRelease" >/dev/null 2>&1 && curl --fail --silent --show-error --head --connect-timeout 5 --max-time 15 "$base/dists/jammy-security/InRelease" >/dev/null 2>&1; then
+              mirror="$base"
+              break
+            fi
+          done
+          test -n "$mirror"
+          echo "Selected reachable Ubuntu archive: $mirror"
+          sudo python3 - "$mirror" <<'PY'
           from pathlib import Path
-          paths = [Path('/etc/apt/sources.list'), Path('/etc/apt/apt-mirrors.txt'), Path('/etc/apt/apt-mirrors-security.txt')]
+          import re, sys
+          base = sys.argv[1]
+          for path in [Path('/etc/apt/apt-mirrors.txt'), Path('/etc/apt/apt-mirrors-security.txt')]:
+              if path.is_file():
+                  path.write_text(base + '/\n')
+          paths = [Path('/etc/apt/sources.list')]
           paths += list(Path('/etc/apt/sources.list.d').glob('*.list')) + list(Path('/etc/apt/sources.list.d').glob('*.sources'))
           for path in paths:
               if path.is_file():
                   original = path.read_text()
-                  updated = original.replace('azure.archive.ubuntu.com', 'archive.ubuntu.com')
+                  updated = re.sub(r'https?://(?:[A-Za-z0-9.-]*archive\.ubuntu\.com|security\.ubuntu\.com)/ubuntu/?', base + '/', original)
                   if updated != original:
                       path.write_text(updated)
           PY
-          sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 update > "$RUNNER_TEMP/ubuntu-mirror.log" 2>&1
+          timeout 240 sudo apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 update > "$RUNNER_TEMP/ubuntu-mirror.log" 2>&1
       - name: Install browser validation dependencies
         run: |-
           npm ci --include=dev --no-audit --no-fund > "$RUNNER_TEMP/browser-install.log" 2>&1
@@ -280,21 +294,35 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24.22.1
-      - name: Use official Ubuntu mirror for browser dependencies
+      - name: Select reachable signed Ubuntu archive
         run: |
           set -euo pipefail
-          sudo python3 - <<'PY'
+          mirror=''
+          for base in https://mirrors.edge.kernel.org/ubuntu https://mirror.math.princeton.edu/pub/ubuntu https://mirrors.mit.edu/ubuntu; do
+            if curl --fail --silent --show-error --head --connect-timeout 5 --max-time 15 "$base/dists/jammy/InRelease" >/dev/null 2>&1 && curl --fail --silent --show-error --head --connect-timeout 5 --max-time 15 "$base/dists/jammy-security/InRelease" >/dev/null 2>&1; then
+              mirror="$base"
+              break
+            fi
+          done
+          test -n "$mirror"
+          echo "Selected reachable Ubuntu archive: $mirror"
+          sudo python3 - "$mirror" <<'PY'
           from pathlib import Path
-          paths = [Path('/etc/apt/sources.list'), Path('/etc/apt/apt-mirrors.txt'), Path('/etc/apt/apt-mirrors-security.txt')]
+          import re, sys
+          base = sys.argv[1]
+          for path in [Path('/etc/apt/apt-mirrors.txt'), Path('/etc/apt/apt-mirrors-security.txt')]:
+              if path.is_file():
+                  path.write_text(base + '/\n')
+          paths = [Path('/etc/apt/sources.list')]
           paths += list(Path('/etc/apt/sources.list.d').glob('*.list')) + list(Path('/etc/apt/sources.list.d').glob('*.sources'))
           for path in paths:
               if path.is_file():
                   original = path.read_text()
-                  updated = original.replace('azure.archive.ubuntu.com', 'archive.ubuntu.com')
+                  updated = re.sub(r'https?://(?:[A-Za-z0-9.-]*archive\.ubuntu\.com|security\.ubuntu\.com)/ubuntu/?', base + '/', original)
                   if updated != original:
                       path.write_text(updated)
           PY
-          sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 update > "$RUNNER_TEMP/ubuntu-mirror.log" 2>&1
+          timeout 240 sudo apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 update > "$RUNNER_TEMP/ubuntu-mirror.log" 2>&1
       - name: Validate private source without publishing logs
         run: >
           set -euo pipefail
