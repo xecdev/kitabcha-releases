@@ -60,7 +60,7 @@ jobs:
           npm ci --include=dev --no-audit --no-fund > "$RUNNER_TEMP/validation-install.log" 2>&1
           npm run db:generate > "$RUNNER_TEMP/validation-prisma.log" 2>&1
           npx playwright install --with-deps chromium > "$RUNNER_TEMP/unit-browser-install.log" 2>&1
-          node --import tsx --test --test-concurrency=1 --test-timeout=120000 tests/browser/*.test.ts > "$RUNNER_TEMP/validation-unit.log" 2>&1
+          timeout --kill-after=10s 180s node --import tsx --test --test-concurrency=1 --test-timeout=120000 tests/browser/*.test.ts > "$RUNNER_TEMP/validation-unit.log" 2>&1
       - name: Encrypt private failure diagnostics
         if: failure()
         env:
