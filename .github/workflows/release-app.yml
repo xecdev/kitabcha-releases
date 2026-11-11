@@ -11,7 +11,7 @@ jobs:
     timeout-minutes: 35
     env:
       CI: "1"
-      SOURCE_SHA: 89983a4b3b0ffd5e5a47aa8d1dad17b0552b72ab
+      SOURCE_SHA: 009d660525cae9f17543253903ec7eea5ea8a89a
       DEPLOY_VERSION: v3.7.264
       KITABCHA_BUILD_VERSION: v3.7.264
       EXPO_PUBLIC_API_URL: https://app.kitabcha.app
@@ -19,7 +19,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: xecdev/kitabcha-app
-          ref: 89983a4b3b0ffd5e5a47aa8d1dad17b0552b72ab
+          ref: 009d660525cae9f17543253903ec7eea5ea8a89a
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
           fetch-depth: 9
@@ -165,7 +165,7 @@ jobs:
           - app-recovery billing-emails current-ui-fixes grocery-audit loading-version otp-email scale-loading scale-reports scale-validation
     env:
       CI: "1"
-      SOURCE_SHA: 89983a4b3b0ffd5e5a47aa8d1dad17b0552b72ab
+      SOURCE_SHA: 009d660525cae9f17543253903ec7eea5ea8a89a
       KITABCHA_BUILD_VERSION: v3.7.264
       EXPO_PUBLIC_API_URL: http://localhost:3001
       SPECS: ${{ matrix.specs }}
@@ -173,7 +173,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: xecdev/kitabcha-app
-          ref: 89983a4b3b0ffd5e5a47aa8d1dad17b0552b72ab
+          ref: 009d660525cae9f17543253903ec7eea5ea8a89a
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
           fetch-depth: 9
@@ -271,7 +271,7 @@ jobs:
     timeout-minutes: 30
     env:
       CI: "1"
-      SOURCE_SHA: 89983a4b3b0ffd5e5a47aa8d1dad17b0552b72ab
+      SOURCE_SHA: 009d660525cae9f17543253903ec7eea5ea8a89a
       DEPLOY_VERSION: v3.7.264
       KITABCHA_BUILD_VERSION: v3.7.264
       EXPO_PUBLIC_API_URL: https://app.kitabcha.app
@@ -280,7 +280,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: xecdev/kitabcha-app
-          ref: 89983a4b3b0ffd5e5a47aa8d1dad17b0552b72ab
+          ref: 009d660525cae9f17543253903ec7eea5ea8a89a
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
           fetch-depth: 9
@@ -375,7 +375,7 @@ jobs:
 
           echo 'Owner console security, scoped restore, storage and B2 configuration browser gate passed.'
 
-          if ! node --import tsx --test tests/browser/*.test.ts > "$RUNNER_TEMP/bill-preview-browser.log" 2>&1; then
+          if ! timeout --kill-after=10s 300s node --import tsx --test --test-concurrency=1 --test-timeout=120000 tests/browser/*.test.ts > "$RUNNER_TEMP/bill-preview-browser.log" 2>&1; then
             echo 'Bill preview browser regression failed; private diagnostics retained on runner.'
             exit 1
           fi
@@ -391,9 +391,9 @@ jobs:
           echo 'React-admin desktop/mobile, selected/all deletion, upload restore and deleted-account recovery passed.'
 
 
-          node tests/admin-ui-smoke.mjs > "$RUNNER_TEMP/admin-ui-browser.log" 2>&1
+          timeout --kill-after=10s 120s node tests/admin-ui-smoke.mjs > "$RUNNER_TEMP/admin-ui-browser.log" 2>&1
 
-          node tests/owner-otp-ui.mjs > "$RUNNER_TEMP/owner-otp-browser.log" 2>&1
+          timeout --kill-after=10s 120s node tests/owner-otp-ui.mjs > "$RUNNER_TEMP/owner-otp-browser.log" 2>&1
       - name: Encrypt private failure diagnostics
         if: failure()
         env:
@@ -421,7 +421,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: xecdev/kitabcha-app
-          ref: 89983a4b3b0ffd5e5a47aa8d1dad17b0552b72ab
+          ref: 009d660525cae9f17543253903ec7eea5ea8a89a
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
       - name: Verify isolated PostgreSQL backup and restore
