@@ -1,0 +1,213 @@
+name: Isolated native phonebook regression
+on:
+  workflow_dispatch:
+    inputs:
+      source_ref:
+        description: Immutable Kitabcha source commit
+        required: true
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: kitabcha-phonebook-probe
+  cancel-in-progress: false
+jobs:
+  native_phonebook:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      CI: "1"
+      NODE_ENV: production
+      EXPO_PUBLIC_API_URL: https://app.kitabcha.app
+      CCACHE_DIR: ${{ github.workspace }}/.ccache
+      CCACHE_BASEDIR: ${{ github.workspace }}
+      CCACHE_MAXSIZE: 2G
+      CCACHE_COMPILERCHECK: content
+      KITABCHA_BUILD_VERSION: 2.1.1
+      SOURCE_SHA: ${{ inputs.source_ref }}
+    steps:
+      - name: Require immutable private source SHA
+        run: '[[ "$SOURCE_SHA" =~ ^[a-f0-9]{40}$ ]]'
+      - uses: actions/checkout@v4
+        with:
+          repository: xecdev/kitabcha-app
+          ref: ${{ inputs.source_ref }}
+          ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
+          persist-credentials: false
+      - name: Read app version
+        id: version
+        run: >
+          # Tag-scoped caches cannot be reused by the next release tag.
+
+          # Build on a stable branch; publication still uses an immutable tag.
+
+          test "$GITHUB_REF_TYPE" = branch || { echo 'Dispatch APK builds on the release branch, not a version tag.'; exit 1; }
+
+          node -e "const {expo}=require('./apps/client/app.json'); console.log('version='+expo.version);
+          console.log('code='+expo.android.versionCode)" >> "$GITHUB_OUTPUT"
+
+          node <<'JS' >> "$GITHUB_OUTPUT"
+
+          const {createHash}=require('crypto');
+
+          const {expo}=require('./apps/client/app.json');
+
+          delete expo.version;
+
+          delete expo.android.versionCode;
+
+          if(expo.ios) delete expo.ios.buildNumber;
+
+          console.log('native='+createHash('sha256').update(JSON.stringify(expo)).digest('hex'));
+
+          JS
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.22.1
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - name: Restore Gradle dependencies and compiled tasks
+        uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a
+        with:
+          cache-read-only: false
+      - name: Restore native compiler cache
+        uses: actions/cache@v4
+        with:
+          path: .ccache
+          key: android-ccache-v1-${{ runner.os }}-${{ hashFiles('package-lock.json', 'apps/client/plugins/**', 'apps/client/modules/**')
+            }}-${{ github.run_id }}-${{ github.run_attempt }}-pdf-probe
+          restore-keys: >
+            android-ccache-v1-${{ runner.os }}-${{ hashFiles('package-lock.json', 'apps/client/plugins/**',
+            'apps/client/modules/**') }}-
+
+            android-ccache-v1-${{ runner.os }}-
+      - name: Install native compiler cache
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install --no-install-recommends -y ccache
+          ccache --zero-stats
+      - name: Install Android SDK components
+        run: |
+          sdk=$(find "$ANDROID_HOME/cmdline-tools" -path '*/bin/sdkmanager' -print -quit)
+          test -n "$sdk"
+          yes | "$sdk" --licenses >/dev/null || true
+          "$sdk" 'platforms;android-36' 'build-tools;36.0.0' 'ndk;27.1.12297006' 'cmake;3.22.1'
+      - name: Install JavaScript dependencies
+        run: |
+          set -euo pipefail
+          (
+          npm ci --include=dev --no-audit --no-fund
+          node scripts/build-report-renderer.mjs
+          node scripts/build-receipt-viewer.mjs
+          ) > "$RUNNER_TEMP/android-install-javascript-dependencies.log" 2>&1
+          echo "Install JavaScript dependencies passed."
+      - name: Check Home swipe behavior and login translations
+        run: >
+          set -euo pipefail
+
+          (
+
+          node --import tsx --test tests/home-swipe.test.ts tests/back-swipe.test.ts tests/mobile-back.test.ts
+          tests/phonebook-contact.test.ts tests/localization.test.ts
+
+          ) > "$RUNNER_TEMP/android-check-home-swipe-behavior-and-login-translations.log" 2>&1
+
+          echo "Check Home swipe behavior and login translations passed."
+      - name: Verify native notification destinations
+        run: node --import tsx --test tests/push-navigation.test.ts tests/scroll-position.test.ts > "$RUNNER_TEMP/push-navigation.log"
+          2>&1
+      - name: Verify native commerce file and draft adapters
+        run: >
+          set -euo pipefail
+
+          (
+
+          node --test tests/phonebook-native.test.mjs tests/back-swipe-native.test.mjs tests/native-commerce.test.mjs
+          tests/native-file-save.test.mjs tests/native-report-bridge.test.mjs tests/native-number-direction.test.mjs
+          tests/bahij-fonts.test.mjs tests/receipt-sharing.test.mjs tests/session-forms.test.mjs
+          tests/native-signature-font.test.mjs
+
+          ) > "$RUNNER_TEMP/android-verify-native-commerce-file-and-draft-adapters.log" 2>&1
+
+          echo "Verify native commerce file and draft adapters passed."
+      - name: Verify native scanner adapter
+        run: node --test tests/native-barcode-scanner.test.mjs tests/native-barcode-camera.test.mjs tests/android-release.test.mjs
+          tests/native-receipt-build.test.mjs > "$RUNNER_TEMP/native-scanner.log" 2>&1
+      - name: Install isolated synthetic phonebook screen
+        run: cp tests/native-phonebook-probe-layout.txt apps/client/app/_layout.tsx
+      - name: Generate Android project
+        working-directory: apps/client
+        run: |
+          set -euo pipefail
+          (
+          npx expo prebuild --platform android --no-install --no-clean
+          ) > "$RUNNER_TEMP/android-generate-android-project.log" 2>&1
+          echo "Generate Android project passed."
+      - name: Restore compiled native dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            node_modules/**/android/.cxx
+            node_modules/**/android/build
+            node_modules/react-native/ReactAndroid/.cxx
+            node_modules/react-native/ReactAndroid/build
+            apps/client/android/app/.cxx
+            apps/client/android/app/build/intermediates/cxx
+          key: android-native-v1-${{ runner.os }}-${{ steps.version.outputs.native }}-${{ hashFiles('package-lock.json',
+            'apps/client/plugins/**', 'apps/client/modules/**') }}-${{ github.run_id }}-pdf-probe
+          restore-keys: >
+            android-native-v1-${{ runner.os }}-${{ steps.version.outputs.native }}-${{ hashFiles('package-lock.json',
+            'apps/client/plugins/**', 'apps/client/modules/**') }}-
+      - name: Build isolated native phonebook probe
+        working-directory: apps/client/android
+        run: ./gradlew :app:assembleRelease --no-daemon --build-cache --max-workers=2 -PreactNativeArchitectures=x86_64 >
+          "$RUNNER_TEMP/phonebook-probe-build.log" 2>&1
+      - name: Enable Android emulator acceleration
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Exercise actual Android contact picker and manual fallback
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 36
+          arch: x86_64
+          target: google_apis
+          profile: pixel_6
+          disk-size: 3G
+          ram-size: 2048M
+          emulator-boot-timeout: 180
+          disable-animations: true
+          script: python3 tests/native-phonebook-probe.py
+      - name: Encrypt Android failure diagnostics
+        if: failure()
+        env:
+          DIAGNOSTIC_PUBLIC_KEY: |
+            -----BEGIN PUBLIC KEY-----
+            MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAtg3UeD8IE9A0fOZ1Oaal
+            1pSoJkxstU4Nmi6qZ0qFRkgn5j9Hzm34TqjwEQVRCbujBSipjcdctR6rxToAbk8N
+            WhaofmJnVgh8hCUytqi6JTNA2d11Ej/mIgPLwX0dgLdh4yPJsPotHSmolv+4rdcL
+            PajxEksQbpaHPqwrkAk6UXhKCxn3dbVeOBNQ/CkIEA+uVF6RvQq8QQU+LN3tqPZg
+            pGkJRY5M/ZnAnqe5FTd8M8SkWLbOd/dlu/ffWzZzsyr+bw6DR+PMSR6dE2thjLh+
+            AHG0RBX+sSqTA1o6fSMRIn+/Pk3BwvTrPiDVKE5LzSRHzonkcGOXBOFVQkgaBT/w
+            kwIDAQAB
+            -----END PUBLIC KEY-----
+        shell: bash
+        run: |
+          node --input-type=module <<'JS'
+          import fs from 'node:fs';import{randomBytes,createCipheriv,publicEncrypt,constants}from'node:crypto';
+          const names=fs.readdirSync(process.env.RUNNER_TEMP).filter(n=>/^(android-|native-|optimized-|phonebook-|probe-).*\.log$/.test(n));if(!names.length)process.exit(0);const rawLogs=Object.fromEntries(names.map(n=>[n,fs.readFileSync(process.env.RUNNER_TEMP+'/'+n,'utf8')]));
+          const raw=Buffer.from(JSON.stringify(rawLogs)),key=randomBytes(32),iv=randomBytes(12),cipher=createCipheriv('aes-256-gcm',key,iv),data=Buffer.concat([cipher.update(raw),cipher.final()]);
+          const wrapped=publicEncrypt({key:process.env.DIAGNOSTIC_PUBLIC_KEY,oaepHash:'sha256',padding:constants.RSA_PKCS1_OAEP_PADDING},key);
+          fs.writeFileSync(process.env.RUNNER_TEMP+'/android-diagnostic.enc.json',JSON.stringify({key:wrapped.toString('base64'),iv:iv.toString('base64'),tag:cipher.getAuthTag().toString('base64'),data:data.toString('base64')}));
+          JS
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: encrypted-android-native_phonebook-diagnostic
+          path: ${{ runner.temp }}/android-diagnostic.enc.json
+          retention-days: 2
+    name: Native phonebook selection, cancellation and manual entry
