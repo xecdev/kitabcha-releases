@@ -9,7 +9,7 @@ jobs:
     timeout-minutes: 12
     env:
       CI: "1"
-      SOURCE_SHA: 89983a4b3b0ffd5e5a47aa8d1dad17b0552b72ab
+      SOURCE_SHA: 009d660525cae9f17543253903ec7eea5ea8a89a
       DEPLOY_VERSION: v3.7.264
       KITABCHA_BUILD_VERSION: v3.7.264
       EXPO_PUBLIC_API_URL: https://app.kitabcha.app
@@ -18,7 +18,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: xecdev/kitabcha-app
-          ref: 89983a4b3b0ffd5e5a47aa8d1dad17b0552b72ab
+          ref: 009d660525cae9f17543253903ec7eea5ea8a89a
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
           fetch-depth: 9
