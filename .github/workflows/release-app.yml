@@ -11,15 +11,15 @@ jobs:
     timeout-minutes: 35
     env:
       CI: "1"
-      SOURCE_SHA: 21d9337b4773107bfb56d0c2852713b14e07ab03
-      DEPLOY_VERSION: v3.8.2
-      KITABCHA_BUILD_VERSION: v3.8.2
+      SOURCE_SHA: f8657e2c50d505cf889562c4eb09a23ad797b2d8
+      DEPLOY_VERSION: v3.8.3
+      KITABCHA_BUILD_VERSION: v3.8.3
       EXPO_PUBLIC_API_URL: https://app.kitabcha.app
     steps:
       - uses: actions/checkout@v4
         with:
           repository: xecdev/kitabcha-app
-          ref: 21d9337b4773107bfb56d0c2852713b14e07ab03
+          ref: f8657e2c50d505cf889562c4eb09a23ad797b2d8
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
           fetch-depth: 9
@@ -27,7 +27,7 @@ jobs:
         with:
           node-version: 24.22.1
       - name: Confirm production release base
-        run: >
+        run: >-
           node --input-type=module <<'NODE'
 
           const response=await
@@ -37,7 +37,7 @@ jobs:
 
           const current=await response.json();
 
-          if(current.version!=='v3.8.1'||current.commit!=='003e99b001aa3e7d8a3247dfdba6c2c134cf923b')throw Error('Production
+          if(current.version!=='v3.8.2'||current.commit!=='21d9337b4773107bfb56d0c2852713b14e07ab03')throw Error('Production
           changed since release preparation; inspect before deploying');
 
           console.log('Production release base confirmed:',current.version,current.commit);
@@ -150,14 +150,14 @@ jobs:
           const logs={};for(const name of fs.readdirSync(process.env.RUNNER_TEMP).filter(n=>n.endsWith('.log'))){const p=path.join(process.env.RUNNER_TEMP,name);if(fs.statSync(p).isFile())logs[name]=fs.readFileSync(p,'utf8').slice(-1500000);}
           const key=randomBytes(32),iv=randomBytes(12),cipher=createCipheriv('aes-256-gcm',key,iv),data=Buffer.concat([cipher.update(JSON.stringify(logs)),cipher.final()]);
           const sealed={key:publicEncrypt({key:Buffer.from(process.env.DIAGNOSTIC_PUBLIC_KEY,'base64'),padding:constants.RSA_PKCS1_OAEP_PADDING,oaepHash:'sha256'},key).toString('base64'),iv:iv.toString('base64'),tag:cipher.getAuthTag().toString('base64'),data:data.toString('base64')};
-          fs.writeFileSync(path.join(process.env.RUNNER_TEMP,'web382-diagnostic.enc'),JSON.stringify(sealed));console.log('Private diagnostics encrypted for the local decryption key.');
+          fs.writeFileSync(path.join(process.env.RUNNER_TEMP,'web383-diagnostic.enc'),JSON.stringify(sealed));console.log('Private diagnostics encrypted for the local decryption key.');
           NODE
       - name: Upload encrypted diagnostic
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: web382-web-${{ strategy.job-index }}-${{ github.run_id }}
-          path: ${{ runner.temp }}/web382-diagnostic.enc
+          name: web383-web-${{ strategy.job-index }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/web383-diagnostic.enc
           retention-days: 2
           if-no-files-found: ignore
     needs:
@@ -199,7 +199,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: xecdev/kitabcha-app
-          ref: 21d9337b4773107bfb56d0c2852713b14e07ab03
+          ref: f8657e2c50d505cf889562c4eb09a23ad797b2d8
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
           fetch-depth: 9
@@ -300,14 +300,14 @@ jobs:
           const logs={};for(const name of fs.readdirSync(process.env.RUNNER_TEMP).filter(n=>n.endsWith('.log'))){const p=path.join(process.env.RUNNER_TEMP,name);if(fs.statSync(p).isFile())logs[name]=fs.readFileSync(p,'utf8').slice(-1500000);}
           const key=randomBytes(32),iv=randomBytes(12),cipher=createCipheriv('aes-256-gcm',key,iv),data=Buffer.concat([cipher.update(JSON.stringify(logs)),cipher.final()]);
           const sealed={key:publicEncrypt({key:Buffer.from(process.env.DIAGNOSTIC_PUBLIC_KEY,'base64'),padding:constants.RSA_PKCS1_OAEP_PADDING,oaepHash:'sha256'},key).toString('base64'),iv:iv.toString('base64'),tag:cipher.getAuthTag().toString('base64'),data:data.toString('base64')};
-          fs.writeFileSync(path.join(process.env.RUNNER_TEMP,'web382-diagnostic.enc'),JSON.stringify(sealed));console.log('Private diagnostics encrypted for the local decryption key.');
+          fs.writeFileSync(path.join(process.env.RUNNER_TEMP,'web383-diagnostic.enc'),JSON.stringify(sealed));console.log('Private diagnostics encrypted for the local decryption key.');
           NODE
       - name: Upload encrypted diagnostic
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: web382-browser-${{ strategy.job-index }}-${{ github.run_id }}
-          path: ${{ runner.temp }}/web382-diagnostic.enc
+          name: web383-browser-${{ strategy.job-index }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/web383-diagnostic.enc
           retention-days: 2
           if-no-files-found: ignore
   unit:
@@ -337,7 +337,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: xecdev/kitabcha-app
-          ref: 21d9337b4773107bfb56d0c2852713b14e07ab03
+          ref: f8657e2c50d505cf889562c4eb09a23ad797b2d8
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
           fetch-depth: 9
@@ -479,14 +479,14 @@ jobs:
           const logs={};for(const name of fs.readdirSync(process.env.RUNNER_TEMP).filter(n=>n.endsWith('.log'))){const p=path.join(process.env.RUNNER_TEMP,name);if(fs.statSync(p).isFile())logs[name]=fs.readFileSync(p,'utf8').slice(-1500000);}
           const key=randomBytes(32),iv=randomBytes(12),cipher=createCipheriv('aes-256-gcm',key,iv),data=Buffer.concat([cipher.update(JSON.stringify(logs)),cipher.final()]);
           const sealed={key:publicEncrypt({key:Buffer.from(process.env.DIAGNOSTIC_PUBLIC_KEY,'base64'),padding:constants.RSA_PKCS1_OAEP_PADDING,oaepHash:'sha256'},key).toString('base64'),iv:iv.toString('base64'),tag:cipher.getAuthTag().toString('base64'),data:data.toString('base64')};
-          fs.writeFileSync(path.join(process.env.RUNNER_TEMP,'web382-diagnostic.enc'),JSON.stringify(sealed));console.log('Private diagnostics encrypted for the local decryption key.');
+          fs.writeFileSync(path.join(process.env.RUNNER_TEMP,'web383-diagnostic.enc'),JSON.stringify(sealed));console.log('Private diagnostics encrypted for the local decryption key.');
           NODE
       - name: Upload encrypted diagnostic
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: web382-unit-${{ strategy.job-index }}-${{ github.run_id }}
-          path: ${{ runner.temp }}/web382-diagnostic.enc
+          name: web383-unit-${{ strategy.job-index }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/web383-diagnostic.enc
           retention-days: 2
           if-no-files-found: ignore
   recovery:
@@ -496,7 +496,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: xecdev/kitabcha-app
-          ref: 21d9337b4773107bfb56d0c2852713b14e07ab03
+          ref: f8657e2c50d505cf889562c4eb09a23ad797b2d8
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
       - name: Verify isolated PostgreSQL backup and restore
@@ -514,14 +514,14 @@ jobs:
           const logs={};for(const name of fs.readdirSync(process.env.RUNNER_TEMP).filter(n=>n.endsWith('.log'))){const p=path.join(process.env.RUNNER_TEMP,name);if(fs.statSync(p).isFile())logs[name]=fs.readFileSync(p,'utf8').slice(-1500000);}
           const key=randomBytes(32),iv=randomBytes(12),cipher=createCipheriv('aes-256-gcm',key,iv),data=Buffer.concat([cipher.update(JSON.stringify(logs)),cipher.final()]);
           const sealed={key:publicEncrypt({key:Buffer.from(process.env.DIAGNOSTIC_PUBLIC_KEY,'base64'),padding:constants.RSA_PKCS1_OAEP_PADDING,oaepHash:'sha256'},key).toString('base64'),iv:iv.toString('base64'),tag:cipher.getAuthTag().toString('base64'),data:data.toString('base64')};
-          fs.writeFileSync(path.join(process.env.RUNNER_TEMP,'web382-diagnostic.enc'),JSON.stringify(sealed));console.log('Private diagnostics encrypted for the local decryption key.');
+          fs.writeFileSync(path.join(process.env.RUNNER_TEMP,'web383-diagnostic.enc'),JSON.stringify(sealed));console.log('Private diagnostics encrypted for the local decryption key.');
           NODE
       - name: Upload encrypted diagnostic
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: web382-recovery-${{ strategy.job-index }}-${{ github.run_id }}
-          path: ${{ runner.temp }}/web382-diagnostic.enc
+          name: web383-recovery-${{ strategy.job-index }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/web383-diagnostic.enc
           retention-days: 2
           if-no-files-found: ignore
 on:
