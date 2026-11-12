@@ -191,8 +191,8 @@ jobs:
             scale-validation
     env:
       CI: "1"
-      SOURCE_SHA: 21d9337b4773107bfb56d0c2852713b14e07ab03
-      KITABCHA_BUILD_VERSION: v3.8.2
+      SOURCE_SHA: f8657e2c50d505cf889562c4eb09a23ad797b2d8
+      KITABCHA_BUILD_VERSION: v3.8.3
       EXPO_PUBLIC_API_URL: http://localhost:3001
       SPECS: ${{ matrix.specs }}
     steps:
@@ -315,9 +315,9 @@ jobs:
     timeout-minutes: 30
     env:
       CI: "1"
-      SOURCE_SHA: 21d9337b4773107bfb56d0c2852713b14e07ab03
-      DEPLOY_VERSION: v3.8.2
-      KITABCHA_BUILD_VERSION: v3.8.2
+      SOURCE_SHA: f8657e2c50d505cf889562c4eb09a23ad797b2d8
+      DEPLOY_VERSION: v3.8.3
+      KITABCHA_BUILD_VERSION: v3.8.3
       EXPO_PUBLIC_API_URL: https://app.kitabcha.app
       BROWSER_TEST_SPECS: slow-network-stock barcode-scanner quotations online-only people-activity recovery-reload web-startup
         team-identity notification-settings business-assets trade-editor-ui record-payment-mode theme-speed bahij-web
