@@ -37,7 +37,7 @@ jobs:
 
           const current=await response.json();
 
-          if(current.version!=='v3.8.2'||current.commit!=='21d9337b4773107bfb56d0c2852713b14e07ab03')throw Error('Production
+          if(current.version!=='v3.8.1'||current.commit!=='003e99b001aa3e7d8a3247dfdba6c2c134cf923b')throw Error('Production
           changed since release preparation; inspect before deploying');
 
           console.log('Production release base confirmed:',current.version,current.commit);
