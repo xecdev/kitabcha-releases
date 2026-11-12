@@ -40,8 +40,8 @@ jobs:
 
           mirror=''
 
-          for base in https://mirrors.edge.kernel.org/ubuntu https://mirror.math.princeton.edu/pub/ubuntu
-          https://mirrors.mit.edu/ubuntu; do
+          for base in https://mirror.math.princeton.edu/pub/ubuntu https://mirrors.mit.edu/ubuntu
+          https://archive.ubuntu.com/ubuntu https://mirrors.edge.kernel.org/ubuntu; do
             if curl --fail --silent --show-error --head --connect-timeout 5 --max-time 15 "$base/dists/jammy/InRelease" >/dev/null 2>&1 && curl --fail --silent --show-error --head --connect-timeout 5 --max-time 15 "$base/dists/jammy-security/InRelease" >/dev/null 2>&1; then
               mirror="$base"
               break
@@ -461,8 +461,8 @@ jobs:
 
           mirror=''
 
-          for base in https://mirrors.edge.kernel.org/ubuntu https://mirror.math.princeton.edu/pub/ubuntu
-          https://mirrors.mit.edu/ubuntu; do
+          for base in https://mirror.math.princeton.edu/pub/ubuntu https://mirrors.mit.edu/ubuntu
+          https://archive.ubuntu.com/ubuntu https://mirrors.edge.kernel.org/ubuntu; do
             if curl --fail --silent --show-error --head --connect-timeout 5 --max-time 15 "$base/dists/jammy/InRelease" >/dev/null 2>&1 && curl --fail --silent --show-error --head --connect-timeout 5 --max-time 15 "$base/dists/jammy-security/InRelease" >/dev/null 2>&1; then
               mirror="$base"
               break
@@ -704,8 +704,8 @@ jobs:
 
           mirror=''
 
-          for base in https://mirrors.edge.kernel.org/ubuntu https://mirror.math.princeton.edu/pub/ubuntu
-          https://mirrors.mit.edu/ubuntu; do
+          for base in https://mirror.math.princeton.edu/pub/ubuntu https://mirrors.mit.edu/ubuntu
+          https://archive.ubuntu.com/ubuntu https://mirrors.edge.kernel.org/ubuntu; do
             if curl --fail --silent --show-error --head --connect-timeout 5 --max-time 15 "$base/dists/jammy/InRelease" >/dev/null 2>&1 && curl --fail --silent --show-error --head --connect-timeout 5 --max-time 15 "$base/dists/jammy-security/InRelease" >/dev/null 2>&1; then
               mirror="$base"
               break
