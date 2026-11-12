@@ -11,7 +11,7 @@ jobs:
     timeout-minutes: 35
     env:
       CI: "1"
-      SOURCE_SHA: 78edeaf7f9540893e8a69ff692617d13566de59c
+      SOURCE_SHA: 21d9337b4773107bfb56d0c2852713b14e07ab03
       DEPLOY_VERSION: v3.8.2
       KITABCHA_BUILD_VERSION: v3.8.2
       EXPO_PUBLIC_API_URL: https://app.kitabcha.app
@@ -19,7 +19,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: xecdev/kitabcha-app
-          ref: 78edeaf7f9540893e8a69ff692617d13566de59c
+          ref: 21d9337b4773107bfb56d0c2852713b14e07ab03
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
           fetch-depth: 9
@@ -37,7 +37,7 @@ jobs:
 
           const current=await response.json();
 
-          if(current.version!=='v3.8.2'||current.commit!=='78edeaf7f9540893e8a69ff692617d13566de59c')throw Error('Production
+          if(current.version!=='v3.8.2'||current.commit!=='21d9337b4773107bfb56d0c2852713b14e07ab03')throw Error('Production
           changed since release preparation; inspect before deploying');
 
           console.log('Production release base confirmed:',current.version,current.commit);
@@ -191,7 +191,7 @@ jobs:
             scale-validation
     env:
       CI: "1"
-      SOURCE_SHA: 78edeaf7f9540893e8a69ff692617d13566de59c
+      SOURCE_SHA: 21d9337b4773107bfb56d0c2852713b14e07ab03
       KITABCHA_BUILD_VERSION: v3.8.2
       EXPO_PUBLIC_API_URL: http://localhost:3001
       SPECS: ${{ matrix.specs }}
@@ -199,7 +199,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: xecdev/kitabcha-app
-          ref: 78edeaf7f9540893e8a69ff692617d13566de59c
+          ref: 21d9337b4773107bfb56d0c2852713b14e07ab03
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
           fetch-depth: 9
@@ -315,7 +315,7 @@ jobs:
     timeout-minutes: 30
     env:
       CI: "1"
-      SOURCE_SHA: 78edeaf7f9540893e8a69ff692617d13566de59c
+      SOURCE_SHA: 21d9337b4773107bfb56d0c2852713b14e07ab03
       DEPLOY_VERSION: v3.8.2
       KITABCHA_BUILD_VERSION: v3.8.2
       EXPO_PUBLIC_API_URL: https://app.kitabcha.app
@@ -337,7 +337,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: xecdev/kitabcha-app
-          ref: 78edeaf7f9540893e8a69ff692617d13566de59c
+          ref: 21d9337b4773107bfb56d0c2852713b14e07ab03
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
           fetch-depth: 9
@@ -496,7 +496,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: xecdev/kitabcha-app
-          ref: 78edeaf7f9540893e8a69ff692617d13566de59c
+          ref: 21d9337b4773107bfb56d0c2852713b14e07ab03
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
       - name: Verify isolated PostgreSQL backup and restore
