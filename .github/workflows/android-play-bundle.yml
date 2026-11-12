@@ -23,7 +23,7 @@ jobs:
       CCACHE_BASEDIR: ${{ github.workspace }}
       CCACHE_MAXSIZE: 2G
       CCACHE_COMPILERCHECK: content
-      KITABCHA_BUILD_VERSION: 2.1.3
+      KITABCHA_BUILD_VERSION: 2.1.4
       SOURCE_SHA: ${{ inputs.source_ref }}
     steps:
       - name: Require immutable private source SHA
@@ -159,7 +159,7 @@ jobs:
           (
 
           node --import tsx --test tests/home-swipe.test.ts tests/back-swipe.test.ts tests/mobile-back.test.ts
-          tests/phonebook-contact.test.ts tests/localization.test.ts
+          tests/phonebook-contact.test.ts tests/localization.test.ts tests/name-input.test.ts
 
           ) > "$RUNNER_TEMP/android-check-home-swipe-behavior-and-login-translations.log" 2>&1
 
@@ -173,10 +173,10 @@ jobs:
 
           (
 
-          node --test tests/phonebook-native.test.mjs tests/back-swipe-native.test.mjs tests/native-commerce.test.mjs
-          tests/native-file-save.test.mjs tests/native-report-bridge.test.mjs tests/native-financial-export-query.test.mjs
-          tests/native-number-direction.test.mjs tests/bahij-fonts.test.mjs tests/receipt-sharing.test.mjs
-          tests/session-forms.test.mjs tests/native-signature-font.test.mjs
+          node --test tests/screen-actions.test.mjs tests/phonebook-native.test.mjs tests/back-swipe-native.test.mjs
+          tests/native-commerce.test.mjs tests/native-file-save.test.mjs tests/native-report-bridge.test.mjs
+          tests/native-financial-export-query.test.mjs tests/native-number-direction.test.mjs tests/bahij-fonts.test.mjs
+          tests/receipt-sharing.test.mjs tests/session-forms.test.mjs tests/native-signature-font.test.mjs
 
           ) > "$RUNNER_TEMP/android-verify-native-commerce-file-and-draft-adapters.log" 2>&1
 
@@ -448,7 +448,7 @@ jobs:
       CCACHE_BASEDIR: ${{ github.workspace }}
       CCACHE_MAXSIZE: 2G
       CCACHE_COMPILERCHECK: content
-      KITABCHA_BUILD_VERSION: 2.1.3
+      KITABCHA_BUILD_VERSION: 2.1.4
       SOURCE_SHA: ${{ inputs.source_ref }}
     steps:
       - name: Require immutable private source SHA
@@ -584,7 +584,7 @@ jobs:
           (
 
           node --import tsx --test tests/home-swipe.test.ts tests/back-swipe.test.ts tests/mobile-back.test.ts
-          tests/phonebook-contact.test.ts tests/localization.test.ts
+          tests/phonebook-contact.test.ts tests/localization.test.ts tests/name-input.test.ts
 
           ) > "$RUNNER_TEMP/android-check-home-swipe-behavior-and-login-translations.log" 2>&1
 
@@ -598,10 +598,10 @@ jobs:
 
           (
 
-          node --test tests/phonebook-native.test.mjs tests/back-swipe-native.test.mjs tests/native-commerce.test.mjs
-          tests/native-file-save.test.mjs tests/native-report-bridge.test.mjs tests/native-number-direction.test.mjs
-          tests/bahij-fonts.test.mjs tests/receipt-sharing.test.mjs tests/session-forms.test.mjs
-          tests/native-signature-font.test.mjs
+          node --test tests/screen-actions.test.mjs tests/phonebook-native.test.mjs tests/back-swipe-native.test.mjs
+          tests/native-commerce.test.mjs tests/native-file-save.test.mjs tests/native-report-bridge.test.mjs
+          tests/native-number-direction.test.mjs tests/bahij-fonts.test.mjs tests/receipt-sharing.test.mjs
+          tests/session-forms.test.mjs tests/native-signature-font.test.mjs
 
           ) > "$RUNNER_TEMP/android-verify-native-commerce-file-and-draft-adapters.log" 2>&1
 
@@ -695,7 +695,7 @@ jobs:
       CCACHE_BASEDIR: ${{ github.workspace }}
       CCACHE_MAXSIZE: 2G
       CCACHE_COMPILERCHECK: content
-      KITABCHA_BUILD_VERSION: 2.1.3
+      KITABCHA_BUILD_VERSION: 2.1.4
       SOURCE_SHA: ${{ inputs.source_ref }}
     steps:
       - name: Require immutable private source SHA
@@ -831,7 +831,7 @@ jobs:
           (
 
           node --import tsx --test tests/home-swipe.test.ts tests/back-swipe.test.ts tests/mobile-back.test.ts
-          tests/phonebook-contact.test.ts tests/localization.test.ts
+          tests/phonebook-contact.test.ts tests/localization.test.ts tests/name-input.test.ts
 
           ) > "$RUNNER_TEMP/android-check-home-swipe-behavior-and-login-translations.log" 2>&1
 
@@ -845,10 +845,10 @@ jobs:
 
           (
 
-          node --test tests/phonebook-native.test.mjs tests/back-swipe-native.test.mjs tests/native-commerce.test.mjs
-          tests/native-file-save.test.mjs tests/native-report-bridge.test.mjs tests/native-number-direction.test.mjs
-          tests/bahij-fonts.test.mjs tests/receipt-sharing.test.mjs tests/session-forms.test.mjs
-          tests/native-signature-font.test.mjs
+          node --test tests/screen-actions.test.mjs tests/phonebook-native.test.mjs tests/back-swipe-native.test.mjs
+          tests/native-commerce.test.mjs tests/native-file-save.test.mjs tests/native-report-bridge.test.mjs
+          tests/native-number-direction.test.mjs tests/bahij-fonts.test.mjs tests/receipt-sharing.test.mjs
+          tests/session-forms.test.mjs tests/native-signature-font.test.mjs
 
           ) > "$RUNNER_TEMP/android-verify-native-commerce-file-and-draft-adapters.log" 2>&1
 
