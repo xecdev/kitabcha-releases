@@ -11,15 +11,15 @@ jobs:
     timeout-minutes: 35
     env:
       CI: "1"
-      SOURCE_SHA: 003e99b001aa3e7d8a3247dfdba6c2c134cf923b
-      DEPLOY_VERSION: v3.8.1
-      KITABCHA_BUILD_VERSION: v3.8.1
+      SOURCE_SHA: dbee7cbe00e895dea5fe766267f797a70d4e8bd3
+      DEPLOY_VERSION: v3.8.2
+      KITABCHA_BUILD_VERSION: v3.8.2
       EXPO_PUBLIC_API_URL: https://app.kitabcha.app
     steps:
       - uses: actions/checkout@v4
         with:
           repository: xecdev/kitabcha-app
-          ref: 003e99b001aa3e7d8a3247dfdba6c2c134cf923b
+          ref: dbee7cbe00e895dea5fe766267f797a70d4e8bd3
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
           fetch-depth: 9
@@ -27,13 +27,21 @@ jobs:
         with:
           node-version: 24.22.1
       - name: Confirm production release base
-        run: |
+        run: >
           node --input-type=module <<'NODE'
-          const response=await fetch('https://app.kitabcha.app/web-release.json',{cache:'no-store',signal:AbortSignal.timeout(30000)});
+
+          const response=await
+          fetch('https://app.kitabcha.app/web-release.json',{cache:'no-store',signal:AbortSignal.timeout(30000)});
+
           if(!response.ok)throw Error('Production marker HTTP '+response.status);
+
           const current=await response.json();
-          if(current.version!=='v3.8.0'||current.commit!=='36e2b4c88501fd7182efa7ded060a35904c5d03a')throw Error('Production changed since release preparation; inspect before deploying');
+
+          if(current.version!=='v3.8.1'||current.commit!=='003e99b001aa3e7d8a3247dfdba6c2c134cf923b')throw Error('Production
+          changed since release preparation; inspect before deploying');
+
           console.log('Production release base confirmed:',current.version,current.commit);
+
           NODE
       - name: Build tested web and API package
         run: |
@@ -112,19 +120,25 @@ jobs:
           node -e "const r=require(process.env.RUNNER_TEMP+'/web-release.json');if(r.commit!==process.env.SOURCE_SHA||r.version!==process.env.DEPLOY_VERSION)process.exit(1);console.log(r)"
           curl --fail --retry 5 https://app.kitabcha.app/health
       - name: Verify Google Play links and retired APK routes
-        run: |
+        run: >
           node --input-type=module <<'PLAY'
+
           const play='https://play.google.com/store/apps/details?id=com.kitabcha.app';
+
           for(const path of ['/','/fa/','/ps/']) {
            const response=await fetch('https://kitabcha.app'+path,{signal:AbortSignal.timeout(30000)});
            if(response.status!==200)throw Error('Website response');const html=await response.text();
            const badges=[...html.matchAll(/<a[^>]+class="store-badge google-play"[^>]*>/g)].map(x=>x[0]);
            if(badges.length!==2||badges.some(x=>!x.includes('href="'+play+'"')||/\sdownload(?:\s|=|>)/.test(x))||html.includes('.apk'))throw Error('Play button policy');
           }
-          for(const host of ['https://kitabcha.app','https://app.kitabcha.app']) for(const path of ['/downloads/android/068936aea2a7/Kitabcha-2.0.126-android.apk','/android-release.json']) {
+
+          for(const host of ['https://kitabcha.app','https://app.kitabcha.app']) for(const path of
+          ['/downloads/android/068936aea2a7/Kitabcha-2.0.126-android.apk','/android-release.json']) {
            const response=await fetch(host+path,{method:'HEAD',signal:AbortSignal.timeout(30000)});if(response.status!==410)throw Error('Legacy download still available');
           }
+
           console.log('Google Play links and retired APK routes verified.');
+
           PLAY
       - name: Encrypt private failure diagnostics
         if: failure()
@@ -136,14 +150,14 @@ jobs:
           const logs={};for(const name of fs.readdirSync(process.env.RUNNER_TEMP).filter(n=>n.endsWith('.log'))){const p=path.join(process.env.RUNNER_TEMP,name);if(fs.statSync(p).isFile())logs[name]=fs.readFileSync(p,'utf8').slice(-1500000);}
           const key=randomBytes(32),iv=randomBytes(12),cipher=createCipheriv('aes-256-gcm',key,iv),data=Buffer.concat([cipher.update(JSON.stringify(logs)),cipher.final()]);
           const sealed={key:publicEncrypt({key:Buffer.from(process.env.DIAGNOSTIC_PUBLIC_KEY,'base64'),padding:constants.RSA_PKCS1_OAEP_PADDING,oaepHash:'sha256'},key).toString('base64'),iv:iv.toString('base64'),tag:cipher.getAuthTag().toString('base64'),data:data.toString('base64')};
-          fs.writeFileSync(path.join(process.env.RUNNER_TEMP,'web381-diagnostic.enc'),JSON.stringify(sealed));console.log('Private diagnostics encrypted for the local decryption key.');
+          fs.writeFileSync(path.join(process.env.RUNNER_TEMP,'web382-diagnostic.enc'),JSON.stringify(sealed));console.log('Private diagnostics encrypted for the local decryption key.');
           NODE
       - name: Upload encrypted diagnostic
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: web381-web-${{ strategy.job-index }}-${{ github.run_id }}
-          path: ${{ runner.temp }}/web381-diagnostic.enc
+          name: web382-web-${{ strategy.job-index }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/web382-diagnostic.enc
           retention-days: 2
           if-no-files-found: ignore
     needs:
@@ -157,23 +171,35 @@ jobs:
       fail-fast: false
       matrix:
         specs:
-          - slow-network-stock barcode-scanner quotations online-only people-activity recovery-reload web-startup team-identity notification-settings business-assets trade-editor-ui record-payment-mode theme-speed bahij-web transaction-receipts team-access screen-recovery refresh-interruption auth landing mobile-keyboard background-saves mobile-responsive ledger
-          - readable-export backup-restore contact-input-ui push-notifications creator-ui payment-pane website-language reset-backup more-hub mobile-back bill-actions profile-stock-premium pane-drafts forms-refresh pre-signin-language calendar-controls
-          - sale-visibility-units access-recovery navigation-expiry plan-tiers marketing-v3 landing-masthead app-language-ux rtl-layout-parity customer-proof-motion reset-cache-boundaries book-deletion accounts-workspace qa-report-flows qa-receipt-policy
-          - people-entry-layout rejected-record-recovery help-center team-viewer onboarding-prefill notification-inbox input-direction bill-confirmation cashbook records-toolbars website-pages switcher-animations books book-switch-performance transaction-drafts financial-reports people-currency-selection report-attachments form-experience ui-polish interaction-motion workspace-followups ux-navigation-followups
-          - otp-ui form-enter setup-otp-enter account-contact landing-faq list-hover otp-auto quotation-header support-layout ui-feedback-regressions report-reminder-follow-up report-consistency
-          - app-recovery billing-emails current-ui-fixes grocery-audit loading-version otp-email scale-loading scale-reports scale-validation
+          - slow-network-stock barcode-scanner quotations online-only people-activity recovery-reload web-startup team-identity
+            notification-settings business-assets trade-editor-ui record-payment-mode theme-speed bahij-web transaction-receipts
+            team-access screen-recovery refresh-interruption auth landing mobile-keyboard background-saves mobile-responsive
+            ledger
+          - readable-export backup-restore contact-input-ui push-notifications creator-ui payment-pane website-language
+            reset-backup more-hub mobile-back bill-actions profile-stock-premium pane-drafts forms-refresh pre-signin-language
+            calendar-controls
+          - sale-visibility-units access-recovery navigation-expiry plan-tiers marketing-v3 landing-masthead app-language-ux
+            rtl-layout-parity customer-proof-motion reset-cache-boundaries book-deletion accounts-workspace qa-report-flows
+            qa-receipt-policy
+          - people-entry-layout rejected-record-recovery help-center team-viewer onboarding-prefill notification-inbox
+            input-direction bill-confirmation cashbook records-toolbars website-pages switcher-animations books
+            book-switch-performance transaction-drafts financial-reports people-currency-selection report-attachments
+            form-experience ui-polish interaction-motion workspace-followups ux-navigation-followups
+          - otp-ui form-enter setup-otp-enter account-contact landing-faq list-hover otp-auto quotation-header support-layout
+            ui-feedback-regressions report-reminder-follow-up report-consistency
+          - app-recovery billing-emails current-ui-fixes grocery-audit loading-version otp-email scale-loading scale-reports
+            scale-validation
     env:
       CI: "1"
-      SOURCE_SHA: 003e99b001aa3e7d8a3247dfdba6c2c134cf923b
-      KITABCHA_BUILD_VERSION: v3.8.1
+      SOURCE_SHA: dbee7cbe00e895dea5fe766267f797a70d4e8bd3
+      KITABCHA_BUILD_VERSION: v3.8.2
       EXPO_PUBLIC_API_URL: http://localhost:3001
       SPECS: ${{ matrix.specs }}
     steps:
       - uses: actions/checkout@v4
         with:
           repository: xecdev/kitabcha-app
-          ref: 003e99b001aa3e7d8a3247dfdba6c2c134cf923b
+          ref: dbee7cbe00e895dea5fe766267f797a70d4e8bd3
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
           fetch-depth: 9
@@ -181,26 +207,38 @@ jobs:
         with:
           node-version: 24.22.1
       - name: Select reachable signed Ubuntu archive
-        run: |
+        run: >
           set -euo pipefail
+
           mirror=''
-          for base in https://mirrors.edge.kernel.org/ubuntu https://mirror.math.princeton.edu/pub/ubuntu https://mirrors.mit.edu/ubuntu; do
+
+          for base in https://mirrors.edge.kernel.org/ubuntu https://mirror.math.princeton.edu/pub/ubuntu
+          https://mirrors.mit.edu/ubuntu; do
             if curl --fail --silent --show-error --head --connect-timeout 5 --max-time 15 "$base/dists/jammy/InRelease" >/dev/null 2>&1 && curl --fail --silent --show-error --head --connect-timeout 5 --max-time 15 "$base/dists/jammy-security/InRelease" >/dev/null 2>&1; then
               mirror="$base"
               break
             fi
           done
+
           test -n "$mirror"
+
           echo "Selected reachable Ubuntu archive: $mirror"
+
           sudo python3 - "$mirror" <<'PY'
+
           from pathlib import Path
+
           import re, sys
+
           base = sys.argv[1]
+
           for path in [Path('/etc/apt/apt-mirrors.txt'), Path('/etc/apt/apt-mirrors-security.txt')]:
               if path.is_file():
                   path.write_text(base + '/\n')
           paths = [Path('/etc/apt/sources.list')]
+
           paths += list(Path('/etc/apt/sources.list.d').glob('*.list')) + list(Path('/etc/apt/sources.list.d').glob('*.sources'))
+
           for path in paths:
               if path.is_file():
                   original = path.read_text()
@@ -208,7 +246,12 @@ jobs:
                   if updated != original:
                       path.write_text(updated)
           PY
-          timeout 240 sudo apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 update > "$RUNNER_TEMP/ubuntu-mirror.log" 2>&1
+
+          timeout 240 sudo apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 update >
+          "$RUNNER_TEMP/ubuntu-mirror.log" 2>&1
+      - name: Install invoice image renderer
+        run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends poppler-utils >
+          "$RUNNER_TEMP/invoice-renderer-install.log" 2>&1
       - name: Install browser validation dependencies
         run: |-
           npm ci --include=dev --no-audit --no-fund > "$RUNNER_TEMP/browser-install.log" 2>&1
@@ -235,7 +278,8 @@ jobs:
 
           npx playwright install --with-deps chromium > "$RUNNER_TEMP/validation-browser-install.log" 2>&1
 
-          EXPO_PUBLIC_API_URL=http://localhost:3001 GITHUB_SHA="$SOURCE_SHA" npm run build:web > "$RUNNER_TEMP/validation-web.log" 2>&1
+          EXPO_PUBLIC_API_URL=http://localhost:3001 GITHUB_SHA="$SOURCE_SHA" npm run build:web > "$RUNNER_TEMP/validation-web.log"
+          2>&1
 
           for spec in $SPECS; do
             echo "Checking $spec in an isolated test server."
@@ -256,14 +300,14 @@ jobs:
           const logs={};for(const name of fs.readdirSync(process.env.RUNNER_TEMP).filter(n=>n.endsWith('.log'))){const p=path.join(process.env.RUNNER_TEMP,name);if(fs.statSync(p).isFile())logs[name]=fs.readFileSync(p,'utf8').slice(-1500000);}
           const key=randomBytes(32),iv=randomBytes(12),cipher=createCipheriv('aes-256-gcm',key,iv),data=Buffer.concat([cipher.update(JSON.stringify(logs)),cipher.final()]);
           const sealed={key:publicEncrypt({key:Buffer.from(process.env.DIAGNOSTIC_PUBLIC_KEY,'base64'),padding:constants.RSA_PKCS1_OAEP_PADDING,oaepHash:'sha256'},key).toString('base64'),iv:iv.toString('base64'),tag:cipher.getAuthTag().toString('base64'),data:data.toString('base64')};
-          fs.writeFileSync(path.join(process.env.RUNNER_TEMP,'web381-diagnostic.enc'),JSON.stringify(sealed));console.log('Private diagnostics encrypted for the local decryption key.');
+          fs.writeFileSync(path.join(process.env.RUNNER_TEMP,'web382-diagnostic.enc'),JSON.stringify(sealed));console.log('Private diagnostics encrypted for the local decryption key.');
           NODE
       - name: Upload encrypted diagnostic
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: web381-browser-${{ strategy.job-index }}-${{ github.run_id }}
-          path: ${{ runner.temp }}/web381-diagnostic.enc
+          name: web382-browser-${{ strategy.job-index }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/web382-diagnostic.enc
           retention-days: 2
           if-no-files-found: ignore
   unit:
@@ -271,16 +315,29 @@ jobs:
     timeout-minutes: 30
     env:
       CI: "1"
-      SOURCE_SHA: 003e99b001aa3e7d8a3247dfdba6c2c134cf923b
-      DEPLOY_VERSION: v3.8.1
-      KITABCHA_BUILD_VERSION: v3.8.1
+      SOURCE_SHA: dbee7cbe00e895dea5fe766267f797a70d4e8bd3
+      DEPLOY_VERSION: v3.8.2
+      KITABCHA_BUILD_VERSION: v3.8.2
       EXPO_PUBLIC_API_URL: https://app.kitabcha.app
-      BROWSER_TEST_SPECS: slow-network-stock barcode-scanner quotations online-only people-activity recovery-reload web-startup team-identity notification-settings business-assets trade-editor-ui record-payment-mode theme-speed bahij-web transaction-receipts team-access screen-recovery refresh-interruption auth landing mobile-keyboard background-saves mobile-responsive ledger readable-export backup-restore contact-input-ui push-notifications creator-ui payment-pane website-language reset-backup more-hub mobile-back bill-actions profile-stock-premium pane-drafts forms-refresh pre-signin-language calendar-controls sale-visibility-units access-recovery navigation-expiry plan-tiers marketing-v3 landing-masthead app-language-ux rtl-layout-parity customer-proof-motion reset-cache-boundaries book-deletion accounts-workspace qa-report-flows qa-receipt-policy people-entry-layout rejected-record-recovery help-center team-viewer onboarding-prefill notification-inbox input-direction bill-confirmation cashbook records-toolbars website-pages switcher-animations books book-switch-performance transaction-drafts financial-reports people-currency-selection report-attachments form-experience ui-polish interaction-motion workspace-followups ux-navigation-followups otp-ui form-enter setup-otp-enter account-contact landing-faq list-hover otp-auto quotation-header support-layout ui-feedback-regressions report-reminder-follow-up report-consistency app-recovery billing-emails current-ui-fixes grocery-audit loading-version otp-email scale-loading scale-reports scale-validation
+      BROWSER_TEST_SPECS: slow-network-stock barcode-scanner quotations online-only people-activity recovery-reload web-startup
+        team-identity notification-settings business-assets trade-editor-ui record-payment-mode theme-speed bahij-web
+        transaction-receipts team-access screen-recovery refresh-interruption auth landing mobile-keyboard background-saves
+        mobile-responsive ledger readable-export backup-restore contact-input-ui push-notifications creator-ui payment-pane
+        website-language reset-backup more-hub mobile-back bill-actions profile-stock-premium pane-drafts forms-refresh
+        pre-signin-language calendar-controls sale-visibility-units access-recovery navigation-expiry plan-tiers marketing-v3
+        landing-masthead app-language-ux rtl-layout-parity customer-proof-motion reset-cache-boundaries book-deletion
+        accounts-workspace qa-report-flows qa-receipt-policy people-entry-layout rejected-record-recovery help-center team-viewer
+        onboarding-prefill notification-inbox input-direction bill-confirmation cashbook records-toolbars website-pages
+        switcher-animations books book-switch-performance transaction-drafts financial-reports people-currency-selection
+        report-attachments form-experience ui-polish interaction-motion workspace-followups ux-navigation-followups otp-ui
+        form-enter setup-otp-enter account-contact landing-faq list-hover otp-auto quotation-header support-layout
+        ui-feedback-regressions report-reminder-follow-up report-consistency app-recovery billing-emails current-ui-fixes
+        grocery-audit loading-version otp-email scale-loading scale-reports scale-validation
     steps:
       - uses: actions/checkout@v4
         with:
           repository: xecdev/kitabcha-app
-          ref: 003e99b001aa3e7d8a3247dfdba6c2c134cf923b
+          ref: dbee7cbe00e895dea5fe766267f797a70d4e8bd3
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
           fetch-depth: 9
@@ -288,26 +345,38 @@ jobs:
         with:
           node-version: 24.22.1
       - name: Select reachable signed Ubuntu archive
-        run: |
+        run: >
           set -euo pipefail
+
           mirror=''
-          for base in https://mirrors.edge.kernel.org/ubuntu https://mirror.math.princeton.edu/pub/ubuntu https://mirrors.mit.edu/ubuntu; do
+
+          for base in https://mirrors.edge.kernel.org/ubuntu https://mirror.math.princeton.edu/pub/ubuntu
+          https://mirrors.mit.edu/ubuntu; do
             if curl --fail --silent --show-error --head --connect-timeout 5 --max-time 15 "$base/dists/jammy/InRelease" >/dev/null 2>&1 && curl --fail --silent --show-error --head --connect-timeout 5 --max-time 15 "$base/dists/jammy-security/InRelease" >/dev/null 2>&1; then
               mirror="$base"
               break
             fi
           done
+
           test -n "$mirror"
+
           echo "Selected reachable Ubuntu archive: $mirror"
+
           sudo python3 - "$mirror" <<'PY'
+
           from pathlib import Path
+
           import re, sys
+
           base = sys.argv[1]
+
           for path in [Path('/etc/apt/apt-mirrors.txt'), Path('/etc/apt/apt-mirrors-security.txt')]:
               if path.is_file():
                   path.write_text(base + '/\n')
           paths = [Path('/etc/apt/sources.list')]
+
           paths += list(Path('/etc/apt/sources.list.d').glob('*.list')) + list(Path('/etc/apt/sources.list.d').glob('*.sources'))
+
           for path in paths:
               if path.is_file():
                   original = path.read_text()
@@ -315,7 +384,12 @@ jobs:
                   if updated != original:
                       path.write_text(updated)
           PY
-          timeout 240 sudo apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 update > "$RUNNER_TEMP/ubuntu-mirror.log" 2>&1
+
+          timeout 240 sudo apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 update >
+          "$RUNNER_TEMP/ubuntu-mirror.log" 2>&1
+      - name: Install invoice image renderer
+        run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends poppler-utils >
+          "$RUNNER_TEMP/invoice-renderer-install.log" 2>&1
       - name: Validate private source without publishing logs
         run: >
           node scripts/check-browser-coverage.mjs --release > "$RUNNER_TEMP/browser-coverage.log" 2>&1 || exit 1
@@ -375,7 +449,8 @@ jobs:
 
           echo 'Owner console security, scoped restore, storage and B2 configuration browser gate passed.'
 
-          if ! timeout --kill-after=10s 300s node --import tsx --test --test-concurrency=1 --test-timeout=120000 tests/browser/*.test.ts > "$RUNNER_TEMP/bill-preview-browser.log" 2>&1; then
+          if ! timeout --kill-after=10s 300s node --import tsx --test --test-concurrency=1 --test-timeout=120000
+          tests/browser/*.test.ts > "$RUNNER_TEMP/bill-preview-browser.log" 2>&1; then
             echo 'Bill preview browser regression failed; private diagnostics retained on runner.'
             exit 1
           fi
@@ -404,14 +479,14 @@ jobs:
           const logs={};for(const name of fs.readdirSync(process.env.RUNNER_TEMP).filter(n=>n.endsWith('.log'))){const p=path.join(process.env.RUNNER_TEMP,name);if(fs.statSync(p).isFile())logs[name]=fs.readFileSync(p,'utf8').slice(-1500000);}
           const key=randomBytes(32),iv=randomBytes(12),cipher=createCipheriv('aes-256-gcm',key,iv),data=Buffer.concat([cipher.update(JSON.stringify(logs)),cipher.final()]);
           const sealed={key:publicEncrypt({key:Buffer.from(process.env.DIAGNOSTIC_PUBLIC_KEY,'base64'),padding:constants.RSA_PKCS1_OAEP_PADDING,oaepHash:'sha256'},key).toString('base64'),iv:iv.toString('base64'),tag:cipher.getAuthTag().toString('base64'),data:data.toString('base64')};
-          fs.writeFileSync(path.join(process.env.RUNNER_TEMP,'web381-diagnostic.enc'),JSON.stringify(sealed));console.log('Private diagnostics encrypted for the local decryption key.');
+          fs.writeFileSync(path.join(process.env.RUNNER_TEMP,'web382-diagnostic.enc'),JSON.stringify(sealed));console.log('Private diagnostics encrypted for the local decryption key.');
           NODE
       - name: Upload encrypted diagnostic
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: web381-unit-${{ strategy.job-index }}-${{ github.run_id }}
-          path: ${{ runner.temp }}/web381-diagnostic.enc
+          name: web382-unit-${{ strategy.job-index }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/web382-diagnostic.enc
           retention-days: 2
           if-no-files-found: ignore
   recovery:
@@ -421,7 +496,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: xecdev/kitabcha-app
-          ref: 003e99b001aa3e7d8a3247dfdba6c2c134cf923b
+          ref: dbee7cbe00e895dea5fe766267f797a70d4e8bd3
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
       - name: Verify isolated PostgreSQL backup and restore
@@ -439,14 +514,14 @@ jobs:
           const logs={};for(const name of fs.readdirSync(process.env.RUNNER_TEMP).filter(n=>n.endsWith('.log'))){const p=path.join(process.env.RUNNER_TEMP,name);if(fs.statSync(p).isFile())logs[name]=fs.readFileSync(p,'utf8').slice(-1500000);}
           const key=randomBytes(32),iv=randomBytes(12),cipher=createCipheriv('aes-256-gcm',key,iv),data=Buffer.concat([cipher.update(JSON.stringify(logs)),cipher.final()]);
           const sealed={key:publicEncrypt({key:Buffer.from(process.env.DIAGNOSTIC_PUBLIC_KEY,'base64'),padding:constants.RSA_PKCS1_OAEP_PADDING,oaepHash:'sha256'},key).toString('base64'),iv:iv.toString('base64'),tag:cipher.getAuthTag().toString('base64'),data:data.toString('base64')};
-          fs.writeFileSync(path.join(process.env.RUNNER_TEMP,'web381-diagnostic.enc'),JSON.stringify(sealed));console.log('Private diagnostics encrypted for the local decryption key.');
+          fs.writeFileSync(path.join(process.env.RUNNER_TEMP,'web382-diagnostic.enc'),JSON.stringify(sealed));console.log('Private diagnostics encrypted for the local decryption key.');
           NODE
       - name: Upload encrypted diagnostic
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: web381-recovery-${{ strategy.job-index }}-${{ github.run_id }}
-          path: ${{ runner.temp }}/web381-diagnostic.enc
+          name: web382-recovery-${{ strategy.job-index }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/web382-diagnostic.enc
           retention-days: 2
           if-no-files-found: ignore
 on:
