@@ -23,7 +23,7 @@ jobs:
       CCACHE_BASEDIR: ${{ github.workspace }}
       CCACHE_MAXSIZE: 2G
       CCACHE_COMPILERCHECK: content
-      KITABCHA_BUILD_VERSION: 2.1.5
+      KITABCHA_BUILD_VERSION: 2.1.6
       SOURCE_SHA: ${{ inputs.source_ref }}
     steps:
       - name: Require immutable private source SHA
@@ -173,10 +173,11 @@ jobs:
 
           (
 
-          node --test tests/screen-actions.test.mjs tests/phonebook-native.test.mjs tests/back-swipe-native.test.mjs
-          tests/native-commerce.test.mjs tests/native-file-save.test.mjs tests/native-report-bridge.test.mjs
-          tests/native-financial-export-query.test.mjs tests/native-number-direction.test.mjs tests/bahij-fonts.test.mjs
-          tests/receipt-sharing.test.mjs tests/session-forms.test.mjs tests/native-signature-font.test.mjs
+          node --test tests/native-route-layout.test.mjs tests/screen-actions.test.mjs tests/phonebook-native.test.mjs
+          tests/back-swipe-native.test.mjs tests/native-commerce.test.mjs tests/native-file-save.test.mjs
+          tests/native-report-bridge.test.mjs tests/native-financial-export-query.test.mjs tests/native-number-direction.test.mjs
+          tests/bahij-fonts.test.mjs tests/receipt-sharing.test.mjs tests/session-forms.test.mjs
+          tests/native-signature-font.test.mjs
 
           ) > "$RUNNER_TEMP/android-verify-native-commerce-file-and-draft-adapters.log" 2>&1
 
@@ -448,7 +449,7 @@ jobs:
       CCACHE_BASEDIR: ${{ github.workspace }}
       CCACHE_MAXSIZE: 2G
       CCACHE_COMPILERCHECK: content
-      KITABCHA_BUILD_VERSION: 2.1.5
+      KITABCHA_BUILD_VERSION: 2.1.6
       SOURCE_SHA: ${{ inputs.source_ref }}
     steps:
       - name: Require immutable private source SHA
@@ -598,10 +599,10 @@ jobs:
 
           (
 
-          node --test tests/screen-actions.test.mjs tests/phonebook-native.test.mjs tests/back-swipe-native.test.mjs
-          tests/native-commerce.test.mjs tests/native-file-save.test.mjs tests/native-report-bridge.test.mjs
-          tests/native-number-direction.test.mjs tests/bahij-fonts.test.mjs tests/receipt-sharing.test.mjs
-          tests/session-forms.test.mjs tests/native-signature-font.test.mjs
+          node --test tests/native-route-layout.test.mjs tests/screen-actions.test.mjs tests/phonebook-native.test.mjs
+          tests/back-swipe-native.test.mjs tests/native-commerce.test.mjs tests/native-file-save.test.mjs
+          tests/native-report-bridge.test.mjs tests/native-number-direction.test.mjs tests/bahij-fonts.test.mjs
+          tests/receipt-sharing.test.mjs tests/session-forms.test.mjs tests/native-signature-font.test.mjs
 
           ) > "$RUNNER_TEMP/android-verify-native-commerce-file-and-draft-adapters.log" 2>&1
 
@@ -695,7 +696,7 @@ jobs:
       CCACHE_BASEDIR: ${{ github.workspace }}
       CCACHE_MAXSIZE: 2G
       CCACHE_COMPILERCHECK: content
-      KITABCHA_BUILD_VERSION: 2.1.5
+      KITABCHA_BUILD_VERSION: 2.1.6
       SOURCE_SHA: ${{ inputs.source_ref }}
     steps:
       - name: Require immutable private source SHA
@@ -845,10 +846,10 @@ jobs:
 
           (
 
-          node --test tests/screen-actions.test.mjs tests/phonebook-native.test.mjs tests/back-swipe-native.test.mjs
-          tests/native-commerce.test.mjs tests/native-file-save.test.mjs tests/native-report-bridge.test.mjs
-          tests/native-number-direction.test.mjs tests/bahij-fonts.test.mjs tests/receipt-sharing.test.mjs
-          tests/session-forms.test.mjs tests/native-signature-font.test.mjs
+          node --test tests/native-route-layout.test.mjs tests/screen-actions.test.mjs tests/phonebook-native.test.mjs
+          tests/back-swipe-native.test.mjs tests/native-commerce.test.mjs tests/native-file-save.test.mjs
+          tests/native-report-bridge.test.mjs tests/native-number-direction.test.mjs tests/bahij-fonts.test.mjs
+          tests/receipt-sharing.test.mjs tests/session-forms.test.mjs tests/native-signature-font.test.mjs
 
           ) > "$RUNNER_TEMP/android-verify-native-commerce-file-and-draft-adapters.log" 2>&1
 
