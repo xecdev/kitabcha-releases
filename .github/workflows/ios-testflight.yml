@@ -20,7 +20,7 @@ jobs:
       EAS_NO_TELEMETRY: "1"
       EAS_SKIP_AUTO_FINGERPRINT: "1"
       EXPO_PUBLIC_API_URL: https://app.kitabcha.app
-      KITABCHA_BUILD_VERSION: 2.1.5
+      KITABCHA_BUILD_VERSION: 2.1.6
       SOURCE_SHA: ${{ inputs.source_ref }}
     steps:
       - name: Require immutable source
@@ -58,12 +58,12 @@ jobs:
           tests/phonebook-contact.test.ts tests/date-calendar.test.ts tests/scroll-position.test.ts tests/date-range.test.ts
           tests/entry-due-date.test.ts tests/bill-draft-date.test.ts >> "$RUNNER_TEMP/private-calendar-validation.log" 2>&1
 
-          node --test tests/screen-actions.test.mjs tests/receipt-sharing.test.mjs tests/back-swipe-native.test.mjs
-          tests/phonebook-native.test.mjs tests/ios-date-field.test.mjs tests/calendar-navigation-button.test.mjs
-          tests/session-recovery.test.mjs tests/ledger-command-confirmation.test.mjs tests/native-receipt-build.test.mjs
-          tests/native-file-save.test.mjs tests/native-signature-font.test.mjs tests/native-report-bridge.test.mjs
-          tests/native-financial-export-query.test.mjs tests/native-number-direction.test.mjs >>
-          "$RUNNER_TEMP/private-calendar-validation.log" 2>&1
+          node --test tests/native-route-layout.test.mjs tests/screen-actions.test.mjs tests/receipt-sharing.test.mjs
+          tests/back-swipe-native.test.mjs tests/phonebook-native.test.mjs tests/ios-date-field.test.mjs
+          tests/calendar-navigation-button.test.mjs tests/session-recovery.test.mjs tests/ledger-command-confirmation.test.mjs
+          tests/native-receipt-build.test.mjs tests/native-file-save.test.mjs tests/native-signature-font.test.mjs
+          tests/native-report-bridge.test.mjs tests/native-financial-export-query.test.mjs tests/native-number-direction.test.mjs
+          >> "$RUNNER_TEMP/private-calendar-validation.log" 2>&1
 
           node --import tsx --test tests/report-frame.test.ts tests/multi-currency-reports.test.ts
           tests/contact-report-format.test.ts tests/report-portrait.test.ts >> "$RUNNER_TEMP/private-calendar-validation.log" 2>&1
@@ -80,7 +80,7 @@ jobs:
           fs.mkdirSync(dir,{recursive:true});fs.writeFileSync(dir+'/production.mobileprovision',Buffer.from(s.profile,'base64'),{mode:0o600});fs.writeFileSync(dir+'/distribution.p12',Buffer.from(s.certificate,'base64'),{mode:0o600});
           fs.writeFileSync('apps/client/credentials.json',JSON.stringify({ios:{provisioningProfilePath:'.credentials/production.mobileprovision',distributionCertificate:{path:'.credentials/distribution.p12',password:s.password}}}),{mode:0o600});
           fs.mkdirSync(os.homedir()+'/.expo',{recursive:true});fs.writeFileSync(os.homedir()+'/.expo/state.json',JSON.stringify(s.expoState),{mode:0o600});
-          const app=JSON.parse(fs.readFileSync('apps/client/app.json')).expo;if(app.version!=='2.1.5'||app.ios.buildNumber!=='44'||app.ios.bundleIdentifier!=='com.kitabcha.app')throw Error('Release identity mismatch');
+          const app=JSON.parse(fs.readFileSync('apps/client/app.json')).expo;if(app.version!=='2.1.6'||app.ios.buildNumber!=='45'||app.ios.bundleIdentifier!=='com.kitabcha.app')throw Error('Release identity mismatch');
           JS
       - name: Build and sign iOS without EAS cloud build quota
         working-directory: apps/client
@@ -91,7 +91,7 @@ jobs:
           mkdir -p "$RUNNER_TEMP/ios-release"
 
           if ! eas build --platform ios --profile production --local --non-interactive --freeze-credentials --output
-          "$RUNNER_TEMP/ios-release/Kitabcha-2.1.5-44.ipa" > "$RUNNER_TEMP/private-ios-build.log" 2>&1; then
+          "$RUNNER_TEMP/ios-release/Kitabcha-2.1.6-45.ipa" > "$RUNNER_TEMP/private-ios-build.log" 2>&1; then
             echo 'iOS local build failed. Raw private build output is not published.'
             exit 1
           fi
@@ -101,19 +101,19 @@ jobs:
           python3 <<'PY'
           import zipfile,plistlib,hashlib,json,os,subprocess,tempfile
           from pathlib import Path
-          p=Path(os.environ['RUNNER_TEMP'])/'ios-release/Kitabcha-2.1.5-44.ipa'
+          p=Path(os.environ['RUNNER_TEMP'])/'ios-release/Kitabcha-2.1.6-45.ipa'
           with zipfile.ZipFile(p) as z:
             assert z.testzip() is None
             n=next(n for n in z.namelist() if n.startswith('Payload/') and n.endswith('/Info.plist') and n.count('/')==2)
-            i=plistlib.loads(z.read(n));assert i['CFBundleIdentifier']=='com.kitabcha.app' and i['CFBundleShortVersionString']=='2.1.5' and i['CFBundleVersion']=='44'
+            i=plistlib.loads(z.read(n));assert i['CFBundleIdentifier']=='com.kitabcha.app' and i['CFBundleShortVersionString']=='2.1.6' and i['CFBundleVersion']=='45'
             profile=Path(os.environ['RUNNER_TEMP'])/'profile.mobileprovision';profile.write_bytes(z.read(n.rsplit('/',1)[0]+'/embedded.mobileprovision'))
             v=subprocess.run(['security','cms','-D','-i',str(profile)],capture_output=True,check=True);e=plistlib.loads(v.stdout)['Entitlements'];assert e['application-identifier']=='HQSHUAD342.com.kitabcha.app' and e['aps-environment']=='production'
-          r={'package':'com.kitabcha.app','version':'2.1.5','build':'44','source':os.environ['SOURCE_SHA'],'bytes':p.stat().st_size,'sha256':hashlib.file_digest(p.open('rb'),'sha256').hexdigest(),'productionPush':True}
+          r={'package':'com.kitabcha.app','version':'2.1.6','build':'45','source':os.environ['SOURCE_SHA'],'bytes':p.stat().st_size,'sha256':hashlib.file_digest(p.open('rb'),'sha256').hexdigest(),'productionPush':True}
           (p.parent/'verification.json').write_text(json.dumps(r,indent=2));print(json.dumps(r))
           PY
       - uses: actions/upload-artifact@v4
         with:
-          name: Kitabcha-2.1.5-44-ios
+          name: Kitabcha-2.1.6-45-ios
           path: ${{ runner.temp }}/ios-release/
           retention-days: 7
       - name: Encrypt failure diagnostics for local inspection
