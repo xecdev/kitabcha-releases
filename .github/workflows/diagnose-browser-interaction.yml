@@ -15,7 +15,7 @@ jobs:
           - 2
           - 3
         specs:
-          - report-reminder-follow-up
+          - people-activity report-reminder-follow-up
     env:
       CI: "1"
       SOURCE_SHA: 8ec89f3f4664a317179b8935ae1cd10e4c8c2e27
