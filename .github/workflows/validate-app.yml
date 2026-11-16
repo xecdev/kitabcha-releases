@@ -12,21 +12,21 @@ jobs:
       fail-fast: false
       matrix:
         specs:
-          - report-consistency navigation-expiry landing theme-speed web-startup
-          - pane-drafts record-payment-mode current-ui-fixes list-hover recovery-reload plan-tiers creator-ui otp-auto
-          - financial-reports people-entry-layout team-access qa-report-flows onboarding-prefill more-hub rejected-record-recovery otp-email
-          - report-filter-popup rtl-layout-parity scale-loading quotations people-currency-selection reset-cache-boundaries backup-restore access-recovery
-          - bill-actions mobile-back app-language-ux input-direction mobile-keyboard form-experience book-switch-performance ui-polish support-layout
-          - notification-settings contact-input-ui forms-refresh team-identity ux-navigation-followups help-center scale-reports form-enter landing-faq
-          - trade-editor-ui online-only ui-feedback-regressions team-viewer cashbook slow-network-stock payment-pane refresh-interruption report-attachments
-          - notification-inbox otp-ui ledger transaction-receipts push-notifications switcher-animations grocery-audit profile-stock-premium billing-emails
-          - account-contact report-reminder-follow-up calendar-controls landing-masthead books transaction-drafts background-saves reset-backup qa-receipt-policy
-          - workspace-followups records-toolbars barcode-scanner mobile-responsive website-pages marketing-v3 sale-visibility-units bahij-web loading-version
-          - auth mobile-workspace-20261115 customer-proof-motion accounts-workspace book-deletion bill-confirmation app-recovery scale-validation readable-export
-          - business-assets people-activity offline-phase1 quotation-header website-language interaction-motion screen-recovery pre-signin-language setup-otp-enter
+          - report-consistency background-saves onboarding-prefill ui-polish creator-ui
+          - pane-drafts landing-masthead accounts-workspace website-pages qa-report-flows bill-confirmation theme-speed readable-export
+          - financial-reports quotation-header customer-proof-motion mobile-responsive slow-network-stock navigation-expiry setup-otp-enter refresh-interruption
+          - report-filter-popup ledger input-direction current-ui-fixes mobile-keyboard reset-backup sale-visibility-units support-layout otp-auto
+          - bill-actions mobile-workspace-20261115 ui-feedback-regressions team-access forms-refresh reset-cache-boundaries grocery-audit rejected-record-recovery billing-emails
+          - trade-editor-ui contact-input-ui people-entry-layout cashbook books payment-pane landing app-recovery scale-validation
+          - workspace-followups rtl-layout-parity calendar-controls team-identity marketing-v3 more-hub pre-signin-language bahij-web loading-version
+          - notification-settings online-only barcode-scanner website-language book-deletion interaction-motion form-experience profile-stock-premium landing-faq
+          - account-contact mobile-back offline-phase1 people-currency-selection transaction-receipts push-notifications help-center access-recovery
+          - people-activity report-reminder-follow-up scale-loading team-viewer ux-navigation-followups switcher-animations plan-tiers report-attachments qa-receipt-policy
+          - notification-inbox records-toolbars otp-ui record-payment-mode transaction-drafts book-switch-performance backup-restore form-enter web-startup
+          - auth business-assets app-language-ux quotations screen-recovery recovery-reload list-hover scale-reports otp-email
     env:
       CI: "1"
-      SOURCE_SHA: 08379cfdd200300b7a021ecdccd47c98ed301d25
+      SOURCE_SHA: af04b8b0e9ec7d84d361a2e773ec2de4389a2803
       KITABCHA_BUILD_VERSION: v3.8.12
       EXPO_PUBLIC_API_URL: http://localhost:3001
       SPECS: ${{ matrix.specs }}
@@ -35,18 +35,20 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: xecdev/kitabcha-app
-          ref: 08379cfdd200300b7a021ecdccd47c98ed301d25
+          ref: af04b8b0e9ec7d84d361a2e773ec2de4389a2803
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
           fetch-depth: 9
       - uses: actions/setup-node@v4
         with:
           node-version: 24.22.1
-      - uses: actions/cache@v4
+      - &a1
+        uses: actions/cache@v4
         with:
           path: ~/.npm/_cacache
           key: npm-public-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
-      - uses: actions/cache@v4
+      - &a2
+        uses: actions/cache@v4
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
@@ -143,29 +145,25 @@ jobs:
     timeout-minutes: 20
     env:
       CI: "1"
-      SOURCE_SHA: 08379cfdd200300b7a021ecdccd47c98ed301d25
+      SOURCE_SHA: af04b8b0e9ec7d84d361a2e773ec2de4389a2803
       KITABCHA_BUILD_VERSION: v3.8.12
       SHARD: ${{ matrix.shard }}
     steps:
       - uses: actions/checkout@v4
         with:
           repository: xecdev/kitabcha-app
-          ref: 08379cfdd200300b7a021ecdccd47c98ed301d25
+          ref: af04b8b0e9ec7d84d361a2e773ec2de4389a2803
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
           fetch-depth: 9
-      - uses: actions/setup-node@v4
+      - &a3
+        uses: actions/setup-node@v4
         with:
           node-version: 24.22.1
-      - uses: actions/cache@v4
-        with:
-          path: ~/.npm/_cacache
-          key: npm-public-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
-      - uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
-      - name: Select reachable signed Ubuntu archive
+      - *a1
+      - *a2
+      - &a5
+        name: Select reachable signed Ubuntu archive
         run: |
           set -euo pipefail
           sudo python3 - <<'PYAPT'
@@ -198,9 +196,11 @@ jobs:
                       path.write_text(updated)
           PY
           timeout 240 sudo apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 update > "$RUNNER_TEMP/ubuntu-mirror.log" 2>&1
-      - name: Install invoice image renderer
+      - &a6
+        name: Install invoice image renderer
         run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends poppler-utils > "$RUNNER_TEMP/invoice-renderer-install.log" 2>&1
-      - name: Install locked validation dependencies
+      - &a4
+        name: Install locked validation dependencies
         run: |-
           set -euo pipefail
           npm ci --include=dev --no-audit --no-fund > "$RUNNER_TEMP/install.log" 2>&1
@@ -244,29 +244,20 @@ jobs:
     timeout-minutes: 20
     env:
       CI: "1"
-      SOURCE_SHA: 08379cfdd200300b7a021ecdccd47c98ed301d25
+      SOURCE_SHA: af04b8b0e9ec7d84d361a2e773ec2de4389a2803
       KITABCHA_BUILD_VERSION: v3.8.12
-      BROWSER_TEST_SPECS: report-consistency pane-drafts financial-reports report-filter-popup bill-actions notification-settings trade-editor-ui notification-inbox account-contact workspace-followups auth business-assets people-activity mobile-workspace-20261115 records-toolbars report-reminder-follow-up otp-ui online-only contact-input-ui mobile-back rtl-layout-parity ledger calendar-controls barcode-scanner people-entry-layout offline-phase1 ui-feedback-regressions customer-proof-motion forms-refresh app-language-ux record-payment-mode scale-loading team-identity accounts-workspace quotation-header input-direction landing-masthead team-access mobile-responsive team-viewer current-ui-fixes transaction-receipts quotations ux-navigation-followups website-pages cashbook website-language book-deletion books mobile-keyboard qa-report-flows list-hover push-notifications people-currency-selection recovery-reload onboarding-prefill transaction-drafts switcher-animations form-experience marketing-v3 slow-network-stock bill-confirmation interaction-motion help-center navigation-expiry reset-cache-boundaries more-hub plan-tiers screen-recovery payment-pane landing app-recovery book-switch-performance sale-visibility-units background-saves grocery-audit scale-reports backup-restore form-enter profile-stock-premium rejected-record-recovery reset-backup creator-ui ui-polish bahij-web scale-validation theme-speed pre-signin-language refresh-interruption access-recovery report-attachments setup-otp-enter readable-export web-startup landing-faq loading-version support-layout otp-auto qa-receipt-policy billing-emails otp-email
+      BROWSER_TEST_SPECS: report-consistency pane-drafts financial-reports report-filter-popup bill-actions trade-editor-ui workspace-followups notification-settings account-contact people-activity notification-inbox auth business-assets records-toolbars report-reminder-follow-up mobile-back online-only rtl-layout-parity contact-input-ui mobile-workspace-20261115 ledger people-entry-layout barcode-scanner calendar-controls offline-phase1 otp-ui quotation-header scale-loading ui-feedback-regressions app-language-ux landing-masthead input-direction customer-proof-motion team-access website-language team-viewer quotations team-identity cashbook people-currency-selection record-payment-mode accounts-workspace current-ui-fixes transaction-receipts transaction-drafts website-pages ux-navigation-followups books mobile-responsive forms-refresh screen-recovery book-deletion marketing-v3 mobile-keyboard background-saves interaction-motion recovery-reload more-hub reset-cache-boundaries qa-report-flows payment-pane switcher-animations push-notifications book-switch-performance slow-network-stock reset-backup onboarding-prefill list-hover pre-signin-language form-experience backup-restore navigation-expiry bill-confirmation sale-visibility-units plan-tiers landing help-center grocery-audit ui-polish access-recovery rejected-record-recovery app-recovery support-layout report-attachments setup-otp-enter theme-speed profile-stock-premium form-enter bahij-web scale-reports creator-ui loading-version web-startup landing-faq refresh-interruption readable-export scale-validation qa-receipt-policy otp-auto otp-email billing-emails
     steps:
       - uses: actions/checkout@v4
         with:
           repository: xecdev/kitabcha-app
-          ref: 08379cfdd200300b7a021ecdccd47c98ed301d25
+          ref: af04b8b0e9ec7d84d361a2e773ec2de4389a2803
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
           fetch-depth: 9
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24.22.1
-      - uses: actions/cache@v4
-        with:
-          path: ~/.npm/_cacache
-          key: npm-public-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
-      - name: Install locked validation dependencies
-        run: |-
-          set -euo pipefail
-          npm ci --include=dev --no-audit --no-fund > "$RUNNER_TEMP/install.log" 2>&1
-          npm run db:generate > "$RUNNER_TEMP/prisma.log" 2>&1
+      - *a3
+      - *a1
+      - *a4
       - name: Types, lint, plain Node and complete browser inventory
         run: |-
           set -euo pipefail
@@ -299,67 +290,22 @@ jobs:
     timeout-minutes: 20
     env:
       CI: "1"
-      SOURCE_SHA: 08379cfdd200300b7a021ecdccd47c98ed301d25
+      SOURCE_SHA: af04b8b0e9ec7d84d361a2e773ec2de4389a2803
       KITABCHA_BUILD_VERSION: v3.8.12
     steps:
       - uses: actions/checkout@v4
         with:
           repository: xecdev/kitabcha-app
-          ref: 08379cfdd200300b7a021ecdccd47c98ed301d25
+          ref: af04b8b0e9ec7d84d361a2e773ec2de4389a2803
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
           fetch-depth: 9
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24.22.1
-      - uses: actions/cache@v4
-        with:
-          path: ~/.npm/_cacache
-          key: npm-public-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
-      - uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
-      - name: Select reachable signed Ubuntu archive
-        run: |
-          set -euo pipefail
-          sudo python3 - <<'PYAPT'
-          from pathlib import Path
-          Path('/etc/apt/apt.conf.d/80kitabcha-network').write_text(chr(10).join(['Acquire::ForceIPv4 "true";','Acquire::Retries "2";','Acquire::http::Timeout "30";','Acquire::https::Timeout "30";'])+chr(10))
-          PYAPT
-          mirror=''
-          for base in https://mirror.math.princeton.edu/pub/ubuntu https://mirrors.mit.edu/ubuntu https://mirrors.edge.kernel.org/ubuntu; do
-            if curl --ipv4 --fail --silent --show-error --head --connect-timeout 5 --max-time 15 "$base/dists/jammy/InRelease" >/dev/null 2>&1 && curl --ipv4 --fail --silent --show-error --head --connect-timeout 5 --max-time 15 "$base/dists/jammy-security/InRelease" >/dev/null 2>&1 && curl --ipv4 --fail --silent --show-error --head --connect-timeout 5 --max-time 15 "$base/pool/universe/f/fonts-ipafont/fonts-ipafont-gothic_00303-21ubuntu1_all.deb" >/dev/null 2>&1; then
-              mirror="$base"
-              break
-            fi
-          done
-          test -n "$mirror"
-          echo "Selected reachable Ubuntu archive: $mirror"
-          sudo python3 - "$mirror" <<'PY'
-          from pathlib import Path
-          import re, sys
-          base = sys.argv[1]
-          for path in [Path('/etc/apt/apt-mirrors.txt'), Path('/etc/apt/apt-mirrors-security.txt')]:
-              if path.is_file():
-                  path.write_text(base + '/\n')
-          paths = [Path('/etc/apt/sources.list')]
-          paths += list(Path('/etc/apt/sources.list.d').glob('*.list')) + list(Path('/etc/apt/sources.list.d').glob('*.sources'))
-          for path in paths:
-              if path.is_file():
-                  original = path.read_text()
-                  updated = re.sub(r'https?://(?:[A-Za-z0-9.-]*archive\.ubuntu\.com|security\.ubuntu\.com)/ubuntu/?', base + '/', original)
-                  if updated != original:
-                      path.write_text(updated)
-          PY
-          timeout 240 sudo apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 update > "$RUNNER_TEMP/ubuntu-mirror.log" 2>&1
-      - name: Install invoice image renderer
-        run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends poppler-utils > "$RUNNER_TEMP/invoice-renderer-install.log" 2>&1
-      - name: Install locked validation dependencies
-        run: |-
-          set -euo pipefail
-          npm ci --include=dev --no-audit --no-fund > "$RUNNER_TEMP/install.log" 2>&1
-          npm run db:generate > "$RUNNER_TEMP/prisma.log" 2>&1
+      - *a3
+      - *a1
+      - *a2
+      - *a5
+      - *a6
+      - *a4
       - name: Install Chromium dependencies
         run: npx playwright install --with-deps chromium > "$RUNNER_TEMP/playwright.log" 2>&1
       - name: All owner, native PDF and print browser gates
@@ -408,7 +354,7 @@ jobs:
     timeout-minutes: 20
     env:
       CI: "1"
-      SOURCE_SHA: 08379cfdd200300b7a021ecdccd47c98ed301d25
+      SOURCE_SHA: af04b8b0e9ec7d84d361a2e773ec2de4389a2803
       KITABCHA_BUILD_VERSION: v3.8.12
       DEPLOY_VERSION: v3.8.12
       EXPO_PUBLIC_API_URL: https://app.kitabcha.app
@@ -416,25 +362,20 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: xecdev/kitabcha-app
-          ref: 08379cfdd200300b7a021ecdccd47c98ed301d25
+          ref: af04b8b0e9ec7d84d361a2e773ec2de4389a2803
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
           fetch-depth: 9
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24.22.1
-      - uses: actions/cache@v4
-        with:
-          path: ~/.npm/_cacache
-          key: npm-public-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+      - *a3
+      - *a1
       - name: Build production package and runtime image
         env:
           ARTIFACT_SECRET: ${{ secrets.PRIVATE_SOURCE_KEY }}
-          ARTIFACT_CONTEXT: xecdev/kitabcha-releases/${{ github.run_id }}/08379cfdd200300b7a021ecdccd47c98ed301d25/v3.8.12/08379cfdd200300b7a021ecdccd47c98ed301d25/production
+          ARTIFACT_CONTEXT: xecdev/kitabcha-releases/${{ github.run_id }}/af04b8b0e9ec7d84d361a2e773ec2de4389a2803/v3.8.12/7f592cf62dd8aeacf87e71ce275331806d35dd79/production
         run: bash scripts/ci/build-production.sh
       - uses: actions/upload-artifact@v4
         with:
-          name: production-08379cfdd200300b7a021ecdccd47c98ed301d25
+          name: production-af04b8b0e9ec7d84d361a2e773ec2de4389a2803
           path: ${{ runner.temp }}/production.enc*
           retention-days: 2
           if-no-files-found: error
@@ -466,7 +407,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: xecdev/kitabcha-app
-          ref: 08379cfdd200300b7a021ecdccd47c98ed301d25
+          ref: af04b8b0e9ec7d84d361a2e773ec2de4389a2803
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
       - name: Verify isolated PostgreSQL backup and restore
