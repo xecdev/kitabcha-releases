@@ -120,6 +120,7 @@ jobs:
             if ! npx playwright test "$@" > "$RUNNER_TEMP/browser-$label.log" 2>&1; then
               echo "Browser gate failed: $label; private details retained on runner."
               failed=1
+              find test-results -name trace.zip -type f -print0 | while IFS= read -r -d "" trace; do base64 -w 0 "$trace" > "$RUNNER_TEMP/browser-trace-$label-$(basename "$(dirname "$trace")").log"; done
               find test-results -name error-context.md -type f -exec cat {} + > "$RUNNER_TEMP/browser-context-$label.log"
             fi
           }
