@@ -25,16 +25,16 @@ jobs:
     timeout-minutes: 35
     env:
       CI: "1"
-      SOURCE_SHA: ba7f22e68fe5c501b881c7758226135319510f2c
-      DEPLOY_VERSION: v3.8.14
-      KITABCHA_BUILD_VERSION: v3.8.14
+      SOURCE_SHA: 3b5ecc4a26a787e3d3e2e97b8da8531073f3fb5f
+      DEPLOY_VERSION: v3.8.15
+      KITABCHA_BUILD_VERSION: v3.8.15
       PREFLIGHT_RUN: ${{ github.event.workflow_run.id || inputs.preflight_run }}
-      VALIDATION_DIGEST: 178a5a6167ff8ead7de7d403b6f8f388389a60b2fb19d48d79199c46d27e64be
+      VALIDATION_DIGEST: 75740e02945d76f87b18fab5c25047ccfc2bf87ca8dee5d1f8e87a241db9fdb0
     steps:
       - uses: actions/checkout@v4
         with:
           repository: xecdev/kitabcha-app
-          ref: ba7f22e68fe5c501b881c7758226135319510f2c
+          ref: 3b5ecc4a26a787e3d3e2e97b8da8531073f3fb5f
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
           fetch-depth: 9
@@ -47,14 +47,14 @@ jobs:
         run: node scripts/ci/verify-preflight.mjs
       - uses: actions/download-artifact@v4
         with:
-          name: production-ba7f22e68fe5c501b881c7758226135319510f2c
+          name: production-3b5ecc4a26a787e3d3e2e97b8da8531073f3fb5f
           path: ${{ runner.temp }}/production
           github-token: ${{ github.token }}
           run-id: ${{ github.event.workflow_run.id || inputs.preflight_run }}
       - name: Authenticate production artifact
         env:
           ARTIFACT_SECRET: ${{ secrets.PRIVATE_SOURCE_KEY }}
-          ARTIFACT_CONTEXT: xecdev/kitabcha-releases/${{ github.event.workflow_run.id || inputs.preflight_run }}/ba7f22e68fe5c501b881c7758226135319510f2c/v3.8.14/7f592cf62dd8aeacf87e71ce275331806d35dd79/production
+          ARTIFACT_CONTEXT: xecdev/kitabcha-releases/${{ github.event.workflow_run.id || inputs.preflight_run }}/3b5ecc4a26a787e3d3e2e97b8da8531073f3fb5f/v3.8.15/7f592cf62dd8aeacf87e71ce275331806d35dd79/production
         run: node scripts/release-artifact.mjs open "$RUNNER_TEMP/production/production.enc" "$RUNNER_TEMP/update.tar.gz"
       - name: Confirm production release base
         run: |-
