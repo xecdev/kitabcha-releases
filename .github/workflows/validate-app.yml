@@ -1,0 +1,496 @@
+name: Validate complete Kitabcha release
+on:
+  workflow_dispatch: null
+permissions:
+  contents: read
+  actions: read
+jobs:
+  browser:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        specs:
+          - report-consistency quotations sale-visibility-units landing rejected-record-recovery creator-ui
+          - pane-drafts team-access quotation-header transaction-drafts book-switch-performance ui-polish loading-version
+          - financial-reports input-direction ux-navigation-followups people-currency-selection background-saves scale-reports reset-backup otp-auto
+          - bill-actions report-reminder-follow-up team-identity current-ui-fixes marketing-v3 website-language access-recovery profile-stock-premium pre-signin-language
+          - notification-settings ledger offline-phase1 calendar-controls mobile-responsive books onboarding-prefill refresh-interruption setup-otp-enter
+          - trade-editor-ui mobile-workspace-20261115 barcode-scanner record-payment-mode mobile-keyboard slow-network-stock interaction-motion bahij-web qa-receipt-policy
+          - notification-inbox contact-input-ui app-language-ux transaction-receipts recovery-reload screen-recovery list-hover web-startup readable-export
+          - workspace-followups mobile-back customer-proof-motion team-viewer qa-report-flows bill-confirmation grocery-audit landing-faq support-layout
+          - account-contact rtl-layout-parity landing-masthead scale-loading website-pages navigation-expiry app-recovery theme-speed
+          - auth online-only accounts-workspace book-deletion plan-tiers help-center more-hub form-enter otp-email
+          - report-filter-popup business-assets otp-ui ui-feedback-regressions forms-refresh reset-cache-boundaries form-experience scale-validation backup-restore
+          - people-activity records-toolbars people-entry-layout cashbook switcher-animations push-notifications payment-pane report-attachments billing-emails
+    env:
+      CI: "1"
+      SOURCE_SHA: 6b09420a0866f7109e322e3941dee33f6ea0735f
+      KITABCHA_BUILD_VERSION: v3.8.12
+      EXPO_PUBLIC_API_URL: http://localhost:3001
+      SPECS: ${{ matrix.specs }}
+      EXPO_PUBLIC_ENTITLEMENT_KEY: 087b7041c48b7f58b4357d170ddb97cc3ad66974fa992e5ca9ad2b0ac9fa0bba
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: xecdev/kitabcha-app
+          ref: 6b09420a0866f7109e322e3941dee33f6ea0735f
+          ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
+          persist-credentials: false
+          fetch-depth: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.22.1
+      - uses: actions/cache@v4
+        with:
+          path: ~/.npm/_cacache
+          key: npm-public-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+      - name: Select reachable signed Ubuntu archive
+        run: |
+          set -euo pipefail
+          sudo python3 - <<'PYAPT'
+          from pathlib import Path
+          Path('/etc/apt/apt.conf.d/80kitabcha-network').write_text(chr(10).join(['Acquire::ForceIPv4 "true";','Acquire::Retries "2";','Acquire::http::Timeout "30";','Acquire::https::Timeout "30";'])+chr(10))
+          PYAPT
+          mirror=''
+          for base in https://mirror.math.princeton.edu/pub/ubuntu https://mirrors.mit.edu/ubuntu https://mirrors.edge.kernel.org/ubuntu; do
+            if curl --ipv4 --fail --silent --show-error --head --connect-timeout 5 --max-time 15 "$base/dists/jammy/InRelease" >/dev/null 2>&1 && curl --ipv4 --fail --silent --show-error --head --connect-timeout 5 --max-time 15 "$base/dists/jammy-security/InRelease" >/dev/null 2>&1 && curl --ipv4 --fail --silent --show-error --head --connect-timeout 5 --max-time 15 "$base/pool/universe/f/fonts-ipafont/fonts-ipafont-gothic_00303-21ubuntu1_all.deb" >/dev/null 2>&1; then
+              mirror="$base"
+              break
+            fi
+          done
+          test -n "$mirror"
+          echo "Selected reachable Ubuntu archive: $mirror"
+          sudo python3 - "$mirror" <<'PY'
+          from pathlib import Path
+          import re, sys
+          base = sys.argv[1]
+          for path in [Path('/etc/apt/apt-mirrors.txt'), Path('/etc/apt/apt-mirrors-security.txt')]:
+              if path.is_file():
+                  path.write_text(base + '/\n')
+          paths = [Path('/etc/apt/sources.list')]
+          paths += list(Path('/etc/apt/sources.list.d').glob('*.list')) + list(Path('/etc/apt/sources.list.d').glob('*.sources'))
+          for path in paths:
+              if path.is_file():
+                  original = path.read_text()
+                  updated = re.sub(r'https?://(?:[A-Za-z0-9.-]*archive\.ubuntu\.com|security\.ubuntu\.com)/ubuntu/?', base + '/', original)
+                  if updated != original:
+                      path.write_text(updated)
+          PY
+          timeout 240 sudo apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 update > "$RUNNER_TEMP/ubuntu-mirror.log" 2>&1
+      - name: Install invoice image renderer
+        run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends poppler-utils > "$RUNNER_TEMP/invoice-renderer-install.log" 2>&1
+      - name: Install browser validation dependencies
+        run: |-
+          npm ci --include=dev --no-audit --no-fund > "$RUNNER_TEMP/browser-install.log" 2>&1
+          npm run db:generate > "$RUNNER_TEMP/browser-prisma.log" 2>&1
+      - name: Install pinned Caddy for receipt policy regression
+        if: contains(matrix.specs, 'qa-receipt-policy')
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP"
+          curl --fail --location --retry 3 --retry-all-errors --connect-timeout 20 --max-time 120 --silent --show-error --header "Accept: application/octet-stream" "https://api.github.com/repos/caddyserver/caddy/releases/assets/711594947?run=$GITHUB_RUN_ID&attempt=$GITHUB_RUN_ATTEMPT" -o caddy_2.11.9_linux_amd64.tar.gz || \
+          curl --fail --location --retry 3 --silent --show-error https://github.com/caddyserver/caddy/releases/download/v2.11.9/caddy_2.11.9_linux_amd64.tar.gz -o caddy_2.11.9_linux_amd64.tar.gz
+
+          curl --fail --location --retry 3 --retry-all-errors --connect-timeout 20 --max-time 120 --silent --show-error --header "Accept: application/octet-stream" "https://api.github.com/repos/caddyserver/caddy/releases/assets/711595488?run=$GITHUB_RUN_ID&attempt=$GITHUB_RUN_ATTEMPT" -o caddy_checksums.txt || \
+          curl --fail --location --retry 3 --silent --show-error https://github.com/caddyserver/caddy/releases/download/v2.11.9/caddy_2.11.9_checksums.txt -o caddy_checksums.txt
+
+          echo '5b8cb7faf8726a2028ad96a66e54e6e81e8f361bc6175e5d22bbd997cc5177fb  caddy_2.11.9_linux_amd64.tar.gz' | sha256sum --check --status
+          grep ' caddy_2.11.9_linux_amd64.tar.gz$' caddy_checksums.txt | sha512sum --check --status
+          tar -xzf caddy_2.11.9_linux_amd64.tar.gz caddy
+          chmod 700 caddy
+          echo "CADDY_EXECUTABLE=$RUNNER_TEMP/caddy" >> "$GITHUB_ENV"
+      - name: Validate plans, owner dashboard, permissions and existing browser flows
+        run: |
+          set -euo pipefail
+          npx playwright install --with-deps chromium > "$RUNNER_TEMP/validation-browser-install.log" 2>&1
+          EXPO_PUBLIC_API_URL=http://localhost:3001 GITHUB_SHA="$SOURCE_SHA" npm run build:web > "$RUNNER_TEMP/validation-web.log" 2>&1
+          for spec in $SPECS; do
+            echo "Checking $spec in an isolated test server."
+            if ! npx playwright test "tests/e2e/$spec.spec.ts" > "$RUNNER_TEMP/validation-browser.log" 2>&1; then
+              echo "Browser gate failed: $spec; private details retained on runner."
+              exit 1
+            fi
+          done
+          echo 'Owner notifications, invoice links, team access and expiry browser checks passed.'
+      - name: Encrypt private failure diagnostics
+        if: failure()
+        env:
+          DIAGNOSTIC_PUBLIC_KEY: LS0tLS1CRUdJTiBQVUJMSUMgS0VZLS0tLS0KTUlJQm9qQU5CZ2txaGtpRzl3MEJBUUVGQUFPQ0FZOEFNSUlCaWdLQ0FZRUFqOThYbmtjWGpBbEt3SG0reHFLcApReUtrc3ZnTlRtS0tNeWlpRjNnVi9NNEpHV0xOaGlTRGhRYVZyMHNqTG5GYWJrbVFjZkUrZ2oyTUMvUnZ4SVVECm8wSW9HY21JVzltbExYeEtUVWNsTnpKdTlPM1pJSVI2WXdGbDBRR1NaVEN3QTIvR0tlL1h5S2xwWHBMSDJ2aHAKQU9JVjQxaFdYWlRtS0Fra3Y5VnBSa3B0SWMwZWtwQkJXTTZaaGMxa21BSU9mRmdLNUg0ZEZXVHFYaWVkenVvcApaYlE4R2ZnRmE2QWhUUGpxTncwNStLZW1SME5LbHRKdUhVc2xqQm1JcDZyaGtJaG4wRE9zRExKYWp4MkJ6V05OCkQvUTE2YkNzVUh2aUk0MURUb0w3UUU4M2FZL3crYjVpbUs0Qlh2UDJJM3JYZUlvcWJJZGhtdTFEemVJZXZxNXkKR090b09iQ3E1Z3RQZDVkTFdTM01VZWtrUE1PRnVtSGtlNmlqV2swOXlvL2lsWVlnUXdmV1Q5M2lvdG54c2JvQQpjTWpHZ0xpc2RmY0VUTlh0bGdCWEcyNmRNTzR2M3h3UStwbHdKbW9WWFc3UUpQR0VaZVhuQzg3ZlRDZTZTZnRuCnBscThEUjBtMEQxVlozemRkdXA3S1RwQ1cyS2JqNGpsRkhWZEovaXNQLzNUQWdNQkFBRT0KLS0tLS1FTkQgUFVCTElDIEtFWS0tLS0tCg==
+        run: |-
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';import path from 'node:path';import {randomBytes,createCipheriv,publicEncrypt,constants} from 'node:crypto';
+          const logs={};for(const name of fs.readdirSync(process.env.RUNNER_TEMP).filter(n=>n.endsWith('.log'))){const p=path.join(process.env.RUNNER_TEMP,name);if(fs.statSync(p).isFile())logs[name]=fs.readFileSync(p,'utf8').slice(-1500000);}
+          const key=randomBytes(32),iv=randomBytes(12),cipher=createCipheriv('aes-256-gcm',key,iv),data=Buffer.concat([cipher.update(JSON.stringify(logs)),cipher.final()]);
+          const sealed={key:publicEncrypt({key:Buffer.from(process.env.DIAGNOSTIC_PUBLIC_KEY,'base64'),padding:constants.RSA_PKCS1_OAEP_PADDING,oaepHash:'sha256'},key).toString('base64'),iv:iv.toString('base64'),tag:cipher.getAuthTag().toString('base64'),data:data.toString('base64')};
+          fs.writeFileSync(path.join(process.env.RUNNER_TEMP,'release-${{ github.job }}-diagnostic.enc'),JSON.stringify(sealed));console.log('Private diagnostics encrypted for the local decryption key.');
+          NODE
+      - name: Upload encrypted diagnostic
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ github.job }}-browser-${{ strategy.job-index }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/release-${{ github.job }}-diagnostic.enc
+          retention-days: 2
+          if-no-files-found: ignore
+  unit:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    env:
+      CI: "1"
+      SOURCE_SHA: 6b09420a0866f7109e322e3941dee33f6ea0735f
+      KITABCHA_BUILD_VERSION: v3.8.12
+      SHARD: ${{ matrix.shard }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: xecdev/kitabcha-app
+          ref: 6b09420a0866f7109e322e3941dee33f6ea0735f
+          ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
+          persist-credentials: false
+          fetch-depth: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.22.1
+      - uses: actions/cache@v4
+        with:
+          path: ~/.npm/_cacache
+          key: npm-public-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+      - name: Select reachable signed Ubuntu archive
+        run: |
+          set -euo pipefail
+          sudo python3 - <<'PYAPT'
+          from pathlib import Path
+          Path('/etc/apt/apt.conf.d/80kitabcha-network').write_text(chr(10).join(['Acquire::ForceIPv4 "true";','Acquire::Retries "2";','Acquire::http::Timeout "30";','Acquire::https::Timeout "30";'])+chr(10))
+          PYAPT
+          mirror=''
+          for base in https://mirror.math.princeton.edu/pub/ubuntu https://mirrors.mit.edu/ubuntu https://mirrors.edge.kernel.org/ubuntu; do
+            if curl --ipv4 --fail --silent --show-error --head --connect-timeout 5 --max-time 15 "$base/dists/jammy/InRelease" >/dev/null 2>&1 && curl --ipv4 --fail --silent --show-error --head --connect-timeout 5 --max-time 15 "$base/dists/jammy-security/InRelease" >/dev/null 2>&1 && curl --ipv4 --fail --silent --show-error --head --connect-timeout 5 --max-time 15 "$base/pool/universe/f/fonts-ipafont/fonts-ipafont-gothic_00303-21ubuntu1_all.deb" >/dev/null 2>&1; then
+              mirror="$base"
+              break
+            fi
+          done
+          test -n "$mirror"
+          echo "Selected reachable Ubuntu archive: $mirror"
+          sudo python3 - "$mirror" <<'PY'
+          from pathlib import Path
+          import re, sys
+          base = sys.argv[1]
+          for path in [Path('/etc/apt/apt-mirrors.txt'), Path('/etc/apt/apt-mirrors-security.txt')]:
+              if path.is_file():
+                  path.write_text(base + '/\n')
+          paths = [Path('/etc/apt/sources.list')]
+          paths += list(Path('/etc/apt/sources.list.d').glob('*.list')) + list(Path('/etc/apt/sources.list.d').glob('*.sources'))
+          for path in paths:
+              if path.is_file():
+                  original = path.read_text()
+                  updated = re.sub(r'https?://(?:[A-Za-z0-9.-]*archive\.ubuntu\.com|security\.ubuntu\.com)/ubuntu/?', base + '/', original)
+                  if updated != original:
+                      path.write_text(updated)
+          PY
+          timeout 240 sudo apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 update > "$RUNNER_TEMP/ubuntu-mirror.log" 2>&1
+      - name: Install invoice image renderer
+        run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends poppler-utils > "$RUNNER_TEMP/invoice-renderer-install.log" 2>&1
+      - name: Install locked validation dependencies
+        run: |-
+          set -euo pipefail
+          npm ci --include=dev --no-audit --no-fund > "$RUNNER_TEMP/install.log" 2>&1
+          npm run db:generate > "$RUNNER_TEMP/prisma.log" 2>&1
+      - name: Install Chromium dependencies
+        run: npx playwright install --with-deps chromium > "$RUNNER_TEMP/playwright.log" 2>&1
+      - name: Validate complete TypeScript shard
+        run: |-
+          set -euo pipefail
+          node --import tsx --test --test-reporter=tap --test-concurrency=2 --test-timeout=120000 --test-shard="$SHARD/3" tests/*.test.ts > "$RUNNER_TEMP/unit.log" 2>&1
+          grep -E "^# (tests|pass|fail|skipped)" "$RUNNER_TEMP/unit.log"
+      - name: Encrypt private failure diagnostics
+        if: failure()
+        env:
+          DIAGNOSTIC_PUBLIC_KEY: LS0tLS1CRUdJTiBQVUJMSUMgS0VZLS0tLS0KTUlJQm9qQU5CZ2txaGtpRzl3MEJBUUVGQUFPQ0FZOEFNSUlCaWdLQ0FZRUFqOThYbmtjWGpBbEt3SG0reHFLcApReUtrc3ZnTlRtS0tNeWlpRjNnVi9NNEpHV0xOaGlTRGhRYVZyMHNqTG5GYWJrbVFjZkUrZ2oyTUMvUnZ4SVVECm8wSW9HY21JVzltbExYeEtUVWNsTnpKdTlPM1pJSVI2WXdGbDBRR1NaVEN3QTIvR0tlL1h5S2xwWHBMSDJ2aHAKQU9JVjQxaFdYWlRtS0Fra3Y5VnBSa3B0SWMwZWtwQkJXTTZaaGMxa21BSU9mRmdLNUg0ZEZXVHFYaWVkenVvcApaYlE4R2ZnRmE2QWhUUGpxTncwNStLZW1SME5LbHRKdUhVc2xqQm1JcDZyaGtJaG4wRE9zRExKYWp4MkJ6V05OCkQvUTE2YkNzVUh2aUk0MURUb0w3UUU4M2FZL3crYjVpbUs0Qlh2UDJJM3JYZUlvcWJJZGhtdTFEemVJZXZxNXkKR090b09iQ3E1Z3RQZDVkTFdTM01VZWtrUE1PRnVtSGtlNmlqV2swOXlvL2lsWVlnUXdmV1Q5M2lvdG54c2JvQQpjTWpHZ0xpc2RmY0VUTlh0bGdCWEcyNmRNTzR2M3h3UStwbHdKbW9WWFc3UUpQR0VaZVhuQzg3ZlRDZTZTZnRuCnBscThEUjBtMEQxVlozemRkdXA3S1RwQ1cyS2JqNGpsRkhWZEovaXNQLzNUQWdNQkFBRT0KLS0tLS1FTkQgUFVCTElDIEtFWS0tLS0tCg==
+        run: |-
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';import path from 'node:path';import {randomBytes,createCipheriv,publicEncrypt,constants} from 'node:crypto';
+          const logs={};for(const name of fs.readdirSync(process.env.RUNNER_TEMP).filter(n=>n.endsWith('.log'))){const p=path.join(process.env.RUNNER_TEMP,name);if(fs.statSync(p).isFile())logs[name]=fs.readFileSync(p,'utf8').slice(-1500000);}
+          const key=randomBytes(32),iv=randomBytes(12),cipher=createCipheriv('aes-256-gcm',key,iv),data=Buffer.concat([cipher.update(JSON.stringify(logs)),cipher.final()]);
+          const sealed={key:publicEncrypt({key:Buffer.from(process.env.DIAGNOSTIC_PUBLIC_KEY,'base64'),padding:constants.RSA_PKCS1_OAEP_PADDING,oaepHash:'sha256'},key).toString('base64'),iv:iv.toString('base64'),tag:cipher.getAuthTag().toString('base64'),data:data.toString('base64')};
+          fs.writeFileSync(path.join(process.env.RUNNER_TEMP,'release-${{ github.job }}-diagnostic.enc'),JSON.stringify(sealed));console.log('Private diagnostics encrypted for the local decryption key.');
+          NODE
+      - name: Upload encrypted diagnostic
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ github.job }}-unit-${{ strategy.job-index }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/release-${{ github.job }}-diagnostic.enc
+          retention-days: 2
+          if-no-files-found: ignore
+    strategy:
+      fail-fast: false
+      matrix:
+        shard:
+          - 1
+          - 2
+          - 3
+  quality:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    env:
+      CI: "1"
+      SOURCE_SHA: 6b09420a0866f7109e322e3941dee33f6ea0735f
+      KITABCHA_BUILD_VERSION: v3.8.12
+      BROWSER_TEST_SPECS: report-consistency pane-drafts financial-reports bill-actions notification-settings trade-editor-ui notification-inbox workspace-followups account-contact auth report-filter-popup people-activity records-toolbars business-assets online-only rtl-layout-parity mobile-back contact-input-ui mobile-workspace-20261115 ledger report-reminder-follow-up people-entry-layout otp-ui barcode-scanner app-language-ux accounts-workspace customer-proof-motion offline-phase1 landing-masthead team-identity input-direction team-access scale-loading current-ui-fixes calendar-controls team-viewer book-deletion transaction-receipts record-payment-mode ui-feedback-regressions ux-navigation-followups cashbook quotation-header quotations marketing-v3 website-pages mobile-responsive qa-report-flows plan-tiers forms-refresh people-currency-selection recovery-reload mobile-keyboard switcher-animations transaction-drafts sale-visibility-units navigation-expiry website-language books bill-confirmation help-center background-saves reset-cache-boundaries screen-recovery slow-network-stock push-notifications book-switch-performance landing app-recovery access-recovery onboarding-prefill form-experience grocery-audit list-hover interaction-motion more-hub scale-reports payment-pane ui-polish rejected-record-recovery report-attachments theme-speed form-enter reset-backup refresh-interruption profile-stock-premium bahij-web web-startup landing-faq scale-validation loading-version creator-ui backup-restore support-layout pre-signin-language readable-export qa-receipt-policy setup-otp-enter otp-auto billing-emails otp-email
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: xecdev/kitabcha-app
+          ref: 6b09420a0866f7109e322e3941dee33f6ea0735f
+          ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
+          persist-credentials: false
+          fetch-depth: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.22.1
+      - uses: actions/cache@v4
+        with:
+          path: ~/.npm/_cacache
+          key: npm-public-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+      - name: Install locked validation dependencies
+        run: |-
+          set -euo pipefail
+          npm ci --include=dev --no-audit --no-fund > "$RUNNER_TEMP/install.log" 2>&1
+          npm run db:generate > "$RUNNER_TEMP/prisma.log" 2>&1
+      - name: Types, lint, plain Node and complete browser inventory
+        run: |-
+          set -euo pipefail
+          node scripts/check-browser-coverage.mjs --release > "$RUNNER_TEMP/coverage.log" 2>&1
+          npm run typecheck > "$RUNNER_TEMP/types.log" 2>&1
+          npm run lint > "$RUNNER_TEMP/lint.log" 2>&1
+          node --test tests/*.test.mjs > "$RUNNER_TEMP/node.log" 2>&1
+      - name: Encrypt private failure diagnostics
+        if: failure()
+        env:
+          DIAGNOSTIC_PUBLIC_KEY: LS0tLS1CRUdJTiBQVUJMSUMgS0VZLS0tLS0KTUlJQm9qQU5CZ2txaGtpRzl3MEJBUUVGQUFPQ0FZOEFNSUlCaWdLQ0FZRUFqOThYbmtjWGpBbEt3SG0reHFLcApReUtrc3ZnTlRtS0tNeWlpRjNnVi9NNEpHV0xOaGlTRGhRYVZyMHNqTG5GYWJrbVFjZkUrZ2oyTUMvUnZ4SVVECm8wSW9HY21JVzltbExYeEtUVWNsTnpKdTlPM1pJSVI2WXdGbDBRR1NaVEN3QTIvR0tlL1h5S2xwWHBMSDJ2aHAKQU9JVjQxaFdYWlRtS0Fra3Y5VnBSa3B0SWMwZWtwQkJXTTZaaGMxa21BSU9mRmdLNUg0ZEZXVHFYaWVkenVvcApaYlE4R2ZnRmE2QWhUUGpxTncwNStLZW1SME5LbHRKdUhVc2xqQm1JcDZyaGtJaG4wRE9zRExKYWp4MkJ6V05OCkQvUTE2YkNzVUh2aUk0MURUb0w3UUU4M2FZL3crYjVpbUs0Qlh2UDJJM3JYZUlvcWJJZGhtdTFEemVJZXZxNXkKR090b09iQ3E1Z3RQZDVkTFdTM01VZWtrUE1PRnVtSGtlNmlqV2swOXlvL2lsWVlnUXdmV1Q5M2lvdG54c2JvQQpjTWpHZ0xpc2RmY0VUTlh0bGdCWEcyNmRNTzR2M3h3UStwbHdKbW9WWFc3UUpQR0VaZVhuQzg3ZlRDZTZTZnRuCnBscThEUjBtMEQxVlozemRkdXA3S1RwQ1cyS2JqNGpsRkhWZEovaXNQLzNUQWdNQkFBRT0KLS0tLS1FTkQgUFVCTElDIEtFWS0tLS0tCg==
+        run: |-
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';import path from 'node:path';import {randomBytes,createCipheriv,publicEncrypt,constants} from 'node:crypto';
+          const logs={};for(const name of fs.readdirSync(process.env.RUNNER_TEMP).filter(n=>n.endsWith('.log'))){const p=path.join(process.env.RUNNER_TEMP,name);if(fs.statSync(p).isFile())logs[name]=fs.readFileSync(p,'utf8').slice(-1500000);}
+          const key=randomBytes(32),iv=randomBytes(12),cipher=createCipheriv('aes-256-gcm',key,iv),data=Buffer.concat([cipher.update(JSON.stringify(logs)),cipher.final()]);
+          const sealed={key:publicEncrypt({key:Buffer.from(process.env.DIAGNOSTIC_PUBLIC_KEY,'base64'),padding:constants.RSA_PKCS1_OAEP_PADDING,oaepHash:'sha256'},key).toString('base64'),iv:iv.toString('base64'),tag:cipher.getAuthTag().toString('base64'),data:data.toString('base64')};
+          fs.writeFileSync(path.join(process.env.RUNNER_TEMP,'release-${{ github.job }}-diagnostic.enc'),JSON.stringify(sealed));console.log('Private diagnostics encrypted for the local decryption key.');
+          NODE
+      - name: Upload encrypted diagnostic
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ github.job }}-unit-${{ strategy.job-index }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/release-${{ github.job }}-diagnostic.enc
+          retention-days: 2
+          if-no-files-found: ignore
+  owner:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    env:
+      CI: "1"
+      SOURCE_SHA: 6b09420a0866f7109e322e3941dee33f6ea0735f
+      KITABCHA_BUILD_VERSION: v3.8.12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: xecdev/kitabcha-app
+          ref: 6b09420a0866f7109e322e3941dee33f6ea0735f
+          ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
+          persist-credentials: false
+          fetch-depth: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.22.1
+      - uses: actions/cache@v4
+        with:
+          path: ~/.npm/_cacache
+          key: npm-public-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+      - name: Select reachable signed Ubuntu archive
+        run: |
+          set -euo pipefail
+          sudo python3 - <<'PYAPT'
+          from pathlib import Path
+          Path('/etc/apt/apt.conf.d/80kitabcha-network').write_text(chr(10).join(['Acquire::ForceIPv4 "true";','Acquire::Retries "2";','Acquire::http::Timeout "30";','Acquire::https::Timeout "30";'])+chr(10))
+          PYAPT
+          mirror=''
+          for base in https://mirror.math.princeton.edu/pub/ubuntu https://mirrors.mit.edu/ubuntu https://mirrors.edge.kernel.org/ubuntu; do
+            if curl --ipv4 --fail --silent --show-error --head --connect-timeout 5 --max-time 15 "$base/dists/jammy/InRelease" >/dev/null 2>&1 && curl --ipv4 --fail --silent --show-error --head --connect-timeout 5 --max-time 15 "$base/dists/jammy-security/InRelease" >/dev/null 2>&1 && curl --ipv4 --fail --silent --show-error --head --connect-timeout 5 --max-time 15 "$base/pool/universe/f/fonts-ipafont/fonts-ipafont-gothic_00303-21ubuntu1_all.deb" >/dev/null 2>&1; then
+              mirror="$base"
+              break
+            fi
+          done
+          test -n "$mirror"
+          echo "Selected reachable Ubuntu archive: $mirror"
+          sudo python3 - "$mirror" <<'PY'
+          from pathlib import Path
+          import re, sys
+          base = sys.argv[1]
+          for path in [Path('/etc/apt/apt-mirrors.txt'), Path('/etc/apt/apt-mirrors-security.txt')]:
+              if path.is_file():
+                  path.write_text(base + '/\n')
+          paths = [Path('/etc/apt/sources.list')]
+          paths += list(Path('/etc/apt/sources.list.d').glob('*.list')) + list(Path('/etc/apt/sources.list.d').glob('*.sources'))
+          for path in paths:
+              if path.is_file():
+                  original = path.read_text()
+                  updated = re.sub(r'https?://(?:[A-Za-z0-9.-]*archive\.ubuntu\.com|security\.ubuntu\.com)/ubuntu/?', base + '/', original)
+                  if updated != original:
+                      path.write_text(updated)
+          PY
+          timeout 240 sudo apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 update > "$RUNNER_TEMP/ubuntu-mirror.log" 2>&1
+      - name: Install invoice image renderer
+        run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends poppler-utils > "$RUNNER_TEMP/invoice-renderer-install.log" 2>&1
+      - name: Install locked validation dependencies
+        run: |-
+          set -euo pipefail
+          npm ci --include=dev --no-audit --no-fund > "$RUNNER_TEMP/install.log" 2>&1
+          npm run db:generate > "$RUNNER_TEMP/prisma.log" 2>&1
+      - name: Install Chromium dependencies
+        run: npx playwright install --with-deps chromium > "$RUNNER_TEMP/playwright.log" 2>&1
+      - name: All owner, native PDF and print browser gates
+        run: |
+          set -euo pipefail
+          if ! node tests/admin-backup-ui-smoke.mjs > "$RUNNER_TEMP/owner-backup-browser.log" 2>&1; then
+            echo 'Owner backup browser regression failed; private diagnostics retained on runner.'
+            exit 1
+          fi
+          echo 'Owner encrypted backup download, upload review and restore browser gate passed.'
+          if ! node tests/react-admin-owner-ui-smoke.mjs > "$RUNNER_TEMP/owner-console-browser.log" 2>&1; then
+            echo 'Owner console security, restore and Drive browser regression failed; private diagnostics retained on runner.'
+            exit 1
+          fi
+          echo 'Owner console security, scoped restore, storage and B2 configuration browser gate passed.'
+          if ! timeout --kill-after=10s 300s node --import tsx --test --test-concurrency=1 --test-timeout=120000 tests/browser/*.test.ts > "$RUNNER_TEMP/bill-preview-browser.log" 2>&1; then
+            echo 'Bill preview browser regression failed; private diagnostics retained on runner.'
+            exit 1
+          fi
+          echo 'Types, lint, full API/unit and session/owner/native regressions passed.'
+
+          timeout --kill-after=10s 120s node tests/admin-ui-smoke.mjs > "$RUNNER_TEMP/admin-ui-browser.log" 2>&1
+          timeout --kill-after=10s 120s node tests/owner-otp-ui.mjs > "$RUNNER_TEMP/owner-otp-browser.log" 2>&1
+      - name: Encrypt private failure diagnostics
+        if: failure()
+        env:
+          DIAGNOSTIC_PUBLIC_KEY: LS0tLS1CRUdJTiBQVUJMSUMgS0VZLS0tLS0KTUlJQm9qQU5CZ2txaGtpRzl3MEJBUUVGQUFPQ0FZOEFNSUlCaWdLQ0FZRUFqOThYbmtjWGpBbEt3SG0reHFLcApReUtrc3ZnTlRtS0tNeWlpRjNnVi9NNEpHV0xOaGlTRGhRYVZyMHNqTG5GYWJrbVFjZkUrZ2oyTUMvUnZ4SVVECm8wSW9HY21JVzltbExYeEtUVWNsTnpKdTlPM1pJSVI2WXdGbDBRR1NaVEN3QTIvR0tlL1h5S2xwWHBMSDJ2aHAKQU9JVjQxaFdYWlRtS0Fra3Y5VnBSa3B0SWMwZWtwQkJXTTZaaGMxa21BSU9mRmdLNUg0ZEZXVHFYaWVkenVvcApaYlE4R2ZnRmE2QWhUUGpxTncwNStLZW1SME5LbHRKdUhVc2xqQm1JcDZyaGtJaG4wRE9zRExKYWp4MkJ6V05OCkQvUTE2YkNzVUh2aUk0MURUb0w3UUU4M2FZL3crYjVpbUs0Qlh2UDJJM3JYZUlvcWJJZGhtdTFEemVJZXZxNXkKR090b09iQ3E1Z3RQZDVkTFdTM01VZWtrUE1PRnVtSGtlNmlqV2swOXlvL2lsWVlnUXdmV1Q5M2lvdG54c2JvQQpjTWpHZ0xpc2RmY0VUTlh0bGdCWEcyNmRNTzR2M3h3UStwbHdKbW9WWFc3UUpQR0VaZVhuQzg3ZlRDZTZTZnRuCnBscThEUjBtMEQxVlozemRkdXA3S1RwQ1cyS2JqNGpsRkhWZEovaXNQLzNUQWdNQkFBRT0KLS0tLS1FTkQgUFVCTElDIEtFWS0tLS0tCg==
+        run: |-
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';import path from 'node:path';import {randomBytes,createCipheriv,publicEncrypt,constants} from 'node:crypto';
+          const logs={};for(const name of fs.readdirSync(process.env.RUNNER_TEMP).filter(n=>n.endsWith('.log'))){const p=path.join(process.env.RUNNER_TEMP,name);if(fs.statSync(p).isFile())logs[name]=fs.readFileSync(p,'utf8').slice(-1500000);}
+          const key=randomBytes(32),iv=randomBytes(12),cipher=createCipheriv('aes-256-gcm',key,iv),data=Buffer.concat([cipher.update(JSON.stringify(logs)),cipher.final()]);
+          const sealed={key:publicEncrypt({key:Buffer.from(process.env.DIAGNOSTIC_PUBLIC_KEY,'base64'),padding:constants.RSA_PKCS1_OAEP_PADDING,oaepHash:'sha256'},key).toString('base64'),iv:iv.toString('base64'),tag:cipher.getAuthTag().toString('base64'),data:data.toString('base64')};
+          fs.writeFileSync(path.join(process.env.RUNNER_TEMP,'release-${{ github.job }}-diagnostic.enc'),JSON.stringify(sealed));console.log('Private diagnostics encrypted for the local decryption key.');
+          NODE
+      - name: Upload encrypted diagnostic
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ github.job }}-unit-${{ strategy.job-index }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/release-${{ github.job }}-diagnostic.enc
+          retention-days: 2
+          if-no-files-found: ignore
+  build:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    env:
+      CI: "1"
+      SOURCE_SHA: 6b09420a0866f7109e322e3941dee33f6ea0735f
+      KITABCHA_BUILD_VERSION: v3.8.12
+      DEPLOY_VERSION: v3.8.12
+      EXPO_PUBLIC_API_URL: https://app.kitabcha.app
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: xecdev/kitabcha-app
+          ref: 6b09420a0866f7109e322e3941dee33f6ea0735f
+          ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
+          persist-credentials: false
+          fetch-depth: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.22.1
+      - uses: actions/cache@v4
+        with:
+          path: ~/.npm/_cacache
+          key: npm-public-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+      - name: Build production package and runtime image
+        env:
+          ARTIFACT_SECRET: ${{ secrets.PRIVATE_SOURCE_KEY }}
+          ARTIFACT_CONTEXT: xecdev/kitabcha-releases/${{ github.run_id }}/6b09420a0866f7109e322e3941dee33f6ea0735f/v3.8.12/6b09420a0866f7109e322e3941dee33f6ea0735f/production
+        run: bash scripts/ci/build-production.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: production-6b09420a0866f7109e322e3941dee33f6ea0735f
+          path: ${{ runner.temp }}/production.enc*
+          retention-days: 2
+          if-no-files-found: error
+          compression-level: 0
+      - name: Encrypt private failure diagnostics
+        if: failure()
+        env:
+          DIAGNOSTIC_PUBLIC_KEY: LS0tLS1CRUdJTiBQVUJMSUMgS0VZLS0tLS0KTUlJQm9qQU5CZ2txaGtpRzl3MEJBUUVGQUFPQ0FZOEFNSUlCaWdLQ0FZRUFqOThYbmtjWGpBbEt3SG0reHFLcApReUtrc3ZnTlRtS0tNeWlpRjNnVi9NNEpHV0xOaGlTRGhRYVZyMHNqTG5GYWJrbVFjZkUrZ2oyTUMvUnZ4SVVECm8wSW9HY21JVzltbExYeEtUVWNsTnpKdTlPM1pJSVI2WXdGbDBRR1NaVEN3QTIvR0tlL1h5S2xwWHBMSDJ2aHAKQU9JVjQxaFdYWlRtS0Fra3Y5VnBSa3B0SWMwZWtwQkJXTTZaaGMxa21BSU9mRmdLNUg0ZEZXVHFYaWVkenVvcApaYlE4R2ZnRmE2QWhUUGpxTncwNStLZW1SME5LbHRKdUhVc2xqQm1JcDZyaGtJaG4wRE9zRExKYWp4MkJ6V05OCkQvUTE2YkNzVUh2aUk0MURUb0w3UUU4M2FZL3crYjVpbUs0Qlh2UDJJM3JYZUlvcWJJZGhtdTFEemVJZXZxNXkKR090b09iQ3E1Z3RQZDVkTFdTM01VZWtrUE1PRnVtSGtlNmlqV2swOXlvL2lsWVlnUXdmV1Q5M2lvdG54c2JvQQpjTWpHZ0xpc2RmY0VUTlh0bGdCWEcyNmRNTzR2M3h3UStwbHdKbW9WWFc3UUpQR0VaZVhuQzg3ZlRDZTZTZnRuCnBscThEUjBtMEQxVlozemRkdXA3S1RwQ1cyS2JqNGpsRkhWZEovaXNQLzNUQWdNQkFBRT0KLS0tLS1FTkQgUFVCTElDIEtFWS0tLS0tCg==
+        run: |-
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';import path from 'node:path';import {randomBytes,createCipheriv,publicEncrypt,constants} from 'node:crypto';
+          const logs={};for(const name of fs.readdirSync(process.env.RUNNER_TEMP).filter(n=>n.endsWith('.log'))){const p=path.join(process.env.RUNNER_TEMP,name);if(fs.statSync(p).isFile())logs[name]=fs.readFileSync(p,'utf8').slice(-1500000);}
+          const key=randomBytes(32),iv=randomBytes(12),cipher=createCipheriv('aes-256-gcm',key,iv),data=Buffer.concat([cipher.update(JSON.stringify(logs)),cipher.final()]);
+          const sealed={key:publicEncrypt({key:Buffer.from(process.env.DIAGNOSTIC_PUBLIC_KEY,'base64'),padding:constants.RSA_PKCS1_OAEP_PADDING,oaepHash:'sha256'},key).toString('base64'),iv:iv.toString('base64'),tag:cipher.getAuthTag().toString('base64'),data:data.toString('base64')};
+          fs.writeFileSync(path.join(process.env.RUNNER_TEMP,'release-${{ github.job }}-diagnostic.enc'),JSON.stringify(sealed));console.log('Private diagnostics encrypted for the local decryption key.');
+          NODE
+      - name: Upload encrypted diagnostic
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ github.job }}-web-${{ strategy.job-index }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/release-${{ github.job }}-diagnostic.enc
+          retention-days: 2
+          if-no-files-found: ignore
+  recovery:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: xecdev/kitabcha-app
+          ref: 6b09420a0866f7109e322e3941dee33f6ea0735f
+          ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
+          persist-credentials: false
+      - name: Verify isolated PostgreSQL backup and restore
+        run: |-
+          set -euo pipefail
+          python3 scripts/verify-postgres-recovery.py > "$RUNNER_TEMP/recovery.log" 2>&1
+          echo "Isolated PostgreSQL backup and restore gate passed."
+      - name: Encrypt private failure diagnostics
+        if: failure()
+        env:
+          DIAGNOSTIC_PUBLIC_KEY: LS0tLS1CRUdJTiBQVUJMSUMgS0VZLS0tLS0KTUlJQm9qQU5CZ2txaGtpRzl3MEJBUUVGQUFPQ0FZOEFNSUlCaWdLQ0FZRUFqOThYbmtjWGpBbEt3SG0reHFLcApReUtrc3ZnTlRtS0tNeWlpRjNnVi9NNEpHV0xOaGlTRGhRYVZyMHNqTG5GYWJrbVFjZkUrZ2oyTUMvUnZ4SVVECm8wSW9HY21JVzltbExYeEtUVWNsTnpKdTlPM1pJSVI2WXdGbDBRR1NaVEN3QTIvR0tlL1h5S2xwWHBMSDJ2aHAKQU9JVjQxaFdYWlRtS0Fra3Y5VnBSa3B0SWMwZWtwQkJXTTZaaGMxa21BSU9mRmdLNUg0ZEZXVHFYaWVkenVvcApaYlE4R2ZnRmE2QWhUUGpxTncwNStLZW1SME5LbHRKdUhVc2xqQm1JcDZyaGtJaG4wRE9zRExKYWp4MkJ6V05OCkQvUTE2YkNzVUh2aUk0MURUb0w3UUU4M2FZL3crYjVpbUs0Qlh2UDJJM3JYZUlvcWJJZGhtdTFEemVJZXZxNXkKR090b09iQ3E1Z3RQZDVkTFdTM01VZWtrUE1PRnVtSGtlNmlqV2swOXlvL2lsWVlnUXdmV1Q5M2lvdG54c2JvQQpjTWpHZ0xpc2RmY0VUTlh0bGdCWEcyNmRNTzR2M3h3UStwbHdKbW9WWFc3UUpQR0VaZVhuQzg3ZlRDZTZTZnRuCnBscThEUjBtMEQxVlozemRkdXA3S1RwQ1cyS2JqNGpsRkhWZEovaXNQLzNUQWdNQkFBRT0KLS0tLS1FTkQgUFVCTElDIEtFWS0tLS0tCg==
+        run: |-
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';import path from 'node:path';import {randomBytes,createCipheriv,publicEncrypt,constants} from 'node:crypto';
+          const logs={};for(const name of fs.readdirSync(process.env.RUNNER_TEMP).filter(n=>n.endsWith('.log'))){const p=path.join(process.env.RUNNER_TEMP,name);if(fs.statSync(p).isFile())logs[name]=fs.readFileSync(p,'utf8').slice(-1500000);}
+          const key=randomBytes(32),iv=randomBytes(12),cipher=createCipheriv('aes-256-gcm',key,iv),data=Buffer.concat([cipher.update(JSON.stringify(logs)),cipher.final()]);
+          const sealed={key:publicEncrypt({key:Buffer.from(process.env.DIAGNOSTIC_PUBLIC_KEY,'base64'),padding:constants.RSA_PKCS1_OAEP_PADDING,oaepHash:'sha256'},key).toString('base64'),iv:iv.toString('base64'),tag:cipher.getAuthTag().toString('base64'),data:data.toString('base64')};
+          fs.writeFileSync(path.join(process.env.RUNNER_TEMP,'release-${{ github.job }}-diagnostic.enc'),JSON.stringify(sealed));console.log('Private diagnostics encrypted for the local decryption key.');
+          NODE
+      - name: Upload encrypted diagnostic
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ github.job }}-recovery-${{ strategy.job-index }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/release-${{ github.job }}-diagnostic.enc
+          retention-days: 2
+          if-no-files-found: ignore
