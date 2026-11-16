@@ -26,10 +26,10 @@ jobs:
     env:
       CI: "1"
       SOURCE_SHA: 8ec89f3f4664a317179b8935ae1cd10e4c8c2e27
-      DEPLOY_VERSION: v3.8.12
-      KITABCHA_BUILD_VERSION: v3.8.12
+      DEPLOY_VERSION: v3.8.13
+      KITABCHA_BUILD_VERSION: v3.8.13
       PREFLIGHT_RUN: ${{ github.event.workflow_run.id || inputs.preflight_run }}
-      VALIDATION_DIGEST: 6eee2199e31a85b1cffc388856dc4a2d816aec8e16ef5c057436975037173383
+      VALIDATION_DIGEST: b4306eedfd36944c8ff09a1da935304f5a9bb5e35d8c2f0974f6c34675a2c277
     steps:
       - uses: actions/checkout@v4
         with:
@@ -54,7 +54,7 @@ jobs:
       - name: Authenticate production artifact
         env:
           ARTIFACT_SECRET: ${{ secrets.PRIVATE_SOURCE_KEY }}
-          ARTIFACT_CONTEXT: xecdev/kitabcha-releases/${{ github.event.workflow_run.id || inputs.preflight_run }}/8ec89f3f4664a317179b8935ae1cd10e4c8c2e27/v3.8.12/7f592cf62dd8aeacf87e71ce275331806d35dd79/production
+          ARTIFACT_CONTEXT: xecdev/kitabcha-releases/${{ github.event.workflow_run.id || inputs.preflight_run }}/8ec89f3f4664a317179b8935ae1cd10e4c8c2e27/v3.8.13/7f592cf62dd8aeacf87e71ce275331806d35dd79/production
         run: node scripts/release-artifact.mjs open "$RUNNER_TEMP/production/production.enc" "$RUNNER_TEMP/update.tar.gz"
       - name: Confirm production release base
         run: |-
