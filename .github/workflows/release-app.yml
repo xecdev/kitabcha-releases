@@ -25,16 +25,16 @@ jobs:
     timeout-minutes: 35
     env:
       CI: "1"
-      SOURCE_SHA: 56fde055707069792f25dacd1f1de2cae39f0cb4
+      SOURCE_SHA: 6551802b1aae88fb56d1fe1f9571ad246931edd6
       DEPLOY_VERSION: v3.8.15
       KITABCHA_BUILD_VERSION: v3.8.15
       PREFLIGHT_RUN: ${{ github.event.workflow_run.id || inputs.preflight_run }}
-      VALIDATION_DIGEST: 11d38162f8063020aa10ea90ab9af833257fdd005183680617043abe9940c80c
+      VALIDATION_DIGEST: 6209a09d9a41313be971790daf3759ead5d9f10d482665099ecf1558a8fccb05
     steps:
       - uses: actions/checkout@v4
         with:
           repository: xecdev/kitabcha-app
-          ref: 56fde055707069792f25dacd1f1de2cae39f0cb4
+          ref: 6551802b1aae88fb56d1fe1f9571ad246931edd6
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
           fetch-depth: 9
@@ -47,14 +47,14 @@ jobs:
         run: node scripts/ci/verify-preflight.mjs
       - uses: actions/download-artifact@v4
         with:
-          name: production-56fde055707069792f25dacd1f1de2cae39f0cb4
+          name: production-6551802b1aae88fb56d1fe1f9571ad246931edd6
           path: ${{ runner.temp }}/production
           github-token: ${{ github.token }}
           run-id: ${{ github.event.workflow_run.id || inputs.preflight_run }}
       - name: Authenticate production artifact
         env:
           ARTIFACT_SECRET: ${{ secrets.PRIVATE_SOURCE_KEY }}
-          ARTIFACT_CONTEXT: xecdev/kitabcha-releases/${{ github.event.workflow_run.id || inputs.preflight_run }}/56fde055707069792f25dacd1f1de2cae39f0cb4/v3.8.15/7f592cf62dd8aeacf87e71ce275331806d35dd79/production
+          ARTIFACT_CONTEXT: xecdev/kitabcha-releases/${{ github.event.workflow_run.id || inputs.preflight_run }}/6551802b1aae88fb56d1fe1f9571ad246931edd6/v3.8.15/7f592cf62dd8aeacf87e71ce275331806d35dd79/production
         run: node scripts/release-artifact.mjs open "$RUNNER_TEMP/production/production.enc" "$RUNNER_TEMP/update.tar.gz"
       - name: Confirm production release base
         run: |-
