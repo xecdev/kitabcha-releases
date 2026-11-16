@@ -113,16 +113,26 @@ jobs:
           npx playwright install --with-deps chromium > "$RUNNER_TEMP/validation-browser-install.log" 2>&1
           EXPO_PUBLIC_API_URL=http://localhost:3001 GITHUB_SHA="$SOURCE_SHA" npm run build:web > "$RUNNER_TEMP/validation-web.log" 2>&1
           failed=0
-          for spec in $SPECS; do
-            echo "Checking $spec in an isolated test server."
-            if ! npx playwright test "tests/e2e/$spec.spec.ts" > "$RUNNER_TEMP/browser-$spec.log" 2>&1; then
-              echo "Browser gate failed: $spec; private details retained on runner."
+          check_browser() {
+            label=$1
+            shift
+            echo "Checking $label in an isolated test server."
+            if ! npx playwright test "$@" > "$RUNNER_TEMP/browser-$label.log" 2>&1; then
+              echo "Browser gate failed: $label; private details retained on runner."
               failed=1
-              find test-results -name error-context.md -type f -exec cat {} + > "$RUNNER_TEMP/browser-context-$spec.log"
+              find test-results -name error-context.md -type f -exec cat {} + > "$RUNNER_TEMP/browser-context-$label.log"
+            fi
+          }
+          for spec in $SPECS; do
+            if [[ "$spec" == workspace-followups ]]; then
+              check_browser "$spec-header" "tests/e2e/$spec.spec.ts" --grep 'business header, Team controls and About' --output test-results/workspace-header
+              check_browser "$spec-functional" "tests/e2e/$spec.spec.ts" --grep-invert 'business header, Team controls and About' --output test-results/workspace-functional
+            else
+              check_browser "$spec" "tests/e2e/$spec.spec.ts"
             fi
           done
           test "$failed" = 0
-          echo 'Owner notifications, invoice links, team access and expiry browser checks passed.'
+          echo 'All required isolated browser groups passed.'
       - name: Capture private browser failure context
         if: failure()
         run: find test-results -name error-context.md -type f -exec cat {} + > "$RUNNER_TEMP/browser-context.log"
