@@ -43,22 +43,26 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: xecdev/kitabcha-app
-          ref: 23102994dfefcdaa726d3fe51ae44676edfc5c1e
+          ref: 7aaa83680d3c15ed7acb9bd9d05594c295ebe392
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
           fetch-depth: 1
           path: .validation-fixture
-          sparse-checkout: tests/e2e/business-assets.spec.ts
+          sparse-checkout: |-
+            tests/e2e/business-assets.spec.ts
+            tests/e2e/mobile-back.spec.ts
           sparse-checkout-cone-mode: false
       - name: Apply audited fixture while preserving frozen application source
         shell: bash
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "dbf562f543641696ae57fcfa16f3300feffd0ba8"
-          test "$(git -C .validation-fixture rev-parse HEAD)" = "23102994dfefcdaa726d3fe51ae44676edfc5c1e"
+          test "$(git -C .validation-fixture rev-parse HEAD)" = "7aaa83680d3c15ed7acb9bd9d05594c295ebe392"
           cp .validation-fixture/tests/e2e/business-assets.spec.ts tests/e2e/business-assets.spec.ts
+          cp .validation-fixture/tests/e2e/mobile-back.spec.ts tests/e2e/mobile-back.spec.ts
           rm -rf -- .validation-fixture
-          test "$(git diff --name-only)" = tests/e2e/business-assets.spec.ts
+          test "$(git diff --name-only | sort)" = "$(printf '%s
+          ' 'tests/e2e/business-assets.spec.ts' 'tests/e2e/mobile-back.spec.ts' | sort)"
           git diff --exit-code -- apps packages scripts deploy package.json package-lock.json
       - uses: actions/setup-node@v4
         with:
@@ -198,22 +202,26 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: xecdev/kitabcha-app
-          ref: 23102994dfefcdaa726d3fe51ae44676edfc5c1e
+          ref: 7aaa83680d3c15ed7acb9bd9d05594c295ebe392
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
           fetch-depth: 1
           path: .validation-fixture
-          sparse-checkout: tests/e2e/business-assets.spec.ts
+          sparse-checkout: |-
+            tests/e2e/business-assets.spec.ts
+            tests/e2e/mobile-back.spec.ts
           sparse-checkout-cone-mode: false
       - name: Apply audited fixture while preserving frozen application source
         shell: bash
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "dbf562f543641696ae57fcfa16f3300feffd0ba8"
-          test "$(git -C .validation-fixture rev-parse HEAD)" = "23102994dfefcdaa726d3fe51ae44676edfc5c1e"
+          test "$(git -C .validation-fixture rev-parse HEAD)" = "7aaa83680d3c15ed7acb9bd9d05594c295ebe392"
           cp .validation-fixture/tests/e2e/business-assets.spec.ts tests/e2e/business-assets.spec.ts
+          cp .validation-fixture/tests/e2e/mobile-back.spec.ts tests/e2e/mobile-back.spec.ts
           rm -rf -- .validation-fixture
-          test "$(git diff --name-only)" = tests/e2e/business-assets.spec.ts
+          test "$(git diff --name-only | sort)" = "$(printf '%s
+          ' 'tests/e2e/business-assets.spec.ts' 'tests/e2e/mobile-back.spec.ts' | sort)"
           git diff --exit-code -- apps packages scripts deploy package.json package-lock.json
       - &a3
         uses: actions/setup-node@v4
@@ -318,22 +326,26 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: xecdev/kitabcha-app
-          ref: 23102994dfefcdaa726d3fe51ae44676edfc5c1e
+          ref: 7aaa83680d3c15ed7acb9bd9d05594c295ebe392
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
           fetch-depth: 1
           path: .validation-fixture
-          sparse-checkout: tests/e2e/business-assets.spec.ts
+          sparse-checkout: |-
+            tests/e2e/business-assets.spec.ts
+            tests/e2e/mobile-back.spec.ts
           sparse-checkout-cone-mode: false
       - name: Apply audited fixture while preserving frozen application source
         shell: bash
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "dbf562f543641696ae57fcfa16f3300feffd0ba8"
-          test "$(git -C .validation-fixture rev-parse HEAD)" = "23102994dfefcdaa726d3fe51ae44676edfc5c1e"
+          test "$(git -C .validation-fixture rev-parse HEAD)" = "7aaa83680d3c15ed7acb9bd9d05594c295ebe392"
           cp .validation-fixture/tests/e2e/business-assets.spec.ts tests/e2e/business-assets.spec.ts
+          cp .validation-fixture/tests/e2e/mobile-back.spec.ts tests/e2e/mobile-back.spec.ts
           rm -rf -- .validation-fixture
-          test "$(git diff --name-only)" = tests/e2e/business-assets.spec.ts
+          test "$(git diff --name-only | sort)" = "$(printf '%s
+          ' 'tests/e2e/business-assets.spec.ts' 'tests/e2e/mobile-back.spec.ts' | sort)"
           git diff --exit-code -- apps packages scripts deploy package.json package-lock.json
       - *a3
       - *a1
@@ -384,22 +396,26 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: xecdev/kitabcha-app
-          ref: 23102994dfefcdaa726d3fe51ae44676edfc5c1e
+          ref: 7aaa83680d3c15ed7acb9bd9d05594c295ebe392
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
           fetch-depth: 1
           path: .validation-fixture
-          sparse-checkout: tests/e2e/business-assets.spec.ts
+          sparse-checkout: |-
+            tests/e2e/business-assets.spec.ts
+            tests/e2e/mobile-back.spec.ts
           sparse-checkout-cone-mode: false
       - name: Apply audited fixture while preserving frozen application source
         shell: bash
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "dbf562f543641696ae57fcfa16f3300feffd0ba8"
-          test "$(git -C .validation-fixture rev-parse HEAD)" = "23102994dfefcdaa726d3fe51ae44676edfc5c1e"
+          test "$(git -C .validation-fixture rev-parse HEAD)" = "7aaa83680d3c15ed7acb9bd9d05594c295ebe392"
           cp .validation-fixture/tests/e2e/business-assets.spec.ts tests/e2e/business-assets.spec.ts
+          cp .validation-fixture/tests/e2e/mobile-back.spec.ts tests/e2e/mobile-back.spec.ts
           rm -rf -- .validation-fixture
-          test "$(git diff --name-only)" = tests/e2e/business-assets.spec.ts
+          test "$(git diff --name-only | sort)" = "$(printf '%s
+          ' 'tests/e2e/business-assets.spec.ts' 'tests/e2e/mobile-back.spec.ts' | sort)"
           git diff --exit-code -- apps packages scripts deploy package.json package-lock.json
       - *a3
       - *a1
@@ -471,22 +487,26 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: xecdev/kitabcha-app
-          ref: 23102994dfefcdaa726d3fe51ae44676edfc5c1e
+          ref: 7aaa83680d3c15ed7acb9bd9d05594c295ebe392
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
           fetch-depth: 1
           path: .validation-fixture
-          sparse-checkout: tests/e2e/business-assets.spec.ts
+          sparse-checkout: |-
+            tests/e2e/business-assets.spec.ts
+            tests/e2e/mobile-back.spec.ts
           sparse-checkout-cone-mode: false
       - name: Apply audited fixture while preserving frozen application source
         shell: bash
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "dbf562f543641696ae57fcfa16f3300feffd0ba8"
-          test "$(git -C .validation-fixture rev-parse HEAD)" = "23102994dfefcdaa726d3fe51ae44676edfc5c1e"
+          test "$(git -C .validation-fixture rev-parse HEAD)" = "7aaa83680d3c15ed7acb9bd9d05594c295ebe392"
           cp .validation-fixture/tests/e2e/business-assets.spec.ts tests/e2e/business-assets.spec.ts
+          cp .validation-fixture/tests/e2e/mobile-back.spec.ts tests/e2e/mobile-back.spec.ts
           rm -rf -- .validation-fixture
-          test "$(git diff --name-only)" = tests/e2e/business-assets.spec.ts
+          test "$(git diff --name-only | sort)" = "$(printf '%s
+          ' 'tests/e2e/business-assets.spec.ts' 'tests/e2e/mobile-back.spec.ts' | sort)"
           git diff --exit-code -- apps packages scripts deploy package.json package-lock.json
       - *a3
       - *a1
@@ -536,22 +556,26 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: xecdev/kitabcha-app
-          ref: 23102994dfefcdaa726d3fe51ae44676edfc5c1e
+          ref: 7aaa83680d3c15ed7acb9bd9d05594c295ebe392
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
           fetch-depth: 1
           path: .validation-fixture
-          sparse-checkout: tests/e2e/business-assets.spec.ts
+          sparse-checkout: |-
+            tests/e2e/business-assets.spec.ts
+            tests/e2e/mobile-back.spec.ts
           sparse-checkout-cone-mode: false
       - name: Apply audited fixture while preserving frozen application source
         shell: bash
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "dbf562f543641696ae57fcfa16f3300feffd0ba8"
-          test "$(git -C .validation-fixture rev-parse HEAD)" = "23102994dfefcdaa726d3fe51ae44676edfc5c1e"
+          test "$(git -C .validation-fixture rev-parse HEAD)" = "7aaa83680d3c15ed7acb9bd9d05594c295ebe392"
           cp .validation-fixture/tests/e2e/business-assets.spec.ts tests/e2e/business-assets.spec.ts
+          cp .validation-fixture/tests/e2e/mobile-back.spec.ts tests/e2e/mobile-back.spec.ts
           rm -rf -- .validation-fixture
-          test "$(git diff --name-only)" = tests/e2e/business-assets.spec.ts
+          test "$(git diff --name-only | sort)" = "$(printf '%s
+          ' 'tests/e2e/business-assets.spec.ts' 'tests/e2e/mobile-back.spec.ts' | sort)"
           git diff --exit-code -- apps packages scripts deploy package.json package-lock.json
       - name: Verify isolated PostgreSQL backup and restore
         run: |-
