@@ -12,7 +12,6 @@ jobs:
       matrix:
         specs:
           - report-reminder-follow-up
-          - record-payment-mode
     env:
       CI: "1"
       SOURCE_SHA: 8ec89f3f4664a317179b8935ae1cd10e4c8c2e27
@@ -129,7 +128,7 @@ jobs:
         run: |-
           node --input-type=module <<'NODE'
           import fs from 'node:fs';import path from 'node:path';import {randomBytes,createCipheriv,publicEncrypt,constants} from 'node:crypto';
-          const logs={};for(const name of fs.readdirSync(process.env.RUNNER_TEMP).filter(n=>n.endsWith('.log'))){const p=path.join(process.env.RUNNER_TEMP,name);if(fs.statSync(p).isFile())logs[name]=fs.readFileSync(p,'utf8').slice(-1500000);}
+          const logs={};for(const name of fs.readdirSync(process.env.RUNNER_TEMP).filter(n=>n.endsWith('.log'))){const p=path.join(process.env.RUNNER_TEMP,name);if(fs.statSync(p).isFile())logs[name]=fs.readFileSync(p,'utf8').slice(-16000000);}
           const key=randomBytes(32),iv=randomBytes(12),cipher=createCipheriv('aes-256-gcm',key,iv),data=Buffer.concat([cipher.update(JSON.stringify(logs)),cipher.final()]);
           const sealed={key:publicEncrypt({key:Buffer.from(process.env.DIAGNOSTIC_PUBLIC_KEY,'base64'),padding:constants.RSA_PKCS1_OAEP_PADDING,oaepHash:'sha256'},key).toString('base64'),iv:iv.toString('base64'),tag:cipher.getAuthTag().toString('base64'),data:data.toString('base64')};
           fs.writeFileSync(path.join(process.env.RUNNER_TEMP,'release-${{ github.job }}-diagnostic.enc'),JSON.stringify(sealed));console.log('Private diagnostics encrypted for the local decryption key.');
