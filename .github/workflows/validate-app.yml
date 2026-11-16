@@ -26,7 +26,7 @@ jobs:
           - auth business-assets app-language-ux quotations screen-recovery recovery-reload list-hover scale-reports otp-email
     env:
       CI: "1"
-      SOURCE_SHA: 7506594d1a75a9c6e2cecef7d139356bf0606e7d
+      SOURCE_SHA: b2a3ec759faa19bf30fdd0caf3e87c29c3b99ae0
       KITABCHA_BUILD_VERSION: v3.8.12
       EXPO_PUBLIC_API_URL: http://localhost:3001
       SPECS: ${{ matrix.specs }}
@@ -35,7 +35,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: xecdev/kitabcha-app
-          ref: 7506594d1a75a9c6e2cecef7d139356bf0606e7d
+          ref: b2a3ec759faa19bf30fdd0caf3e87c29c3b99ae0
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
           fetch-depth: 9
@@ -145,14 +145,14 @@ jobs:
     timeout-minutes: 20
     env:
       CI: "1"
-      SOURCE_SHA: 7506594d1a75a9c6e2cecef7d139356bf0606e7d
+      SOURCE_SHA: b2a3ec759faa19bf30fdd0caf3e87c29c3b99ae0
       KITABCHA_BUILD_VERSION: v3.8.12
       SHARD: ${{ matrix.shard }}
     steps:
       - uses: actions/checkout@v4
         with:
           repository: xecdev/kitabcha-app
-          ref: 7506594d1a75a9c6e2cecef7d139356bf0606e7d
+          ref: b2a3ec759faa19bf30fdd0caf3e87c29c3b99ae0
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
           fetch-depth: 9
@@ -244,14 +244,14 @@ jobs:
     timeout-minutes: 20
     env:
       CI: "1"
-      SOURCE_SHA: 7506594d1a75a9c6e2cecef7d139356bf0606e7d
+      SOURCE_SHA: b2a3ec759faa19bf30fdd0caf3e87c29c3b99ae0
       KITABCHA_BUILD_VERSION: v3.8.12
       BROWSER_TEST_SPECS: report-consistency pane-drafts financial-reports report-filter-popup bill-actions trade-editor-ui workspace-followups notification-settings account-contact people-activity notification-inbox auth business-assets records-toolbars report-reminder-follow-up mobile-back online-only rtl-layout-parity contact-input-ui mobile-workspace-20261115 ledger people-entry-layout barcode-scanner calendar-controls offline-phase1 otp-ui quotation-header scale-loading ui-feedback-regressions app-language-ux landing-masthead input-direction customer-proof-motion team-access website-language team-viewer quotations team-identity cashbook people-currency-selection record-payment-mode accounts-workspace current-ui-fixes transaction-receipts transaction-drafts website-pages ux-navigation-followups books mobile-responsive forms-refresh screen-recovery book-deletion marketing-v3 mobile-keyboard background-saves interaction-motion recovery-reload more-hub reset-cache-boundaries qa-report-flows payment-pane switcher-animations push-notifications book-switch-performance slow-network-stock reset-backup onboarding-prefill list-hover pre-signin-language form-experience backup-restore navigation-expiry bill-confirmation sale-visibility-units plan-tiers landing help-center grocery-audit ui-polish access-recovery rejected-record-recovery app-recovery support-layout report-attachments setup-otp-enter theme-speed profile-stock-premium form-enter bahij-web scale-reports creator-ui loading-version web-startup landing-faq refresh-interruption readable-export scale-validation qa-receipt-policy otp-auto otp-email billing-emails
     steps:
       - uses: actions/checkout@v4
         with:
           repository: xecdev/kitabcha-app
-          ref: 7506594d1a75a9c6e2cecef7d139356bf0606e7d
+          ref: b2a3ec759faa19bf30fdd0caf3e87c29c3b99ae0
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
           fetch-depth: 9
@@ -290,13 +290,13 @@ jobs:
     timeout-minutes: 20
     env:
       CI: "1"
-      SOURCE_SHA: 7506594d1a75a9c6e2cecef7d139356bf0606e7d
+      SOURCE_SHA: b2a3ec759faa19bf30fdd0caf3e87c29c3b99ae0
       KITABCHA_BUILD_VERSION: v3.8.12
     steps:
       - uses: actions/checkout@v4
         with:
           repository: xecdev/kitabcha-app
-          ref: 7506594d1a75a9c6e2cecef7d139356bf0606e7d
+          ref: b2a3ec759faa19bf30fdd0caf3e87c29c3b99ae0
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
           fetch-depth: 9
@@ -354,7 +354,7 @@ jobs:
     timeout-minutes: 20
     env:
       CI: "1"
-      SOURCE_SHA: 7506594d1a75a9c6e2cecef7d139356bf0606e7d
+      SOURCE_SHA: b2a3ec759faa19bf30fdd0caf3e87c29c3b99ae0
       KITABCHA_BUILD_VERSION: v3.8.12
       DEPLOY_VERSION: v3.8.12
       EXPO_PUBLIC_API_URL: https://app.kitabcha.app
@@ -362,7 +362,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: xecdev/kitabcha-app
-          ref: 7506594d1a75a9c6e2cecef7d139356bf0606e7d
+          ref: b2a3ec759faa19bf30fdd0caf3e87c29c3b99ae0
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
           fetch-depth: 9
@@ -371,11 +371,11 @@ jobs:
       - name: Build production package and runtime image
         env:
           ARTIFACT_SECRET: ${{ secrets.PRIVATE_SOURCE_KEY }}
-          ARTIFACT_CONTEXT: xecdev/kitabcha-releases/${{ github.run_id }}/7506594d1a75a9c6e2cecef7d139356bf0606e7d/v3.8.12/7f592cf62dd8aeacf87e71ce275331806d35dd79/production
+          ARTIFACT_CONTEXT: xecdev/kitabcha-releases/${{ github.run_id }}/b2a3ec759faa19bf30fdd0caf3e87c29c3b99ae0/v3.8.12/7f592cf62dd8aeacf87e71ce275331806d35dd79/production
         run: bash scripts/ci/build-production.sh
       - uses: actions/upload-artifact@v4
         with:
-          name: production-7506594d1a75a9c6e2cecef7d139356bf0606e7d
+          name: production-b2a3ec759faa19bf30fdd0caf3e87c29c3b99ae0
           path: ${{ runner.temp }}/production.enc*
           retention-days: 2
           if-no-files-found: error
@@ -407,7 +407,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: xecdev/kitabcha-app
-          ref: 7506594d1a75a9c6e2cecef7d139356bf0606e7d
+          ref: b2a3ec759faa19bf30fdd0caf3e87c29c3b99ae0
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
       - name: Verify isolated PostgreSQL backup and restore
