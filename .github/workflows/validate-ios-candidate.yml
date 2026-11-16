@@ -39,6 +39,27 @@ jobs:
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
           fetch-depth: 9
+      - name: Checkout immutable browser fixture revision
+        uses: actions/checkout@v4
+        with:
+          repository: xecdev/kitabcha-app
+          ref: 23102994dfefcdaa726d3fe51ae44676edfc5c1e
+          ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
+          persist-credentials: false
+          fetch-depth: 1
+          path: .validation-fixture
+          sparse-checkout: tests/e2e/business-assets.spec.ts
+          sparse-checkout-cone-mode: false
+      - name: Apply audited fixture while preserving frozen application source
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "dbf562f543641696ae57fcfa16f3300feffd0ba8"
+          test "$(git -C .validation-fixture rev-parse HEAD)" = "23102994dfefcdaa726d3fe51ae44676edfc5c1e"
+          cp .validation-fixture/tests/e2e/business-assets.spec.ts tests/e2e/business-assets.spec.ts
+          rm -rf -- .validation-fixture
+          test "$(git diff --name-only)" = tests/e2e/business-assets.spec.ts
+          git diff --exit-code -- apps packages scripts deploy package.json package-lock.json
       - uses: actions/setup-node@v4
         with:
           node-version: 24.22.1
@@ -120,7 +141,7 @@ jobs:
             if ! npx playwright test "$@" > "$RUNNER_TEMP/browser-$label.log" 2>&1; then
               echo "Browser gate failed: $label; private details retained on runner."
               failed=1
-              find test-results -name trace.zip -type f -print0 | while IFS= read -r -d "" trace; do base64 -w 0 "$trace" > "$RUNNER_TEMP/browser-trace-$label-$(basename "$(dirname "$trace")").log"; done
+              find test-results -name trace.zip -type f -print0 | while IFS= read -r -d "" trace; do base64 -w 0 "$trace" | split -b 1000000 --numeric-suffixes --additional-suffix=.log - "$RUNNER_TEMP/browser-trace-$label-$(basename "$(dirname "$trace")")-"; done
               find test-results -name error-context.md -type f -exec cat {} + > "$RUNNER_TEMP/browser-context-$label.log"
             fi
           }
@@ -173,6 +194,27 @@ jobs:
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
           fetch-depth: 9
+      - name: Checkout immutable browser fixture revision
+        uses: actions/checkout@v4
+        with:
+          repository: xecdev/kitabcha-app
+          ref: 23102994dfefcdaa726d3fe51ae44676edfc5c1e
+          ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
+          persist-credentials: false
+          fetch-depth: 1
+          path: .validation-fixture
+          sparse-checkout: tests/e2e/business-assets.spec.ts
+          sparse-checkout-cone-mode: false
+      - name: Apply audited fixture while preserving frozen application source
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "dbf562f543641696ae57fcfa16f3300feffd0ba8"
+          test "$(git -C .validation-fixture rev-parse HEAD)" = "23102994dfefcdaa726d3fe51ae44676edfc5c1e"
+          cp .validation-fixture/tests/e2e/business-assets.spec.ts tests/e2e/business-assets.spec.ts
+          rm -rf -- .validation-fixture
+          test "$(git diff --name-only)" = tests/e2e/business-assets.spec.ts
+          git diff --exit-code -- apps packages scripts deploy package.json package-lock.json
       - &a3
         uses: actions/setup-node@v4
         with:
@@ -272,6 +314,27 @@ jobs:
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
           fetch-depth: 9
+      - name: Checkout immutable browser fixture revision
+        uses: actions/checkout@v4
+        with:
+          repository: xecdev/kitabcha-app
+          ref: 23102994dfefcdaa726d3fe51ae44676edfc5c1e
+          ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
+          persist-credentials: false
+          fetch-depth: 1
+          path: .validation-fixture
+          sparse-checkout: tests/e2e/business-assets.spec.ts
+          sparse-checkout-cone-mode: false
+      - name: Apply audited fixture while preserving frozen application source
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "dbf562f543641696ae57fcfa16f3300feffd0ba8"
+          test "$(git -C .validation-fixture rev-parse HEAD)" = "23102994dfefcdaa726d3fe51ae44676edfc5c1e"
+          cp .validation-fixture/tests/e2e/business-assets.spec.ts tests/e2e/business-assets.spec.ts
+          rm -rf -- .validation-fixture
+          test "$(git diff --name-only)" = tests/e2e/business-assets.spec.ts
+          git diff --exit-code -- apps packages scripts deploy package.json package-lock.json
       - *a3
       - *a1
       - *a4
@@ -317,6 +380,27 @@ jobs:
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
           fetch-depth: 9
+      - name: Checkout immutable browser fixture revision
+        uses: actions/checkout@v4
+        with:
+          repository: xecdev/kitabcha-app
+          ref: 23102994dfefcdaa726d3fe51ae44676edfc5c1e
+          ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
+          persist-credentials: false
+          fetch-depth: 1
+          path: .validation-fixture
+          sparse-checkout: tests/e2e/business-assets.spec.ts
+          sparse-checkout-cone-mode: false
+      - name: Apply audited fixture while preserving frozen application source
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "dbf562f543641696ae57fcfa16f3300feffd0ba8"
+          test "$(git -C .validation-fixture rev-parse HEAD)" = "23102994dfefcdaa726d3fe51ae44676edfc5c1e"
+          cp .validation-fixture/tests/e2e/business-assets.spec.ts tests/e2e/business-assets.spec.ts
+          rm -rf -- .validation-fixture
+          test "$(git diff --name-only)" = tests/e2e/business-assets.spec.ts
+          git diff --exit-code -- apps packages scripts deploy package.json package-lock.json
       - *a3
       - *a1
       - *a2
@@ -383,6 +467,27 @@ jobs:
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
           fetch-depth: 9
+      - name: Checkout immutable browser fixture revision
+        uses: actions/checkout@v4
+        with:
+          repository: xecdev/kitabcha-app
+          ref: 23102994dfefcdaa726d3fe51ae44676edfc5c1e
+          ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
+          persist-credentials: false
+          fetch-depth: 1
+          path: .validation-fixture
+          sparse-checkout: tests/e2e/business-assets.spec.ts
+          sparse-checkout-cone-mode: false
+      - name: Apply audited fixture while preserving frozen application source
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "dbf562f543641696ae57fcfa16f3300feffd0ba8"
+          test "$(git -C .validation-fixture rev-parse HEAD)" = "23102994dfefcdaa726d3fe51ae44676edfc5c1e"
+          cp .validation-fixture/tests/e2e/business-assets.spec.ts tests/e2e/business-assets.spec.ts
+          rm -rf -- .validation-fixture
+          test "$(git diff --name-only)" = tests/e2e/business-assets.spec.ts
+          git diff --exit-code -- apps packages scripts deploy package.json package-lock.json
       - *a3
       - *a1
       - name: Build production package and runtime image
@@ -427,6 +532,27 @@ jobs:
           ref: dbf562f543641696ae57fcfa16f3300feffd0ba8
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
+      - name: Checkout immutable browser fixture revision
+        uses: actions/checkout@v4
+        with:
+          repository: xecdev/kitabcha-app
+          ref: 23102994dfefcdaa726d3fe51ae44676edfc5c1e
+          ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
+          persist-credentials: false
+          fetch-depth: 1
+          path: .validation-fixture
+          sparse-checkout: tests/e2e/business-assets.spec.ts
+          sparse-checkout-cone-mode: false
+      - name: Apply audited fixture while preserving frozen application source
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "dbf562f543641696ae57fcfa16f3300feffd0ba8"
+          test "$(git -C .validation-fixture rev-parse HEAD)" = "23102994dfefcdaa726d3fe51ae44676edfc5c1e"
+          cp .validation-fixture/tests/e2e/business-assets.spec.ts tests/e2e/business-assets.spec.ts
+          rm -rf -- .validation-fixture
+          test "$(git diff --name-only)" = tests/e2e/business-assets.spec.ts
+          git diff --exit-code -- apps packages scripts deploy package.json package-lock.json
       - name: Verify isolated PostgreSQL backup and restore
         run: |-
           set -euo pipefail
