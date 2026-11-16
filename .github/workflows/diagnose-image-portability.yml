@@ -1,0 +1,91 @@
+name: Diagnose API image portability
+on:
+  workflow_dispatch: null
+permissions:
+  contents: read
+  actions: read
+jobs:
+  image:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    env:
+      IMAGE_SOURCE: 066d9e471b4e88092e5028cd9ec254731f53c3c2
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: xecdev/kitabcha-app
+          ref: ba7f22e68fe5c501b881c7758226135319510f2c
+          ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.22.1
+      - uses: actions/download-artifact@v4
+        with:
+          name: production-066d9e471b4e88092e5028cd9ec254731f53c3c2
+          path: ${{ runner.temp }}/production
+          github-token: ${{ github.token }}
+          run-id: 43870717028
+      - name: Authenticate the existing validated image
+        env:
+          ARTIFACT_SECRET: ${{ secrets.PRIVATE_SOURCE_KEY }}
+          ARTIFACT_CONTEXT: xecdev/kitabcha-releases/43870717028/066d9e471b4e88092e5028cd9ec254731f53c3c2/v3.8.13/7f592cf62dd8aeacf87e71ce275331806d35dd79/production
+        run: node scripts/release-artifact.mjs open "$RUNNER_TEMP/production/production.enc" "$RUNNER_TEMP/source.tar.gz"
+      - name: Exercise both Docker image stores
+        run: |-
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/proof"
+          tar -xzf "$RUNNER_TEMP/source.tar.gz" -C "$RUNNER_TEMP/proof" ./api-image.tar.gz
+          image="$RUNNER_TEMP/proof/api-image.tar.gz"
+          python3 scripts/ci/image-config-id.py "$image" "$IMAGE_SOURCE" "$RUNNER_TEMP/image-expected.log" > "$RUNNER_TEMP/image-config.id"
+          config_id=$(cat "$RUNNER_TEMP/image-config.id")
+          ref="kitabcha-api:release-$IMAGE_SOURCE"
+          (
+           gzip -dc "$image" | docker load >/dev/null
+           docker image inspect "$ref" > "$RUNNER_TEMP/image-current.log"
+           python3 deploy/verify-api-image.py "$RUNNER_TEMP/image-expected.log" "$RUNNER_TEMP/image-current.log" "$config_id"
+           id=$(docker image inspect -f '{{.Id}}' "$ref")
+           docker tag "$id" kitabcha-api:portable-proof
+           docker image inspect kitabcha-api:portable-proof > "$RUNNER_TEMP/image-current-tagged.log"
+           python3 deploy/verify-api-image.py "$RUNNER_TEMP/image-expected.log" "$RUNNER_TEMP/image-current-tagged.log" "$config_id"
+           docker run --rm --network none --entrypoint node "$id" -e 'if(process.getuid()===0||process.version!=="v24.22.1")process.exit(1)'
+          ) > "$RUNNER_TEMP/image-current-check.log" 2>&1
+          echo 'Runner image store: transferred content, configuration, local-ID tagging and non-root runtime verified.'
+          verifier="kitabcha-portable-$GITHUB_RUN_ID"
+          trap 'docker rm -f "$verifier" >/dev/null 2>&1 || true' EXIT
+          docker run --detach --privileged --name "$verifier" --network none -e DOCKER_TLS_CERTDIR= docker:28-dind --storage-driver=overlay2 --bridge=none --iptables=false --ip6tables=false > "$RUNNER_TEMP/image-classic-check.log" 2>&1
+          for attempt in $(seq 1 60); do
+           if docker exec "$verifier" docker info >/dev/null 2>&1; then break; fi
+           sleep 1
+          done
+          (
+           docker exec "$verifier" docker info >/dev/null
+           gzip -dc "$image" | docker exec -i "$verifier" docker load >/dev/null
+           docker exec "$verifier" docker image inspect "$ref" > "$RUNNER_TEMP/image-classic.log"
+           python3 deploy/verify-api-image.py "$RUNNER_TEMP/image-expected.log" "$RUNNER_TEMP/image-classic.log" "$config_id"
+           id=$(docker exec "$verifier" docker image inspect -f '{{.Id}}' "$ref")
+           docker exec "$verifier" docker tag "$id" kitabcha-api:portable-proof
+           docker exec "$verifier" docker run --rm --network none --entrypoint node "$id" -e 'if(process.getuid()===0||process.version!=="v24.22.1")process.exit(1)'
+          ) >> "$RUNNER_TEMP/image-classic-check.log" 2>&1
+          echo 'Classic image store: transferred content, configuration, local-ID tagging and non-root runtime verified.'
+          echo 'The existing authenticated release image passed both store handoffs. Nothing deployed.' >> "$GITHUB_STEP_SUMMARY"
+      - name: Encrypt private failure diagnostics
+        if: failure()
+        env:
+          DIAGNOSTIC_PUBLIC_KEY: LS0tLS1CRUdJTiBQVUJMSUMgS0VZLS0tLS0KTUlJQm9qQU5CZ2txaGtpRzl3MEJBUUVGQUFPQ0FZOEFNSUlCaWdLQ0FZRUFqOThYbmtjWGpBbEt3SG0reHFLcApReUtrc3ZnTlRtS0tNeWlpRjNnVi9NNEpHV0xOaGlTRGhRYVZyMHNqTG5GYWJrbVFjZkUrZ2oyTUMvUnZ4SVVECm8wSW9HY21JVzltbExYeEtUVWNsTnpKdTlPM1pJSVI2WXdGbDBRR1NaVEN3QTIvR0tlL1h5S2xwWHBMSDJ2aHAKQU9JVjQxaFdYWlRtS0Fra3Y5VnBSa3B0SWMwZWtwQkJXTTZaaGMxa21BSU9mRmdLNUg0ZEZXVHFYaWVkenVvcApaYlE4R2ZnRmE2QWhUUGpxTncwNStLZW1SME5LbHRKdUhVc2xqQm1JcDZyaGtJaG4wRE9zRExKYWp4MkJ6V05OCkQvUTE2YkNzVUh2aUk0MURUb0w3UUU4M2FZL3crYjVpbUs0Qlh2UDJJM3JYZUlvcWJJZGhtdTFEemVJZXZxNXkKR090b09iQ3E1Z3RQZDVkTFdTM01VZWtrUE1PRnVtSGtlNmlqV2swOXlvL2lsWVlnUXdmV1Q5M2lvdG54c2JvQQpjTWpHZ0xpc2RmY0VUTlh0bGdCWEcyNmRNTzR2M3h3UStwbHdKbW9WWFc3UUpQR0VaZVhuQzg3ZlRDZTZTZnRuCnBscThEUjBtMEQxVlozemRkdXA3S1RwQ1cyS2JqNGpsRkhWZEovaXNQLzNUQWdNQkFBRT0KLS0tLS1FTkQgUFVCTElDIEtFWS0tLS0tCg==
+        run: |-
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';import path from 'node:path';import {randomBytes,createCipheriv,publicEncrypt,constants} from 'node:crypto';
+          const logs={};for(const name of fs.readdirSync(process.env.RUNNER_TEMP).filter(n=>n.endsWith('.log'))){const p=path.join(process.env.RUNNER_TEMP,name);if(fs.statSync(p).isFile())logs[name]=fs.readFileSync(p,'utf8').slice(-1500000);}
+          const key=randomBytes(32),iv=randomBytes(12),cipher=createCipheriv('aes-256-gcm',key,iv),data=Buffer.concat([cipher.update(JSON.stringify(logs)),cipher.final()]);
+          const sealed={key:publicEncrypt({key:Buffer.from(process.env.DIAGNOSTIC_PUBLIC_KEY,'base64'),padding:constants.RSA_PKCS1_OAEP_PADDING,oaepHash:'sha256'},key).toString('base64'),iv:iv.toString('base64'),tag:cipher.getAuthTag().toString('base64'),data:data.toString('base64')};
+          fs.writeFileSync(path.join(process.env.RUNNER_TEMP,'release-image-proof-diagnostic.enc'),JSON.stringify(sealed));console.log('Private diagnostics encrypted for the local decryption key.');
+          NODE
+      - name: Upload encrypted diagnostic
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-image-proof-web-${{ strategy.job-index }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/release-image-proof-diagnostic.enc
+          retention-days: 2
+          if-no-files-found: ignore
