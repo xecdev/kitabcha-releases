@@ -16,14 +16,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 120
     env:
-      CI: "1"
+      CI: '1'
       NODE_ENV: production
       EXPO_PUBLIC_API_URL: https://app.kitabcha.app
       CCACHE_DIR: ${{ github.workspace }}/.ccache
       CCACHE_BASEDIR: ${{ github.workspace }}
       CCACHE_MAXSIZE: 2G
       CCACHE_COMPILERCHECK: content
-      KITABCHA_BUILD_VERSION: 2.1.7
+      KITABCHA_BUILD_VERSION: 2.1.8
       SOURCE_SHA: ${{ inputs.source_ref }}
     steps:
       - name: Require immutable private source SHA
@@ -111,7 +111,7 @@ jobs:
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: "21"
+          java-version: '21'
       - name: Restore Gradle dependencies and compiled tasks
         uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a
         with:
@@ -120,7 +120,8 @@ jobs:
         uses: actions/cache@v4
         with:
           path: .ccache
-          key: android-ccache-v1-${{ runner.os }}-${{ hashFiles('package-lock.json', 'apps/client/plugins/**', 'apps/client/modules/**')
+          key:
+            android-ccache-v1-${{ runner.os }}-${{ hashFiles('package-lock.json', 'apps/client/plugins/**', 'apps/client/modules/**')
             }}-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: >
             android-ccache-v1-${{ runner.os }}-${{ hashFiles('package-lock.json', 'apps/client/plugins/**',
@@ -165,7 +166,8 @@ jobs:
 
           echo "Check Home swipe behavior and login translations passed."
       - name: Verify native notification destinations
-        run: node --import tsx --test tests/push-navigation.test.ts tests/scroll-position.test.ts > "$RUNNER_TEMP/push-navigation.log"
+        run:
+          node --import tsx --test tests/push-navigation.test.ts tests/scroll-position.test.ts > "$RUNNER_TEMP/push-navigation.log"
           2>&1
       - name: Verify native commerce file and draft adapters
         run: >
@@ -183,7 +185,8 @@ jobs:
 
           echo "Verify native commerce file and draft adapters passed."
       - name: Verify native scanner adapter
-        run: node --test tests/native-barcode-scanner.test.mjs tests/native-barcode-camera.test.mjs tests/android-release.test.mjs
+        run:
+          node --test tests/native-barcode-scanner.test.mjs tests/native-barcode-camera.test.mjs tests/android-release.test.mjs
           tests/native-receipt-build.test.mjs > "$RUNNER_TEMP/native-scanner.log" 2>&1
       - name: Verify Android 15 window migration and legacy behavior
         run: >
@@ -229,7 +232,8 @@ jobs:
             node_modules/react-native/ReactAndroid/build
             apps/client/android/app/.cxx
             apps/client/android/app/build/intermediates/cxx
-          key: android-native-v1-${{ runner.os }}-${{ steps.version.outputs.native }}-${{ hashFiles('package-lock.json',
+          key:
+            android-native-v1-${{ runner.os }}-${{ steps.version.outputs.native }}-${{ hashFiles('package-lock.json',
             'apps/client/plugins/**', 'apps/client/modules/**') }}-${{ github.run_id }}
           restore-keys: >
             android-native-v1-${{ runner.os }}-${{ steps.version.outputs.native }}-${{ hashFiles('package-lock.json',
@@ -442,14 +446,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 120
     env:
-      CI: "1"
+      CI: '1'
       NODE_ENV: production
       EXPO_PUBLIC_API_URL: https://app.kitabcha.app
       CCACHE_DIR: ${{ github.workspace }}/.ccache
       CCACHE_BASEDIR: ${{ github.workspace }}
       CCACHE_MAXSIZE: 2G
       CCACHE_COMPILERCHECK: content
-      KITABCHA_BUILD_VERSION: 2.1.7
+      KITABCHA_BUILD_VERSION: 2.1.8
       SOURCE_SHA: ${{ inputs.source_ref }}
     steps:
       - name: Require immutable private source SHA
@@ -537,7 +541,7 @@ jobs:
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: "21"
+          java-version: '21'
       - name: Restore Gradle dependencies and compiled tasks
         uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a
         with:
@@ -546,7 +550,8 @@ jobs:
         uses: actions/cache@v4
         with:
           path: .ccache
-          key: android-ccache-v1-${{ runner.os }}-${{ hashFiles('package-lock.json', 'apps/client/plugins/**', 'apps/client/modules/**')
+          key:
+            android-ccache-v1-${{ runner.os }}-${{ hashFiles('package-lock.json', 'apps/client/plugins/**', 'apps/client/modules/**')
             }}-${{ github.run_id }}-${{ github.run_attempt }}-pdf-probe
           restore-keys: >
             android-ccache-v1-${{ runner.os }}-${{ hashFiles('package-lock.json', 'apps/client/plugins/**',
@@ -591,7 +596,8 @@ jobs:
 
           echo "Check Home swipe behavior and login translations passed."
       - name: Verify native notification destinations
-        run: node --import tsx --test tests/push-navigation.test.ts tests/scroll-position.test.ts > "$RUNNER_TEMP/push-navigation.log"
+        run:
+          node --import tsx --test tests/push-navigation.test.ts tests/scroll-position.test.ts > "$RUNNER_TEMP/push-navigation.log"
           2>&1
       - name: Verify native commerce file and draft adapters
         run: >
@@ -608,7 +614,8 @@ jobs:
 
           echo "Verify native commerce file and draft adapters passed."
       - name: Verify native scanner adapter
-        run: node --test tests/native-barcode-scanner.test.mjs tests/native-barcode-camera.test.mjs tests/android-release.test.mjs
+        run:
+          node --test tests/native-barcode-scanner.test.mjs tests/native-barcode-camera.test.mjs tests/android-release.test.mjs
           tests/native-receipt-build.test.mjs > "$RUNNER_TEMP/native-scanner.log" 2>&1
       - name: Install isolated synthetic report screen
         run: cp tests/native-pdf-probe-layout.txt apps/client/app/_layout.tsx
@@ -630,14 +637,16 @@ jobs:
             node_modules/react-native/ReactAndroid/build
             apps/client/android/app/.cxx
             apps/client/android/app/build/intermediates/cxx
-          key: android-native-v1-${{ runner.os }}-${{ steps.version.outputs.native }}-${{ hashFiles('package-lock.json',
+          key:
+            android-native-v1-${{ runner.os }}-${{ steps.version.outputs.native }}-${{ hashFiles('package-lock.json',
             'apps/client/plugins/**', 'apps/client/modules/**') }}-${{ github.run_id }}-pdf-probe
           restore-keys: >
             android-native-v1-${{ runner.os }}-${{ steps.version.outputs.native }}-${{ hashFiles('package-lock.json',
             'apps/client/plugins/**', 'apps/client/modules/**') }}-
       - name: Build isolated native PDF probe
         working-directory: apps/client/android
-        run: ./gradlew :app:assembleRelease --no-daemon --build-cache --max-workers=2 -PreactNativeArchitectures=x86_64 >
+        run:
+          ./gradlew :app:assembleRelease --no-daemon --build-cache --max-workers=2 -PreactNativeArchitectures=x86_64 >
           "$RUNNER_TEMP/probe-build.log" 2>&1
       - name: Enable Android emulator acceleration
         run: |
@@ -689,14 +698,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 120
     env:
-      CI: "1"
+      CI: '1'
       NODE_ENV: production
       EXPO_PUBLIC_API_URL: https://app.kitabcha.app
       CCACHE_DIR: ${{ github.workspace }}/.ccache
       CCACHE_BASEDIR: ${{ github.workspace }}
       CCACHE_MAXSIZE: 2G
       CCACHE_COMPILERCHECK: content
-      KITABCHA_BUILD_VERSION: 2.1.7
+      KITABCHA_BUILD_VERSION: 2.1.8
       SOURCE_SHA: ${{ inputs.source_ref }}
     steps:
       - name: Require immutable private source SHA
@@ -784,7 +793,7 @@ jobs:
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: "21"
+          java-version: '21'
       - name: Restore Gradle dependencies and compiled tasks
         uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a
         with:
@@ -793,7 +802,8 @@ jobs:
         uses: actions/cache@v4
         with:
           path: .ccache
-          key: android-ccache-v1-${{ runner.os }}-${{ hashFiles('package-lock.json', 'apps/client/plugins/**', 'apps/client/modules/**')
+          key:
+            android-ccache-v1-${{ runner.os }}-${{ hashFiles('package-lock.json', 'apps/client/plugins/**', 'apps/client/modules/**')
             }}-${{ github.run_id }}-${{ github.run_attempt }}-pdf-probe
           restore-keys: >
             android-ccache-v1-${{ runner.os }}-${{ hashFiles('package-lock.json', 'apps/client/plugins/**',
@@ -838,7 +848,8 @@ jobs:
 
           echo "Check Home swipe behavior and login translations passed."
       - name: Verify native notification destinations
-        run: node --import tsx --test tests/push-navigation.test.ts tests/scroll-position.test.ts > "$RUNNER_TEMP/push-navigation.log"
+        run:
+          node --import tsx --test tests/push-navigation.test.ts tests/scroll-position.test.ts > "$RUNNER_TEMP/push-navigation.log"
           2>&1
       - name: Verify native commerce file and draft adapters
         run: >
@@ -855,7 +866,8 @@ jobs:
 
           echo "Verify native commerce file and draft adapters passed."
       - name: Verify native scanner adapter
-        run: node --test tests/native-barcode-scanner.test.mjs tests/native-barcode-camera.test.mjs tests/android-release.test.mjs
+        run:
+          node --test tests/native-barcode-scanner.test.mjs tests/native-barcode-camera.test.mjs tests/android-release.test.mjs
           tests/native-receipt-build.test.mjs > "$RUNNER_TEMP/native-scanner.log" 2>&1
       - name: Install isolated synthetic phonebook screen
         run: cp tests/native-phonebook-probe-layout.txt apps/client/app/_layout.tsx
@@ -877,14 +889,16 @@ jobs:
             node_modules/react-native/ReactAndroid/build
             apps/client/android/app/.cxx
             apps/client/android/app/build/intermediates/cxx
-          key: android-native-v1-${{ runner.os }}-${{ steps.version.outputs.native }}-${{ hashFiles('package-lock.json',
+          key:
+            android-native-v1-${{ runner.os }}-${{ steps.version.outputs.native }}-${{ hashFiles('package-lock.json',
             'apps/client/plugins/**', 'apps/client/modules/**') }}-${{ github.run_id }}-pdf-probe
           restore-keys: >
             android-native-v1-${{ runner.os }}-${{ steps.version.outputs.native }}-${{ hashFiles('package-lock.json',
             'apps/client/plugins/**', 'apps/client/modules/**') }}-
       - name: Build isolated native phonebook probe
         working-directory: apps/client/android
-        run: ./gradlew :app:assembleRelease --no-daemon --build-cache --max-workers=2 -PreactNativeArchitectures=x86_64 >
+        run:
+          ./gradlew :app:assembleRelease --no-daemon --build-cache --max-workers=2 -PreactNativeArchitectures=x86_64 >
           "$RUNNER_TEMP/phonebook-probe-build.log" 2>&1
       - name: Enable Android emulator acceleration
         run: |
