@@ -25,7 +25,7 @@ jobs:
       CCACHE_COMPILERCHECK: content
       KITABCHA_BUILD_VERSION: 2.1.10
       SOURCE_SHA: ${{ inputs.source_ref }}
-      VALIDATION_SHA: ${{ inputs.source_ref }}
+      VALIDATION_SHA: 7a860c5dcaf550d938c1f480ac055b17a613328a
     steps:
       - name: Require immutable private source SHA
         run: '[[ "$SOURCE_SHA" =~ ^[a-f0-9]{40}$ ]]'
@@ -46,55 +46,16 @@ jobs:
           sparse-checkout: |
             tests/native-pdf-probe.py
             tests/native-pdf-probe-driver.test.mjs
+            scripts/ci/select-ubuntu-mirror.py
           sparse-checkout-cone-mode: false
       - name: Install native probe drivers without changing application source
         run: |
           cp .ci-validation/tests/native-pdf-probe.py tests/native-pdf-probe.py
           cp .ci-validation/tests/native-pdf-probe-driver.test.mjs tests/native-pdf-probe-driver.test.mjs
+          cp .ci-validation/scripts/ci/select-ubuntu-mirror.py scripts/ci/select-ubuntu-mirror.py
           git diff --exit-code -- apps packages package.json package-lock.json
       - name: Select reachable signed Ubuntu archive
-        run: >
-          set -euo pipefail
-
-          mirror=''
-
-          for base in https://mirror.math.princeton.edu/pub/ubuntu https://mirrors.mit.edu/ubuntu
-          https://archive.ubuntu.com/ubuntu https://mirrors.edge.kernel.org/ubuntu; do
-            if curl --fail --silent --show-error --head --connect-timeout 5 --max-time 15 "$base/dists/jammy/InRelease" >/dev/null 2>&1 && curl --fail --silent --show-error --head --connect-timeout 5 --max-time 15 "$base/dists/jammy-security/InRelease" >/dev/null 2>&1; then
-              mirror="$base"
-              break
-            fi
-          done
-
-          test -n "$mirror"
-
-          echo "Selected reachable Ubuntu archive: $mirror"
-
-          sudo python3 - "$mirror" <<'PY'
-
-          from pathlib import Path
-
-          import re, sys
-
-          base = sys.argv[1]
-
-          for path in [Path('/etc/apt/apt-mirrors.txt'), Path('/etc/apt/apt-mirrors-security.txt')]:
-              if path.is_file():
-                  path.write_text(base + '/\n')
-          paths = [Path('/etc/apt/sources.list')]
-
-          paths += list(Path('/etc/apt/sources.list.d').glob('*.list')) + list(Path('/etc/apt/sources.list.d').glob('*.sources'))
-
-          for path in paths:
-              if path.is_file():
-                  original = path.read_text()
-                  updated = re.sub(r'https?://(?:[A-Za-z0-9.-]*archive\.ubuntu\.com|security\.ubuntu\.com)/ubuntu/?', base + '/', original)
-                  if updated != original:
-                      path.write_text(updated)
-          PY
-
-          timeout 240 sudo apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 update >
-          "$RUNNER_TEMP/ubuntu-mirror.log" 2>&1
+        run: sudo --preserve-env=GITHUB_ACTIONS python3 scripts/ci/select-ubuntu-mirror.py "$RUNNER_TEMP"
       - name: Read app version
         id: version
         run: >
@@ -473,7 +434,7 @@ jobs:
       CCACHE_COMPILERCHECK: content
       KITABCHA_BUILD_VERSION: 2.1.10
       SOURCE_SHA: ${{ inputs.source_ref }}
-      VALIDATION_SHA: ${{ inputs.source_ref }}
+      VALIDATION_SHA: 7a860c5dcaf550d938c1f480ac055b17a613328a
     steps:
       - name: Require immutable private source SHA
         run: '[[ "$SOURCE_SHA" =~ ^[a-f0-9]{40}$ ]]'
@@ -494,55 +455,16 @@ jobs:
           sparse-checkout: |
             tests/native-pdf-probe.py
             tests/native-pdf-probe-driver.test.mjs
+            scripts/ci/select-ubuntu-mirror.py
           sparse-checkout-cone-mode: false
       - name: Install native probe drivers without changing application source
         run: |
           cp .ci-validation/tests/native-pdf-probe.py tests/native-pdf-probe.py
           cp .ci-validation/tests/native-pdf-probe-driver.test.mjs tests/native-pdf-probe-driver.test.mjs
+          cp .ci-validation/scripts/ci/select-ubuntu-mirror.py scripts/ci/select-ubuntu-mirror.py
           git diff --exit-code -- apps packages package.json package-lock.json
       - name: Select reachable signed Ubuntu archive
-        run: >
-          set -euo pipefail
-
-          mirror=''
-
-          for base in https://mirror.math.princeton.edu/pub/ubuntu https://mirrors.mit.edu/ubuntu
-          https://archive.ubuntu.com/ubuntu https://mirrors.edge.kernel.org/ubuntu; do
-            if curl --fail --silent --show-error --head --connect-timeout 5 --max-time 15 "$base/dists/jammy/InRelease" >/dev/null 2>&1 && curl --fail --silent --show-error --head --connect-timeout 5 --max-time 15 "$base/dists/jammy-security/InRelease" >/dev/null 2>&1; then
-              mirror="$base"
-              break
-            fi
-          done
-
-          test -n "$mirror"
-
-          echo "Selected reachable Ubuntu archive: $mirror"
-
-          sudo python3 - "$mirror" <<'PY'
-
-          from pathlib import Path
-
-          import re, sys
-
-          base = sys.argv[1]
-
-          for path in [Path('/etc/apt/apt-mirrors.txt'), Path('/etc/apt/apt-mirrors-security.txt')]:
-              if path.is_file():
-                  path.write_text(base + '/\n')
-          paths = [Path('/etc/apt/sources.list')]
-
-          paths += list(Path('/etc/apt/sources.list.d').glob('*.list')) + list(Path('/etc/apt/sources.list.d').glob('*.sources'))
-
-          for path in paths:
-              if path.is_file():
-                  original = path.read_text()
-                  updated = re.sub(r'https?://(?:[A-Za-z0-9.-]*archive\.ubuntu\.com|security\.ubuntu\.com)/ubuntu/?', base + '/', original)
-                  if updated != original:
-                      path.write_text(updated)
-          PY
-
-          timeout 240 sudo apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 update >
-          "$RUNNER_TEMP/ubuntu-mirror.log" 2>&1
+        run: sudo --preserve-env=GITHUB_ACTIONS python3 scripts/ci/select-ubuntu-mirror.py "$RUNNER_TEMP"
       - name: Read app version
         id: version
         run: >
@@ -743,7 +665,7 @@ jobs:
       CCACHE_COMPILERCHECK: content
       KITABCHA_BUILD_VERSION: 2.1.10
       SOURCE_SHA: ${{ inputs.source_ref }}
-      VALIDATION_SHA: ${{ inputs.source_ref }}
+      VALIDATION_SHA: 7a860c5dcaf550d938c1f480ac055b17a613328a
     steps:
       - name: Require immutable private source SHA
         run: '[[ "$SOURCE_SHA" =~ ^[a-f0-9]{40}$ ]]'
@@ -764,55 +686,16 @@ jobs:
           sparse-checkout: |
             tests/native-pdf-probe.py
             tests/native-pdf-probe-driver.test.mjs
+            scripts/ci/select-ubuntu-mirror.py
           sparse-checkout-cone-mode: false
       - name: Install native probe drivers without changing application source
         run: |
           cp .ci-validation/tests/native-pdf-probe.py tests/native-pdf-probe.py
           cp .ci-validation/tests/native-pdf-probe-driver.test.mjs tests/native-pdf-probe-driver.test.mjs
+          cp .ci-validation/scripts/ci/select-ubuntu-mirror.py scripts/ci/select-ubuntu-mirror.py
           git diff --exit-code -- apps packages package.json package-lock.json
       - name: Select reachable signed Ubuntu archive
-        run: >
-          set -euo pipefail
-
-          mirror=''
-
-          for base in https://mirror.math.princeton.edu/pub/ubuntu https://mirrors.mit.edu/ubuntu
-          https://archive.ubuntu.com/ubuntu https://mirrors.edge.kernel.org/ubuntu; do
-            if curl --fail --silent --show-error --head --connect-timeout 5 --max-time 15 "$base/dists/jammy/InRelease" >/dev/null 2>&1 && curl --fail --silent --show-error --head --connect-timeout 5 --max-time 15 "$base/dists/jammy-security/InRelease" >/dev/null 2>&1; then
-              mirror="$base"
-              break
-            fi
-          done
-
-          test -n "$mirror"
-
-          echo "Selected reachable Ubuntu archive: $mirror"
-
-          sudo python3 - "$mirror" <<'PY'
-
-          from pathlib import Path
-
-          import re, sys
-
-          base = sys.argv[1]
-
-          for path in [Path('/etc/apt/apt-mirrors.txt'), Path('/etc/apt/apt-mirrors-security.txt')]:
-              if path.is_file():
-                  path.write_text(base + '/\n')
-          paths = [Path('/etc/apt/sources.list')]
-
-          paths += list(Path('/etc/apt/sources.list.d').glob('*.list')) + list(Path('/etc/apt/sources.list.d').glob('*.sources'))
-
-          for path in paths:
-              if path.is_file():
-                  original = path.read_text()
-                  updated = re.sub(r'https?://(?:[A-Za-z0-9.-]*archive\.ubuntu\.com|security\.ubuntu\.com)/ubuntu/?', base + '/', original)
-                  if updated != original:
-                      path.write_text(updated)
-          PY
-
-          timeout 240 sudo apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 update >
-          "$RUNNER_TEMP/ubuntu-mirror.log" 2>&1
+        run: sudo --preserve-env=GITHUB_ACTIONS python3 scripts/ci/select-ubuntu-mirror.py "$RUNNER_TEMP"
       - name: Read app version
         id: version
         run: >

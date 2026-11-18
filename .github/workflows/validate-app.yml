@@ -31,6 +31,7 @@ jobs:
       EXPO_PUBLIC_API_URL: http://localhost:3001
       SPECS: ${{ matrix.specs }}
       EXPO_PUBLIC_ENTITLEMENT_KEY: 087b7041c48b7f58b4357d170ddb97cc3ad66974fa992e5ca9ad2b0ac9fa0bba
+      VALIDATION_SHA: 7a860c5dcaf550d938c1f480ac055b17a613328a
     steps:
       - uses: actions/checkout@v4
         with:
@@ -39,6 +40,32 @@ jobs:
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
           fetch-depth: 9
+      - uses: actions/checkout@v4
+        with:
+          repository: xecdev/kitabcha-app
+          ref: 7a860c5dcaf550d938c1f480ac055b17a613328a
+          ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
+          persist-credentials: false
+          fetch-depth: 9
+          path: .ci-validation
+          sparse-checkout: |-
+            tests/native-pdf-probe.py
+            tests/native-pdf-probe-driver.test.mjs
+            scripts/ci/generate-release.mjs
+            tests/release-validation-source.test.mjs
+            scripts/ci/select-ubuntu-mirror.py
+            tests/ubuntu-mirror.test.mjs
+          sparse-checkout-cone-mode: false
+        name: Checkout immutable CI harness
+      - name: Install CI harness without changing application source
+        run: |-
+          cp .ci-validation/tests/native-pdf-probe.py tests/native-pdf-probe.py
+          cp .ci-validation/tests/native-pdf-probe-driver.test.mjs tests/native-pdf-probe-driver.test.mjs
+          cp .ci-validation/scripts/ci/generate-release.mjs scripts/ci/generate-release.mjs
+          cp .ci-validation/tests/release-validation-source.test.mjs tests/release-validation-source.test.mjs
+          cp .ci-validation/scripts/ci/select-ubuntu-mirror.py scripts/ci/select-ubuntu-mirror.py
+          cp .ci-validation/tests/ubuntu-mirror.test.mjs tests/ubuntu-mirror.test.mjs
+          git diff --exit-code -- apps packages package.json package-lock.json
       - uses: actions/setup-node@v4
         with:
           node-version: 24.22.1
@@ -53,38 +80,7 @@ jobs:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
       - name: Select reachable signed Ubuntu archive
-        run: |
-          set -euo pipefail
-          sudo python3 - <<'PYAPT'
-          from pathlib import Path
-          Path('/etc/apt/apt.conf.d/80kitabcha-network').write_text(chr(10).join(['Acquire::ForceIPv4 "true";','Acquire::Retries "2";','Acquire::http::Timeout "30";','Acquire::https::Timeout "30";'])+chr(10))
-          PYAPT
-          mirror=''
-          for base in https://mirror.math.princeton.edu/pub/ubuntu https://mirrors.mit.edu/ubuntu https://mirrors.edge.kernel.org/ubuntu; do
-            if curl --ipv4 --fail --silent --show-error --head --connect-timeout 5 --max-time 15 "$base/dists/jammy/InRelease" >/dev/null 2>&1 && curl --ipv4 --fail --silent --show-error --head --connect-timeout 5 --max-time 15 "$base/dists/jammy-security/InRelease" >/dev/null 2>&1 && curl --ipv4 --fail --silent --show-error --head --connect-timeout 5 --max-time 15 "$base/pool/universe/f/fonts-ipafont/fonts-ipafont-gothic_00303-21ubuntu1_all.deb" >/dev/null 2>&1; then
-              mirror="$base"
-              break
-            fi
-          done
-          test -n "$mirror"
-          echo "Selected reachable Ubuntu archive: $mirror"
-          sudo python3 - "$mirror" <<'PY'
-          from pathlib import Path
-          import re, sys
-          base = sys.argv[1]
-          for path in [Path('/etc/apt/apt-mirrors.txt'), Path('/etc/apt/apt-mirrors-security.txt')]:
-              if path.is_file():
-                  path.write_text(base + '/\n')
-          paths = [Path('/etc/apt/sources.list')]
-          paths += list(Path('/etc/apt/sources.list.d').glob('*.list')) + list(Path('/etc/apt/sources.list.d').glob('*.sources'))
-          for path in paths:
-              if path.is_file():
-                  original = path.read_text()
-                  updated = re.sub(r'https?://(?:[A-Za-z0-9.-]*archive\.ubuntu\.com|security\.ubuntu\.com)/ubuntu/?', base + '/', original)
-                  if updated != original:
-                      path.write_text(updated)
-          PY
-          timeout 240 sudo apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 update > "$RUNNER_TEMP/ubuntu-mirror.log" 2>&1
+        run: sudo --preserve-env=GITHUB_ACTIONS python3 scripts/ci/select-ubuntu-mirror.py "$RUNNER_TEMP"
       - name: Install invoice image renderer
         run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends poppler-utils > "$RUNNER_TEMP/invoice-renderer-install.log" 2>&1
       - name: Install browser validation dependencies
@@ -154,6 +150,7 @@ jobs:
       SOURCE_SHA: 369f71a88bfdd9fc816b33c2b4e5becd30ff6cfa
       KITABCHA_BUILD_VERSION: v3.8.19
       SHARD: ${{ matrix.shard }}
+      VALIDATION_SHA: 7a860c5dcaf550d938c1f480ac055b17a613328a
     steps:
       - uses: actions/checkout@v4
         with:
@@ -162,6 +159,32 @@ jobs:
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
           fetch-depth: 9
+      - uses: actions/checkout@v4
+        with:
+          repository: xecdev/kitabcha-app
+          ref: 7a860c5dcaf550d938c1f480ac055b17a613328a
+          ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
+          persist-credentials: false
+          fetch-depth: 9
+          path: .ci-validation
+          sparse-checkout: |-
+            tests/native-pdf-probe.py
+            tests/native-pdf-probe-driver.test.mjs
+            scripts/ci/generate-release.mjs
+            tests/release-validation-source.test.mjs
+            scripts/ci/select-ubuntu-mirror.py
+            tests/ubuntu-mirror.test.mjs
+          sparse-checkout-cone-mode: false
+        name: Checkout immutable CI harness
+      - name: Install CI harness without changing application source
+        run: |-
+          cp .ci-validation/tests/native-pdf-probe.py tests/native-pdf-probe.py
+          cp .ci-validation/tests/native-pdf-probe-driver.test.mjs tests/native-pdf-probe-driver.test.mjs
+          cp .ci-validation/scripts/ci/generate-release.mjs scripts/ci/generate-release.mjs
+          cp .ci-validation/tests/release-validation-source.test.mjs tests/release-validation-source.test.mjs
+          cp .ci-validation/scripts/ci/select-ubuntu-mirror.py scripts/ci/select-ubuntu-mirror.py
+          cp .ci-validation/tests/ubuntu-mirror.test.mjs tests/ubuntu-mirror.test.mjs
+          git diff --exit-code -- apps packages package.json package-lock.json
       - &a3
         uses: actions/setup-node@v4
         with:
@@ -170,38 +193,7 @@ jobs:
       - *a2
       - &a5
         name: Select reachable signed Ubuntu archive
-        run: |
-          set -euo pipefail
-          sudo python3 - <<'PYAPT'
-          from pathlib import Path
-          Path('/etc/apt/apt.conf.d/80kitabcha-network').write_text(chr(10).join(['Acquire::ForceIPv4 "true";','Acquire::Retries "2";','Acquire::http::Timeout "30";','Acquire::https::Timeout "30";'])+chr(10))
-          PYAPT
-          mirror=''
-          for base in https://mirror.math.princeton.edu/pub/ubuntu https://mirrors.mit.edu/ubuntu https://mirrors.edge.kernel.org/ubuntu; do
-            if curl --ipv4 --fail --silent --show-error --head --connect-timeout 5 --max-time 15 "$base/dists/jammy/InRelease" >/dev/null 2>&1 && curl --ipv4 --fail --silent --show-error --head --connect-timeout 5 --max-time 15 "$base/dists/jammy-security/InRelease" >/dev/null 2>&1 && curl --ipv4 --fail --silent --show-error --head --connect-timeout 5 --max-time 15 "$base/pool/universe/f/fonts-ipafont/fonts-ipafont-gothic_00303-21ubuntu1_all.deb" >/dev/null 2>&1; then
-              mirror="$base"
-              break
-            fi
-          done
-          test -n "$mirror"
-          echo "Selected reachable Ubuntu archive: $mirror"
-          sudo python3 - "$mirror" <<'PY'
-          from pathlib import Path
-          import re, sys
-          base = sys.argv[1]
-          for path in [Path('/etc/apt/apt-mirrors.txt'), Path('/etc/apt/apt-mirrors-security.txt')]:
-              if path.is_file():
-                  path.write_text(base + '/\n')
-          paths = [Path('/etc/apt/sources.list')]
-          paths += list(Path('/etc/apt/sources.list.d').glob('*.list')) + list(Path('/etc/apt/sources.list.d').glob('*.sources'))
-          for path in paths:
-              if path.is_file():
-                  original = path.read_text()
-                  updated = re.sub(r'https?://(?:[A-Za-z0-9.-]*archive\.ubuntu\.com|security\.ubuntu\.com)/ubuntu/?', base + '/', original)
-                  if updated != original:
-                      path.write_text(updated)
-          PY
-          timeout 240 sudo apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 update > "$RUNNER_TEMP/ubuntu-mirror.log" 2>&1
+        run: sudo --preserve-env=GITHUB_ACTIONS python3 scripts/ci/select-ubuntu-mirror.py "$RUNNER_TEMP"
       - &a6
         name: Install invoice image renderer
         run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends poppler-utils > "$RUNNER_TEMP/invoice-renderer-install.log" 2>&1
@@ -253,6 +245,7 @@ jobs:
       SOURCE_SHA: 369f71a88bfdd9fc816b33c2b4e5becd30ff6cfa
       KITABCHA_BUILD_VERSION: v3.8.19
       BROWSER_TEST_SPECS: report-consistency pane-drafts financial-reports report-filter-popup bill-actions trade-editor-ui workspace-followups notification-settings account-contact people-activity notification-inbox auth business-assets records-toolbars report-reminder-follow-up mobile-back online-only rtl-layout-parity contact-input-ui mobile-workspace-20261115 ledger people-entry-layout barcode-scanner calendar-controls offline-phase1 otp-ui quotation-header offline-final-ux offline-phase2 offline-phase3 scale-loading ui-feedback-regressions app-language-ux landing-masthead input-direction customer-proof-motion team-access website-language team-viewer quotations team-identity cashbook people-currency-selection record-payment-mode accounts-workspace current-ui-fixes transaction-receipts transaction-drafts website-pages ux-navigation-followups books mobile-responsive forms-refresh screen-recovery book-deletion marketing-v3 mobile-keyboard background-saves interaction-motion recovery-reload more-hub reset-cache-boundaries qa-report-flows payment-pane switcher-animations push-notifications book-switch-performance slow-network-stock reset-backup onboarding-prefill list-hover pre-signin-language form-experience backup-restore navigation-expiry bill-confirmation sale-visibility-units plan-tiers landing help-center grocery-audit ui-polish access-recovery rejected-record-recovery app-recovery support-layout report-attachments setup-otp-enter theme-speed profile-stock-premium form-enter bahij-web scale-reports creator-ui loading-version web-startup landing-faq refresh-interruption readable-export scale-validation qa-receipt-policy otp-auto otp-email billing-emails
+      VALIDATION_SHA: 7a860c5dcaf550d938c1f480ac055b17a613328a
     steps:
       - uses: actions/checkout@v4
         with:
@@ -261,6 +254,32 @@ jobs:
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
           fetch-depth: 9
+      - uses: actions/checkout@v4
+        with:
+          repository: xecdev/kitabcha-app
+          ref: 7a860c5dcaf550d938c1f480ac055b17a613328a
+          ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
+          persist-credentials: false
+          fetch-depth: 9
+          path: .ci-validation
+          sparse-checkout: |-
+            tests/native-pdf-probe.py
+            tests/native-pdf-probe-driver.test.mjs
+            scripts/ci/generate-release.mjs
+            tests/release-validation-source.test.mjs
+            scripts/ci/select-ubuntu-mirror.py
+            tests/ubuntu-mirror.test.mjs
+          sparse-checkout-cone-mode: false
+        name: Checkout immutable CI harness
+      - name: Install CI harness without changing application source
+        run: |-
+          cp .ci-validation/tests/native-pdf-probe.py tests/native-pdf-probe.py
+          cp .ci-validation/tests/native-pdf-probe-driver.test.mjs tests/native-pdf-probe-driver.test.mjs
+          cp .ci-validation/scripts/ci/generate-release.mjs scripts/ci/generate-release.mjs
+          cp .ci-validation/tests/release-validation-source.test.mjs tests/release-validation-source.test.mjs
+          cp .ci-validation/scripts/ci/select-ubuntu-mirror.py scripts/ci/select-ubuntu-mirror.py
+          cp .ci-validation/tests/ubuntu-mirror.test.mjs tests/ubuntu-mirror.test.mjs
+          git diff --exit-code -- apps packages package.json package-lock.json
       - *a3
       - *a1
       - *a4
@@ -298,6 +317,7 @@ jobs:
       CI: "1"
       SOURCE_SHA: 369f71a88bfdd9fc816b33c2b4e5becd30ff6cfa
       KITABCHA_BUILD_VERSION: v3.8.19
+      VALIDATION_SHA: 7a860c5dcaf550d938c1f480ac055b17a613328a
     steps:
       - uses: actions/checkout@v4
         with:
@@ -306,6 +326,32 @@ jobs:
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
           fetch-depth: 9
+      - uses: actions/checkout@v4
+        with:
+          repository: xecdev/kitabcha-app
+          ref: 7a860c5dcaf550d938c1f480ac055b17a613328a
+          ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
+          persist-credentials: false
+          fetch-depth: 9
+          path: .ci-validation
+          sparse-checkout: |-
+            tests/native-pdf-probe.py
+            tests/native-pdf-probe-driver.test.mjs
+            scripts/ci/generate-release.mjs
+            tests/release-validation-source.test.mjs
+            scripts/ci/select-ubuntu-mirror.py
+            tests/ubuntu-mirror.test.mjs
+          sparse-checkout-cone-mode: false
+        name: Checkout immutable CI harness
+      - name: Install CI harness without changing application source
+        run: |-
+          cp .ci-validation/tests/native-pdf-probe.py tests/native-pdf-probe.py
+          cp .ci-validation/tests/native-pdf-probe-driver.test.mjs tests/native-pdf-probe-driver.test.mjs
+          cp .ci-validation/scripts/ci/generate-release.mjs scripts/ci/generate-release.mjs
+          cp .ci-validation/tests/release-validation-source.test.mjs tests/release-validation-source.test.mjs
+          cp .ci-validation/scripts/ci/select-ubuntu-mirror.py scripts/ci/select-ubuntu-mirror.py
+          cp .ci-validation/tests/ubuntu-mirror.test.mjs tests/ubuntu-mirror.test.mjs
+          git diff --exit-code -- apps packages package.json package-lock.json
       - *a3
       - *a1
       - *a2
@@ -364,6 +410,7 @@ jobs:
       KITABCHA_BUILD_VERSION: v3.8.19
       DEPLOY_VERSION: v3.8.19
       EXPO_PUBLIC_API_URL: https://app.kitabcha.app
+      VALIDATION_SHA: 7a860c5dcaf550d938c1f480ac055b17a613328a
     steps:
       - uses: actions/checkout@v4
         with:
@@ -372,6 +419,32 @@ jobs:
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
           fetch-depth: 9
+      - uses: actions/checkout@v4
+        with:
+          repository: xecdev/kitabcha-app
+          ref: 7a860c5dcaf550d938c1f480ac055b17a613328a
+          ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
+          persist-credentials: false
+          fetch-depth: 9
+          path: .ci-validation
+          sparse-checkout: |-
+            tests/native-pdf-probe.py
+            tests/native-pdf-probe-driver.test.mjs
+            scripts/ci/generate-release.mjs
+            tests/release-validation-source.test.mjs
+            scripts/ci/select-ubuntu-mirror.py
+            tests/ubuntu-mirror.test.mjs
+          sparse-checkout-cone-mode: false
+        name: Checkout immutable CI harness
+      - name: Install CI harness without changing application source
+        run: |-
+          cp .ci-validation/tests/native-pdf-probe.py tests/native-pdf-probe.py
+          cp .ci-validation/tests/native-pdf-probe-driver.test.mjs tests/native-pdf-probe-driver.test.mjs
+          cp .ci-validation/scripts/ci/generate-release.mjs scripts/ci/generate-release.mjs
+          cp .ci-validation/tests/release-validation-source.test.mjs tests/release-validation-source.test.mjs
+          cp .ci-validation/scripts/ci/select-ubuntu-mirror.py scripts/ci/select-ubuntu-mirror.py
+          cp .ci-validation/tests/ubuntu-mirror.test.mjs tests/ubuntu-mirror.test.mjs
+          git diff --exit-code -- apps packages package.json package-lock.json
       - *a3
       - *a1
       - name: Build production package and runtime image
@@ -416,6 +489,32 @@ jobs:
           ref: 369f71a88bfdd9fc816b33c2b4e5becd30ff6cfa
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: xecdev/kitabcha-app
+          ref: 7a860c5dcaf550d938c1f480ac055b17a613328a
+          ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
+          persist-credentials: false
+          fetch-depth: 9
+          path: .ci-validation
+          sparse-checkout: |-
+            tests/native-pdf-probe.py
+            tests/native-pdf-probe-driver.test.mjs
+            scripts/ci/generate-release.mjs
+            tests/release-validation-source.test.mjs
+            scripts/ci/select-ubuntu-mirror.py
+            tests/ubuntu-mirror.test.mjs
+          sparse-checkout-cone-mode: false
+        name: Checkout immutable CI harness
+      - name: Install CI harness without changing application source
+        run: |-
+          cp .ci-validation/tests/native-pdf-probe.py tests/native-pdf-probe.py
+          cp .ci-validation/tests/native-pdf-probe-driver.test.mjs tests/native-pdf-probe-driver.test.mjs
+          cp .ci-validation/scripts/ci/generate-release.mjs scripts/ci/generate-release.mjs
+          cp .ci-validation/tests/release-validation-source.test.mjs tests/release-validation-source.test.mjs
+          cp .ci-validation/scripts/ci/select-ubuntu-mirror.py scripts/ci/select-ubuntu-mirror.py
+          cp .ci-validation/tests/ubuntu-mirror.test.mjs tests/ubuntu-mirror.test.mjs
+          git diff --exit-code -- apps packages package.json package-lock.json
       - name: Verify isolated PostgreSQL backup and restore
         run: |-
           set -euo pipefail
@@ -441,3 +540,5 @@ jobs:
           path: ${{ runner.temp }}/release-${{ github.job }}-diagnostic.enc
           retention-days: 2
           if-no-files-found: ignore
+    env:
+      VALIDATION_SHA: 7a860c5dcaf550d938c1f480ac055b17a613328a
