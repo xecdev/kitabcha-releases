@@ -12,9 +12,10 @@ concurrency:
   cancel-in-progress: false
 jobs:
   ios:
-    runs-on: macos-26-intel
+    runs-on: xcode-27
     timeout-minutes: 120
     env:
+      DEVELOPER_DIR: /Applications/Xcode_27.1.app/Contents/Developer
       CI: '1'
       EXPO_NO_TELEMETRY: '1'
       EAS_NO_TELEMETRY: '1'
@@ -26,6 +27,16 @@ jobs:
       - name: Require immutable source
         shell: bash
         run: '[[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]'
+      - name: Require Xcode 27 and iOS 27 SDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$(uname -m)" == arm64 ]]
+          xcodebuild -version
+          [[ "$(xcodebuild -version | head -n 1)" == 'Xcode 27.1' ]]
+          sdk_version="$(xcrun --sdk iphoneos --show-sdk-version)"
+          [[ "$sdk_version" == 27.* ]]
+          echo "Building with iOS SDK $sdk_version"
       - uses: actions/checkout@v4
         with:
           repository: xecdev/kitabcha-app
@@ -106,9 +117,10 @@ jobs:
             assert z.testzip() is None
             n=next(n for n in z.namelist() if n.startswith('Payload/') and n.endswith('/Info.plist') and n.count('/')==2)
             i=plistlib.loads(z.read(n));assert i['CFBundleIdentifier']=='com.kitabcha.app' and i['CFBundleShortVersionString']=='2.1.9' and i['CFBundleVersion']=='48'
+            assert int(i['DTXcode']) >= 2700 and i['DTSDKName'].startswith('iphoneos27.'), 'iOS 27 SDK required'
             profile=Path(os.environ['RUNNER_TEMP'])/'profile.mobileprovision';profile.write_bytes(z.read(n.rsplit('/',1)[0]+'/embedded.mobileprovision'))
             v=subprocess.run(['security','cms','-D','-i',str(profile)],capture_output=True,check=True);e=plistlib.loads(v.stdout)['Entitlements'];assert e['application-identifier']=='HQSHUAD342.com.kitabcha.app' and e['aps-environment']=='production'
-          r={'package':'com.kitabcha.app','version':'2.1.9','build':'48','source':os.environ['SOURCE_SHA'],'bytes':p.stat().st_size,'sha256':hashlib.file_digest(p.open('rb'),'sha256').hexdigest(),'productionPush':True}
+          r={'package':'com.kitabcha.app','version':'2.1.9','build':'48','source':os.environ['SOURCE_SHA'],'bytes':p.stat().st_size,'sha256':hashlib.file_digest(p.open('rb'),'sha256').hexdigest(),'productionPush':True,'xcode':i['DTXcode'],'sdk':i['DTSDKName']}
           (p.parent/'verification.json').write_text(json.dumps(r,indent=2));print(json.dumps(r))
           PY
       - uses: actions/upload-artifact@v4

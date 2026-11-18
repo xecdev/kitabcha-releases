@@ -1,0 +1,25 @@
+name: Verify public iOS toolchain
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  toolchain:
+    runs-on: xcode-27
+    timeout-minutes: 10
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_27.1.app/Contents/Developer
+    steps:
+      - name: Verify Xcode, SDK and device compilation
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$(uname -m)" == arm64 ]]
+          xcodebuild -version
+          [[ "$(xcodebuild -version | head -n 1)" == 'Xcode 27.1' ]]
+          sdk_version="$(xcrun --sdk iphoneos --show-sdk-version)"
+          [[ "$sdk_version" == 27.* ]]
+          printf 'import Foundation\npublic func toolchainProbe() -> String { UUID().uuidString }\n' > "$RUNNER_TEMP/toolchain.swift"
+          xcrun --sdk iphoneos swiftc -sdk "$(xcrun --sdk iphoneos --show-sdk-path)" -target arm64-apple-ios15.1 -emit-object "$RUNNER_TEMP/toolchain.swift" -o "$RUNNER_TEMP/toolchain.o"
+          test -s "$RUNNER_TEMP/toolchain.o"
+          echo "Verified iOS SDK $sdk_version and arm64 device compilation"
