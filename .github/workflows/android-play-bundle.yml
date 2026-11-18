@@ -25,7 +25,7 @@ jobs:
       CCACHE_COMPILERCHECK: content
       KITABCHA_BUILD_VERSION: 2.1.10
       SOURCE_SHA: ${{ inputs.source_ref }}
-      VALIDATION_SHA: f621e123221affabe8e95b07785ae76a4a5007fb
+      VALIDATION_SHA: ${{ inputs.source_ref }}
     steps:
       - name: Require immutable private source SHA
         run: '[[ "$SOURCE_SHA" =~ ^[a-f0-9]{40}$ ]]'
@@ -473,7 +473,7 @@ jobs:
       CCACHE_COMPILERCHECK: content
       KITABCHA_BUILD_VERSION: 2.1.10
       SOURCE_SHA: ${{ inputs.source_ref }}
-      VALIDATION_SHA: f621e123221affabe8e95b07785ae76a4a5007fb
+      VALIDATION_SHA: ${{ inputs.source_ref }}
     steps:
       - name: Require immutable private source SHA
         run: '[[ "$SOURCE_SHA" =~ ^[a-f0-9]{40}$ ]]'
@@ -743,7 +743,7 @@ jobs:
       CCACHE_COMPILERCHECK: content
       KITABCHA_BUILD_VERSION: 2.1.10
       SOURCE_SHA: ${{ inputs.source_ref }}
-      VALIDATION_SHA: f621e123221affabe8e95b07785ae76a4a5007fb
+      VALIDATION_SHA: ${{ inputs.source_ref }}
     steps:
       - name: Require immutable private source SHA
         run: '[[ "$SOURCE_SHA" =~ ^[a-f0-9]{40}$ ]]'
