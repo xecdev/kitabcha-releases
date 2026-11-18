@@ -25,6 +25,7 @@ jobs:
       CCACHE_COMPILERCHECK: content
       KITABCHA_BUILD_VERSION: 2.1.10
       SOURCE_SHA: ${{ inputs.source_ref }}
+      VALIDATION_SHA: f621e123221affabe8e95b07785ae76a4a5007fb
     steps:
       - name: Require immutable private source SHA
         run: '[[ "$SOURCE_SHA" =~ ^[a-f0-9]{40}$ ]]'
@@ -34,6 +35,23 @@ jobs:
           ref: ${{ inputs.source_ref }}
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
+      - name: Checkout immutable CI harness
+        uses: actions/checkout@v4
+        with:
+          repository: xecdev/kitabcha-app
+          ref: ${{ env.VALIDATION_SHA }}
+          ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
+          persist-credentials: false
+          path: .ci-validation
+          sparse-checkout: |
+            tests/native-pdf-probe.py
+            tests/native-pdf-probe-driver.test.mjs
+          sparse-checkout-cone-mode: false
+      - name: Install native probe drivers without changing application source
+        run: |
+          cp .ci-validation/tests/native-pdf-probe.py tests/native-pdf-probe.py
+          cp .ci-validation/tests/native-pdf-probe-driver.test.mjs tests/native-pdf-probe-driver.test.mjs
+          git diff --exit-code -- apps packages package.json package-lock.json
       - name: Select reachable signed Ubuntu archive
         run: >
           set -euo pipefail
@@ -176,7 +194,7 @@ jobs:
           (
 
           node --test tests/native-route-layout.test.mjs tests/screen-actions.test.mjs tests/phonebook-native.test.mjs
-          tests/back-swipe-native.test.mjs tests/native-crop-source.test.mjs tests/ios-photo-picker.test.mjs tests/native-commerce.test.mjs tests/native-file-save.test.mjs tests/report-print-pdf.test.mjs
+          tests/back-swipe-native.test.mjs tests/native-crop-source.test.mjs tests/ios-photo-picker.test.mjs tests/native-commerce.test.mjs tests/native-file-save.test.mjs tests/report-print-pdf.test.mjs tests/native-pdf-probe-driver.test.mjs
           tests/native-report-bridge.test.mjs tests/native-financial-export-query.test.mjs tests/native-number-direction.test.mjs
           tests/bahij-fonts.test.mjs tests/receipt-sharing.test.mjs tests/session-forms.test.mjs
           tests/native-signature-font.test.mjs
@@ -455,6 +473,7 @@ jobs:
       CCACHE_COMPILERCHECK: content
       KITABCHA_BUILD_VERSION: 2.1.10
       SOURCE_SHA: ${{ inputs.source_ref }}
+      VALIDATION_SHA: f621e123221affabe8e95b07785ae76a4a5007fb
     steps:
       - name: Require immutable private source SHA
         run: '[[ "$SOURCE_SHA" =~ ^[a-f0-9]{40}$ ]]'
@@ -464,6 +483,23 @@ jobs:
           ref: ${{ inputs.source_ref }}
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
+      - name: Checkout immutable CI harness
+        uses: actions/checkout@v4
+        with:
+          repository: xecdev/kitabcha-app
+          ref: ${{ env.VALIDATION_SHA }}
+          ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
+          persist-credentials: false
+          path: .ci-validation
+          sparse-checkout: |
+            tests/native-pdf-probe.py
+            tests/native-pdf-probe-driver.test.mjs
+          sparse-checkout-cone-mode: false
+      - name: Install native probe drivers without changing application source
+        run: |
+          cp .ci-validation/tests/native-pdf-probe.py tests/native-pdf-probe.py
+          cp .ci-validation/tests/native-pdf-probe-driver.test.mjs tests/native-pdf-probe-driver.test.mjs
+          git diff --exit-code -- apps packages package.json package-lock.json
       - name: Select reachable signed Ubuntu archive
         run: >
           set -euo pipefail
@@ -606,7 +642,7 @@ jobs:
           (
 
           node --test tests/native-route-layout.test.mjs tests/screen-actions.test.mjs tests/phonebook-native.test.mjs
-          tests/back-swipe-native.test.mjs tests/native-crop-source.test.mjs tests/ios-photo-picker.test.mjs tests/native-commerce.test.mjs tests/native-file-save.test.mjs tests/report-print-pdf.test.mjs
+          tests/back-swipe-native.test.mjs tests/native-crop-source.test.mjs tests/ios-photo-picker.test.mjs tests/native-commerce.test.mjs tests/native-file-save.test.mjs tests/report-print-pdf.test.mjs tests/native-pdf-probe-driver.test.mjs
           tests/native-report-bridge.test.mjs tests/native-number-direction.test.mjs tests/bahij-fonts.test.mjs
           tests/receipt-sharing.test.mjs tests/session-forms.test.mjs tests/native-signature-font.test.mjs
 
@@ -646,7 +682,7 @@ jobs:
       - name: Build isolated native PDF probe
         working-directory: apps/client/android
         run:
-          ./gradlew :app:assembleRelease --no-daemon --build-cache --max-workers=2 -PreactNativeArchitectures=x86_64 >
+          ./gradlew :app:assembleRelease --no-daemon --build-cache --max-workers=2 -PreactNativeArchitectures=x86_64 -Dorg.gradle.jvmargs="-Xmx3072m -XX:MaxMetaspaceSize=768m -XX:ReservedCodeCacheSize=256m" >
           "$RUNNER_TEMP/probe-build.log" 2>&1
       - name: Enable Android emulator acceleration
         run: |
@@ -707,6 +743,7 @@ jobs:
       CCACHE_COMPILERCHECK: content
       KITABCHA_BUILD_VERSION: 2.1.10
       SOURCE_SHA: ${{ inputs.source_ref }}
+      VALIDATION_SHA: f621e123221affabe8e95b07785ae76a4a5007fb
     steps:
       - name: Require immutable private source SHA
         run: '[[ "$SOURCE_SHA" =~ ^[a-f0-9]{40}$ ]]'
@@ -716,6 +753,23 @@ jobs:
           ref: ${{ inputs.source_ref }}
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
+      - name: Checkout immutable CI harness
+        uses: actions/checkout@v4
+        with:
+          repository: xecdev/kitabcha-app
+          ref: ${{ env.VALIDATION_SHA }}
+          ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
+          persist-credentials: false
+          path: .ci-validation
+          sparse-checkout: |
+            tests/native-pdf-probe.py
+            tests/native-pdf-probe-driver.test.mjs
+          sparse-checkout-cone-mode: false
+      - name: Install native probe drivers without changing application source
+        run: |
+          cp .ci-validation/tests/native-pdf-probe.py tests/native-pdf-probe.py
+          cp .ci-validation/tests/native-pdf-probe-driver.test.mjs tests/native-pdf-probe-driver.test.mjs
+          git diff --exit-code -- apps packages package.json package-lock.json
       - name: Select reachable signed Ubuntu archive
         run: >
           set -euo pipefail
@@ -858,7 +912,7 @@ jobs:
           (
 
           node --test tests/native-route-layout.test.mjs tests/screen-actions.test.mjs tests/phonebook-native.test.mjs
-          tests/back-swipe-native.test.mjs tests/native-crop-source.test.mjs tests/ios-photo-picker.test.mjs tests/native-commerce.test.mjs tests/native-file-save.test.mjs tests/report-print-pdf.test.mjs
+          tests/back-swipe-native.test.mjs tests/native-crop-source.test.mjs tests/ios-photo-picker.test.mjs tests/native-commerce.test.mjs tests/native-file-save.test.mjs tests/report-print-pdf.test.mjs tests/native-pdf-probe-driver.test.mjs
           tests/native-report-bridge.test.mjs tests/native-number-direction.test.mjs tests/bahij-fonts.test.mjs
           tests/receipt-sharing.test.mjs tests/session-forms.test.mjs tests/native-signature-font.test.mjs
 
@@ -898,7 +952,7 @@ jobs:
       - name: Build isolated native phonebook probe
         working-directory: apps/client/android
         run:
-          ./gradlew :app:assembleRelease --no-daemon --build-cache --max-workers=2 -PreactNativeArchitectures=x86_64 >
+          ./gradlew :app:assembleRelease --no-daemon --build-cache --max-workers=2 -PreactNativeArchitectures=x86_64 -Dorg.gradle.jvmargs="-Xmx3072m -XX:MaxMetaspaceSize=768m -XX:ReservedCodeCacheSize=256m" >
           "$RUNNER_TEMP/phonebook-probe-build.log" 2>&1
       - name: Enable Android emulator acceleration
         run: |
