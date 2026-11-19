@@ -23,7 +23,7 @@ jobs:
       CCACHE_BASEDIR: ${{ github.workspace }}
       CCACHE_MAXSIZE: 2G
       CCACHE_COMPILERCHECK: content
-      KITABCHA_BUILD_VERSION: 2.1.11
+      KITABCHA_BUILD_VERSION: 2.1.12
       SOURCE_SHA: ${{ inputs.source_ref }}
       VALIDATION_SHA: ${{ inputs.source_ref }}
     steps:
@@ -432,7 +432,7 @@ jobs:
       CCACHE_BASEDIR: ${{ github.workspace }}
       CCACHE_MAXSIZE: 2G
       CCACHE_COMPILERCHECK: content
-      KITABCHA_BUILD_VERSION: 2.1.11
+      KITABCHA_BUILD_VERSION: 2.1.12
       SOURCE_SHA: ${{ inputs.source_ref }}
       VALIDATION_SHA: ${{ inputs.source_ref }}
     steps:
@@ -576,7 +576,9 @@ jobs:
           node --test tests/native-barcode-scanner.test.mjs tests/native-barcode-camera.test.mjs tests/android-release.test.mjs
           tests/native-receipt-build.test.mjs > "$RUNNER_TEMP/native-scanner.log" 2>&1
       - name: Install isolated synthetic report screen
-        run: cp tests/native-pdf-probe-layout.txt apps/client/app/_layout.tsx
+        run: |
+          node tests/report-print-photo-fixture.mjs --native
+          cp tests/native-pdf-probe-layout.txt apps/client/app/_layout.tsx
       - name: Generate Android project
         working-directory: apps/client
         run: |
@@ -663,7 +665,7 @@ jobs:
       CCACHE_BASEDIR: ${{ github.workspace }}
       CCACHE_MAXSIZE: 2G
       CCACHE_COMPILERCHECK: content
-      KITABCHA_BUILD_VERSION: 2.1.11
+      KITABCHA_BUILD_VERSION: 2.1.12
       SOURCE_SHA: ${{ inputs.source_ref }}
       VALIDATION_SHA: ${{ inputs.source_ref }}
     steps:
