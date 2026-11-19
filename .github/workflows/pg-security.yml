@@ -48,9 +48,82 @@ jobs:
           docker exec "$db" psql -X -U kitabcha -d kitabcha -Atc "SELECT count(*) FROM information_schema.tables WHERE table_schema='public' AND table_type='BASE TABLE';"
           df -Pk /opt/kitabcha
           curl -fsS --max-time 20 https://app.kitabcha.app/health
-          if [[ "$mode" != inventory ]]; then echo 'Patch not implemented'; exit 1; fi
+          if [[ "$mode" == inventory ]]; then exit 0; fi
+          [[ "$mode" == patch ]]
+          version=$(docker exec "$db" psql -X -U kitabcha -d kitabcha -Atc 'SHOW server_version_num')
+          [[ "$version" -ge 170000 && "$version" -lt 180000 ]]
+          if [[ "$version" -ge 170012 ]]; then echo ALREADY_PATCHED; exit 0; fi
+          test "$(df --output=avail -k /opt/kitabcha | tail -1)" -gt 5000000
+          test "$(docker inspect --format '{{range .Mounts}}{{if eq .Destination "/var/lib/postgresql/data"}}{{.Name}}{{end}}{{end}}' "$db")" = kitabcha_postgres
+          cd /opt/kitabcha/app/deploy
+          compose=(docker compose --project-name kitabcha --env-file /opt/kitabcha/shared/.env -f compose.hostinger.yml)
+          "${compose[@]}" config --quiet
+          "${compose[@]}" config --format json | python3 -c 'import json,sys; assert json.load(sys.stdin)["services"]["db"]["image"] == "postgres:17-alpine"'
+          old=$(docker inspect --format '{{.Image}}' "$db")
+          docker image tag "$old" kitabcha-postgres-security-rollback:20261119
+          docker pull postgres:17.12-alpine
+          target=$(docker image inspect --format '{{.Id}}' postgres:17.12-alpine)
+          docker run --rm --network none --entrypoint postgres "$target" --version
+          restore="kitabcha-pg-security-restore-$(date -u +%s)"
+          backup="/opt/kitabcha/shared/backups/kitabcha-pg-security-$(date -u +%Y%m%dT%H%M%SZ)"
+          sudo -n mkdir -m 700 "$backup"
+          switched=0
+          paused=0
+          finished=0
+          cleanup() {
+            code=$?
+            trap - EXIT
+            docker rm -f "$restore" >/dev/null 2>&1 || true
+            if [[ "$finished" == 0 && "$switched" == 1 ]]; then
+              docker tag "$old" postgres:17-alpine
+              "${compose[@]}" up -d --no-deps --force-recreate --wait --wait-timeout 120 db || true
+            fi
+            if [[ "$paused" == 1 ]]; then docker start kitabcha-api-1 kitabcha-web-1 >/dev/null || true; fi
+            exit "$code"
+          }
+          trap cleanup EXIT
+          # Freeze application writes so restored and live data can be compared exactly.
+          paused=1
+          docker stop --time 60 kitabcha-web-1 kitabcha-api-1 >/dev/null
+          docker exec "$db" pg_dump -U kitabcha -d kitabcha -Fc | sudo -n tee "$backup/database.dump" >/dev/null
+          docker exec "$db" pg_dumpall -U kitabcha --globals-only | sudo -n tee "$backup/globals.sql" >/dev/null
+          sudo -n chmod 600 "$backup/database.dump" "$backup/globals.sql"
+          sudo -n sh -c 'docker exec -i kitabcha-db-1 pg_restore --list < "$1" >/dev/null' sh "$backup/database.dump"
+          fingerprint() {
+            docker exec -i "$1" psql -X -q -v ON_ERROR_STOP=1 -U kitabcha -d kitabcha -At <<'SQL'
+          SELECT format('SELECT %L, count(*), md5(coalesce(string_agg(h, '''' ORDER BY h), '''')) FROM (SELECT md5(row_to_json(t)::text) h FROM %I.%I t) q;', schemaname || '.' || tablename, schemaname, tablename) FROM pg_tables WHERE schemaname='public' ORDER BY tablename;
+          \gexec
+          SELECT schemaname, sequencename, last_value FROM pg_sequences WHERE schemaname='public' ORDER BY sequencename;
+          SQL
+          }
+          fingerprint "$db" | sudo -n tee "$backup/before.fingerprint" >/dev/null
+          docker run -d --name "$restore" --network none --memory=4g --tmpfs /var/lib/postgresql/data:rw,size=3g -e POSTGRES_HOST_AUTH_METHOD=trust -e POSTGRES_USER=kitabcha -e POSTGRES_DB=kitabcha "$target" >/dev/null
+          for i in {1..60}; do if docker exec "$restore" pg_isready -U kitabcha -d kitabcha >/dev/null 2>&1; then break; fi; sleep 2; done
+          sudo -n cat "$backup/database.dump" | docker exec -i "$restore" pg_restore --exit-on-error --no-owner --no-privileges -U kitabcha -d kitabcha
+          fingerprint "$restore" | sudo -n tee "$backup/restored.fingerprint" >/dev/null
+          sudo -n cmp "$backup/before.fingerprint" "$backup/restored.fingerprint"
+          echo BACKUP_FULL_RESTORE_AND_ALL_TABLE_DATA_VERIFIED
+          sudo -n sha256sum "$backup/database.dump"
+          docker rm -f "$restore" >/dev/null
+          docker tag "$target" postgres:17-alpine
+          switched=1
+          "${compose[@]}" up -d --no-deps --force-recreate --wait --wait-timeout 120 db
+          test "$(docker exec "$db" psql -X -U kitabcha -d kitabcha -Atc 'SHOW server_version_num')" = 170012
+          test "$(docker inspect --format '{{range .Mounts}}{{if eq .Destination "/var/lib/postgresql/data"}}{{.Name}}{{end}}{{end}}' "$db")" = kitabcha_postgres
+          fingerprint "$db" | sudo -n tee "$backup/after.fingerprint" >/dev/null
+          sudo -n cmp "$backup/before.fingerprint" "$backup/after.fingerprint"
+          echo PRODUCTION_ALL_TABLE_DATA_AND_SEQUENCES_UNCHANGED
+          docker start kitabcha-api-1 kitabcha-web-1 >/dev/null
+          for i in {1..60}; do if curl -fsS --max-time 5 https://app.kitabcha.app/health >/dev/null 2>&1; then break; fi; sleep 2; done
+          for i in {1..30}; do if [[ "$(docker inspect --format '{{.State.Health.Status}}' kitabcha-api-1)" == healthy ]]; then break; fi; sleep 2; done
+          curl -fsS --max-time 20 https://app.kitabcha.app/health
+          curl -fsS --max-time 20 -o /dev/null https://app.kitabcha.app/api/v1/auth/options
+          test "$(docker inspect --format '{{.State.Health.Status}}' kitabcha-api-1)" = healthy
+          docker exec "$db" psql -X -U kitabcha -d kitabcha -Atc 'SHOW server_version;'
+          finished=1
+          echo POSTGRES_SECURITY_PATCH_VERIFIED
           SECURITY_SCRIPT
-          printf '%s\n' '#!/bin/bash' 'set -Eeuo pipefail' 'bash "$(dirname "$0")/security.sh" inventory' > "$RUNNER_TEMP/probe/deploy/release.sh"
+          printf '%s\n' '#!/bin/bash' 'set -Eeuo pipefail' 'bash "$(dirname "$0")/security.sh" patch' > "$RUNNER_TEMP/probe/deploy/release.sh"
           tar -czf "$RUNNER_TEMP/probe.tar.gz" -C "$RUNNER_TEMP/probe" .
           sum=$(sha256sum "$RUNNER_TEMP/probe.tar.gz" | cut -d' ' -f1)
           ssh -T -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=20 -o ServerAliveInterval=15 deploy@"$VPS_HOST" "v0.0.$GITHUB_RUN_ID $SOURCE_SHA $sum" < "$RUNNER_TEMP/probe.tar.gz" > "$RUNNER_TEMP/aggregate.json" 2> "$RUNNER_TEMP/probe-error.log"
