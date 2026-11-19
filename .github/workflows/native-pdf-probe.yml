@@ -1,4 +1,4 @@
-name: Isolated native PDF reproduction
+name: Native Print preview validation only
 on:
   workflow_dispatch:
     inputs:
@@ -8,10 +8,10 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: native-pdf-reproduction
+  group: native-print-preview
   cancel-in-progress: false
 jobs:
-  android:
+  native_pdf:
     runs-on: ubuntu-latest
     timeout-minutes: 120
     env:
@@ -22,8 +22,9 @@ jobs:
       CCACHE_BASEDIR: ${{ github.workspace }}
       CCACHE_MAXSIZE: 2G
       CCACHE_COMPILERCHECK: content
-      KITABCHA_BUILD_VERSION: 2.0.121
+      KITABCHA_BUILD_VERSION: 2.1.10
       SOURCE_SHA: ${{ inputs.source_ref }}
+      VALIDATION_SHA: ${{ inputs.source_ref }}
     steps:
       - name: Require immutable private source SHA
         run: '[[ "$SOURCE_SHA" =~ ^[a-f0-9]{40}$ ]]'
@@ -33,6 +34,33 @@ jobs:
           ref: ${{ inputs.source_ref }}
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
+      - name: Checkout immutable CI harness
+        uses: actions/checkout@v4
+        with:
+          repository: xecdev/kitabcha-app
+          ref: ${{ env.VALIDATION_SHA }}
+          ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
+          persist-credentials: false
+          path: .ci-validation
+          sparse-checkout: |
+            tests/native-pdf-probe.py
+            tests/native-pdf-probe-driver.test.mjs
+            scripts/ci/select-ubuntu-mirror.py
+          sparse-checkout-cone-mode: false
+      - name: Install native probe drivers without changing application source
+        run: >
+          cp .ci-validation/tests/native-pdf-probe.py tests/native-pdf-probe.py
+
+          cp .ci-validation/tests/native-pdf-probe-driver.test.mjs
+          tests/native-pdf-probe-driver.test.mjs
+
+          cp .ci-validation/scripts/ci/select-ubuntu-mirror.py
+          scripts/ci/select-ubuntu-mirror.py
+
+          git diff --exit-code -- apps packages package.json package-lock.json
+      - name: Select reachable signed Ubuntu archive
+        run: sudo --preserve-env=GITHUB_ACTIONS python3
+          scripts/ci/select-ubuntu-mirror.py "$RUNNER_TEMP"
       - name: Read app version
         id: version
         run: |
@@ -66,7 +94,7 @@ jobs:
           path: .ccache
           key: android-ccache-v1-${{ runner.os }}-${{ hashFiles('package-lock.json',
             'apps/client/plugins/**', 'apps/client/modules/**') }}-${{
-            github.run_id }}-${{ github.run_attempt }}
+            github.run_id }}-${{ github.run_attempt }}-pdf-probe
           restore-keys: >
             android-ccache-v1-${{ runner.os }}-${{
             hashFiles('package-lock.json', 'apps/client/plugins/**',
@@ -74,9 +102,15 @@ jobs:
 
             android-ccache-v1-${{ runner.os }}-
       - name: Install native compiler cache
-        run: |
+        run: >
+          printf '%s\n' 'Acquire::ForceIPv4 "true";' 'Acquire::Retries "3";'
+          'Acquire::http::Timeout "30";' 'Acquire::https::Timeout "30";' | sudo
+          tee /etc/apt/apt.conf.d/80kitabcha-network >/dev/null
+
           sudo apt-get update -qq
+
           sudo apt-get install --no-install-recommends -y ccache
+
           ccache --zero-stats
       - name: Install Android SDK components
         run: >
@@ -102,7 +136,7 @@ jobs:
         run: |
           set -euo pipefail
           (
-          node --import tsx --test tests/home-swipe.test.ts tests/localization.test.ts
+          node --import tsx --test tests/home-swipe.test.ts tests/back-swipe.test.ts tests/mobile-back.test.ts tests/phonebook-contact.test.ts tests/localization.test.ts tests/name-input.test.ts
           ) > "$RUNNER_TEMP/android-check-home-swipe-behavior-and-login-translations.log" 2>&1
           echo "Check Home swipe behavior and login translations passed."
       - name: Verify native notification destinations
@@ -113,7 +147,7 @@ jobs:
         run: |
           set -euo pipefail
           (
-          node --test tests/native-commerce.test.mjs tests/native-file-save.test.mjs tests/native-report-bridge.test.mjs tests/native-number-direction.test.mjs tests/bahij-fonts.test.mjs tests/receipt-sharing.test.mjs tests/session-forms.test.mjs
+          node --test tests/native-route-layout.test.mjs tests/screen-actions.test.mjs tests/phonebook-native.test.mjs tests/back-swipe-native.test.mjs tests/native-crop-source.test.mjs tests/ios-photo-picker.test.mjs tests/native-commerce.test.mjs tests/native-file-save.test.mjs tests/report-print-pdf.test.mjs tests/native-activity.test.mjs tests/session-recovery.test.mjs tests/native-pdf-probe-driver.test.mjs tests/native-report-bridge.test.mjs tests/native-number-direction.test.mjs tests/bahij-fonts.test.mjs tests/receipt-sharing.test.mjs tests/session-forms.test.mjs tests/native-signature-font.test.mjs
           ) > "$RUNNER_TEMP/android-verify-native-commerce-file-and-draft-adapters.log" 2>&1
           echo "Verify native commerce file and draft adapters passed."
       - name: Verify native scanner adapter
@@ -143,7 +177,7 @@ jobs:
             apps/client/android/app/build/intermediates/cxx
           key: android-native-v1-${{ runner.os }}-${{ steps.version.outputs.native }}-${{
             hashFiles('package-lock.json', 'apps/client/plugins/**',
-            'apps/client/modules/**') }}-${{ github.run_id }}
+            'apps/client/modules/**') }}-${{ github.run_id }}-pdf-probe
           restore-keys: >
             android-native-v1-${{ runner.os }}-${{ steps.version.outputs.native
             }}-${{ hashFiles('package-lock.json', 'apps/client/plugins/**',
@@ -151,8 +185,9 @@ jobs:
       - name: Build isolated native PDF probe
         working-directory: apps/client/android
         run: ./gradlew :app:assembleRelease --no-daemon --build-cache --max-workers=2
-          -PreactNativeArchitectures=x86_64 > "$RUNNER_TEMP/probe-build.log"
-          2>&1
+          -PreactNativeArchitectures=x86_64 -Dorg.gradle.jvmargs="-Xmx3072m
+          -XX:MaxMetaspaceSize=768m -XX:ReservedCodeCacheSize=256m" >
+          "$RUNNER_TEMP/probe-build.log" 2>&1
       - name: Enable Android emulator acceleration
         run: >
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666",
@@ -174,3 +209,33 @@ jobs:
           emulator-boot-timeout: 180
           disable-animations: true
           script: python3 tests/native-pdf-probe.py
+      - name: Encrypt native validation evidence
+        if: always()
+        env:
+          DIAGNOSTIC_PUBLIC_KEY: |
+            -----BEGIN PUBLIC KEY-----
+            MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAtg3UeD8IE9A0fOZ1Oaal
+            1pSoJkxstU4Nmi6qZ0qFRkgn5j9Hzm34TqjwEQVRCbujBSipjcdctR6rxToAbk8N
+            WhaofmJnVgh8hCUytqi6JTNA2d11Ej/mIgPLwX0dgLdh4yPJsPotHSmolv+4rdcL
+            PajxEksQbpaHPqwrkAk6UXhKCxn3dbVeOBNQ/CkIEA+uVF6RvQq8QQU+LN3tqPZg
+            pGkJRY5M/ZnAnqe5FTd8M8SkWLbOd/dlu/ffWzZzsyr+bw6DR+PMSR6dE2thjLh+
+            AHG0RBX+sSqTA1o6fSMRIn+/Pk3BwvTrPiDVKE5LzSRHzonkcGOXBOFVQkgaBT/w
+            kwIDAQAB
+            -----END PUBLIC KEY-----
+          JOB_RESULT: ${{ job.status }}
+        shell: bash
+        run: |
+          node --input-type=module <<'JS'
+          import fs from 'node:fs';import{randomBytes,createCipheriv,publicEncrypt,constants}from'node:crypto';
+          const names=fs.readdirSync(process.env.RUNNER_TEMP).filter(n=>process.env.JOB_RESULT==='success'?n==='native-pdf-preview.log':/^(android-|native-|optimized-|phonebook-|probe-).*\.log$/.test(n));if(!names.length)process.exit(0);const rawLogs=Object.fromEntries(names.map(n=>[n,fs.readFileSync(process.env.RUNNER_TEMP+'/'+n,'utf8')]));
+          const raw=Buffer.from(JSON.stringify(rawLogs)),key=randomBytes(32),iv=randomBytes(12),cipher=createCipheriv('aes-256-gcm',key,iv),data=Buffer.concat([cipher.update(raw),cipher.final()]);
+          const wrapped=publicEncrypt({key:process.env.DIAGNOSTIC_PUBLIC_KEY,oaepHash:'sha256',padding:constants.RSA_PKCS1_OAEP_PADDING},key);
+          fs.writeFileSync(process.env.RUNNER_TEMP+'/android-diagnostic.enc.json',JSON.stringify({key:wrapped.toString('base64'),iv:iv.toString('base64'),tag:cipher.getAuthTag().toString('base64'),data:data.toString('base64')}));
+          JS
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: encrypted-native-print-preview
+          path: ${{ runner.temp }}/android-diagnostic.enc.json
+          retention-days: 2
+    name: Native crop, Expenses PDF and Balance list Print preview
