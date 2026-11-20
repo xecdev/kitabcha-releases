@@ -10,7 +10,7 @@ jobs:
     env:
       DEVELOPER_DIR: /Applications/Xcode_27.1.app/Contents/Developer
       CI: "1"
-      SOURCE_SHA: fa925f6baa1c4b4fc9c521951ccb420e0120d06c
+      SOURCE_SHA: ab69f852b930d1601330b68725968e7d422d2a14
     steps:
       - name: Require Xcode 27 and iOS 27 SDK
         shell: bash
@@ -25,7 +25,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: xecdev/kitabcha-app
-          ref: fa925f6baa1c4b4fc9c521951ccb420e0120d06c
+          ref: ab69f852b930d1601330b68725968e7d422d2a14
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
           fetch-depth: 9
@@ -63,7 +63,7 @@ jobs:
           node --input-type=module <<'JS'
           import fs from 'node:fs';import{randomBytes,createCipheriv,publicEncrypt,constants}from'node:crypto';
           const root=process.env.RUNNER_TEMP,files={};
-          for(const p of [root+'/private-ios-build.log',root+'/private-ios-selftest.log',...fs.existsSync(root+'/new-probe/evidence')?fs.readdirSync(root+'/new-probe/evidence').map(n=>root+'/new-probe/evidence/'+n):[],...fs.existsSync(root+'/new-probe/evidence')?fs.readdirSync(root+'/new-probe/evidence').map(n=>root+'/new-probe/evidence/'+n):[],...fs.existsSync(root+'/ios-launch-evidence')?fs.readdirSync(root+'/ios-launch-evidence').map(n=>root+'/ios-launch-evidence/'+n):[]])if(fs.existsSync(p)&&fs.statSync(p).isFile())files[p.split('/').at(-1)]=fs.readFileSync(p).toString('base64');
+          for(const p of [root+'/private-ios-build.log',root+'/private-ios-selftest.log',...fs.existsSync(root+'/new-probe/evidence')?fs.readdirSync(root+'/new-probe/evidence').map(n=>root+'/new-probe/evidence/'+n):[],...fs.existsSync(root+'/new-probe/evidence')?fs.readdirSync(root+'/new-probe/evidence').map(n=>root+'/new-probe/evidence/'+n):[],...fs.existsSync(root+'/new-probe/evidence')?fs.readdirSync(root+'/new-probe/evidence').map(n=>root+'/new-probe/evidence/'+n):[],...fs.existsSync(root+'/ios-launch-evidence')?fs.readdirSync(root+'/ios-launch-evidence').map(n=>root+'/ios-launch-evidence/'+n):[]])if(fs.existsSync(p)&&fs.statSync(p).isFile())files[p.split('/').at(-1)]=fs.readFileSync(p).toString('base64');
           const key=randomBytes(32),iv=randomBytes(12),cipher=createCipheriv('aes-256-gcm',key,iv),data=Buffer.concat([cipher.update(JSON.stringify(files)),cipher.final()]);
           const wrapped=publicEncrypt({key:process.env.DIAGNOSTIC_PUBLIC_KEY,oaepHash:'sha256',padding:constants.RSA_PKCS1_OAEP_PADDING},key);
           fs.writeFileSync(root+'/ios-launch.enc.json',JSON.stringify({key:wrapped.toString('base64'),iv:iv.toString('base64'),tag:cipher.getAuthTag().toString('base64'),data:data.toString('base64')}));
