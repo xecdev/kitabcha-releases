@@ -1,4 +1,4 @@
-name: Diagnose exact payment mode save three times without release
+name: Diagnose focused keyboard payment save three times without release
 on:
   workflow_dispatch: {}
 permissions:
@@ -15,7 +15,7 @@ jobs:
           - record-payment-mode record-payment-mode record-payment-mode
     env:
       CI: "1"
-      SOURCE_SHA: fa925f6baa1c4b4fc9c521951ccb420e0120d06c
+      SOURCE_SHA: cb8083926607c70e478ad595d5221215296c78fa
       KITABCHA_BUILD_VERSION: v3.8.23
       EXPO_PUBLIC_API_URL: http://localhost:3001
       SPECS: ${{ matrix.specs }}
@@ -24,7 +24,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: xecdev/kitabcha-app
-          ref: fa925f6baa1c4b4fc9c521951ccb420e0120d06c
+          ref: cb8083926607c70e478ad595d5221215296c78fa
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
           fetch-depth: 9
