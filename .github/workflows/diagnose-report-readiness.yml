@@ -15,7 +15,7 @@ jobs:
           - people-activity report-attachments people-activity report-attachments people-activity report-attachments
     env:
       CI: "1"
-      SOURCE_SHA: 5730d0e560b718ce3df7902266ea163b0708769a
+      SOURCE_SHA: f5c0fef26f6d8d205983fe06292e36b49f78febe
       KITABCHA_BUILD_VERSION: v3.8.23
       EXPO_PUBLIC_API_URL: http://localhost:3001
       SPECS: ${{ matrix.specs }}
@@ -24,7 +24,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: xecdev/kitabcha-app
-          ref: 5730d0e560b718ce3df7902266ea163b0708769a
+          ref: f5c0fef26f6d8d205983fe06292e36b49f78febe
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
           fetch-depth: 9
