@@ -16,10 +16,10 @@ jobs:
     timeout-minutes: 120
     env:
       DEVELOPER_DIR: /Applications/Xcode_27.1.app/Contents/Developer
-      CI: '1'
-      EXPO_NO_TELEMETRY: '1'
-      EAS_NO_TELEMETRY: '1'
-      EAS_SKIP_AUTO_FINGERPRINT: '1'
+      CI: "1"
+      EXPO_NO_TELEMETRY: "1"
+      EAS_NO_TELEMETRY: "1"
+      EAS_SKIP_AUTO_FINGERPRINT: "1"
       EXPO_PUBLIC_API_URL: https://app.kitabcha.app
       KITABCHA_BUILD_VERSION: 2.1.12
       SOURCE_SHA: ${{ inputs.source_ref }}
@@ -56,29 +56,14 @@ jobs:
           npm install --global eas-cli@26.0.0 > "$RUNNER_TEMP/eas-install.log" 2>&1
       - name: Validate iOS calendar, types and regressions
         shell: bash
-        run: >
+        run: |
           set -euo pipefail
-
           npm run db:generate > "$RUNNER_TEMP/private-calendar-validation.log" 2>&1
-
           npm run typecheck >> "$RUNNER_TEMP/private-calendar-validation.log" 2>&1
-
           npm run lint >> "$RUNNER_TEMP/private-calendar-validation.log" 2>&1
-
-          node --import tsx --test tests/name-input.test.ts tests/back-swipe.test.ts tests/mobile-back.test.ts
-          tests/phonebook-contact.test.ts tests/date-calendar.test.ts tests/scroll-position.test.ts tests/date-range.test.ts
-          tests/entry-due-date.test.ts tests/bill-draft-date.test.ts >> "$RUNNER_TEMP/private-calendar-validation.log" 2>&1
-
-          node --test tests/native-route-layout.test.mjs tests/native-crop-source.test.mjs tests/ios-photo-picker.test.mjs tests/screen-actions.test.mjs tests/receipt-sharing.test.mjs
-          tests/back-swipe-native.test.mjs tests/phonebook-native.test.mjs tests/ios-date-field.test.mjs
-          tests/calendar-navigation-button.test.mjs tests/session-recovery.test.mjs tests/ledger-command-confirmation.test.mjs
-          tests/native-receipt-build.test.mjs tests/native-file-save.test.mjs tests/report-print-pdf.test.mjs tests/native-activity.test.mjs tests/native-signature-font.test.mjs
-          tests/native-report-bridge.test.mjs tests/native-financial-export-query.test.mjs tests/native-number-direction.test.mjs
-          >> "$RUNNER_TEMP/private-calendar-validation.log" 2>&1
-
-          node --import tsx --test tests/report-frame.test.ts tests/multi-currency-reports.test.ts
-          tests/contact-report-format.test.ts tests/report-portrait.test.ts >> "$RUNNER_TEMP/private-calendar-validation.log" 2>&1
-
+          node --import tsx --test tests/name-input.test.ts tests/back-swipe.test.ts tests/mobile-back.test.ts tests/phonebook-contact.test.ts tests/date-calendar.test.ts tests/scroll-position.test.ts tests/date-range.test.ts tests/entry-due-date.test.ts tests/bill-draft-date.test.ts >> "$RUNNER_TEMP/private-calendar-validation.log" 2>&1
+          node --test tests/native-route-layout.test.mjs tests/native-crop-source.test.mjs tests/ios-photo-picker.test.mjs tests/screen-actions.test.mjs tests/receipt-sharing.test.mjs tests/back-swipe-native.test.mjs tests/phonebook-native.test.mjs tests/ios-date-field.test.mjs tests/ios-scene-startup.test.mjs tests/calendar-navigation-button.test.mjs tests/session-recovery.test.mjs tests/ledger-command-confirmation.test.mjs tests/native-receipt-build.test.mjs tests/native-file-save.test.mjs tests/report-print-pdf.test.mjs tests/native-activity.test.mjs tests/native-signature-font.test.mjs tests/native-report-bridge.test.mjs tests/native-financial-export-query.test.mjs tests/native-number-direction.test.mjs >> "$RUNNER_TEMP/private-calendar-validation.log" 2>&1
+          node --import tsx --test tests/report-frame.test.ts tests/multi-currency-reports.test.ts tests/contact-report-format.test.ts tests/report-portrait.test.ts >> "$RUNNER_TEMP/private-calendar-validation.log" 2>&1
           echo 'iOS calendar, language, due-date and date-range regressions passed.'
       - name: Restore existing signing and Expo session
         env:
@@ -98,11 +83,9 @@ jobs:
         env:
           EAS_LOCAL_BUILD_WORKINGDIR: ${{ runner.temp }}/eas-local
         shell: bash
-        run: >
+        run: |
           mkdir -p "$RUNNER_TEMP/ios-release"
-
-          if ! eas build --platform ios --profile production --local --non-interactive --freeze-credentials --output
-          "$RUNNER_TEMP/ios-release/Kitabcha-2.1.12-51.ipa" > "$RUNNER_TEMP/private-ios-build.log" 2>&1; then
+          if ! eas build --platform ios --profile production --local --non-interactive --freeze-credentials --output "$RUNNER_TEMP/ios-release/Kitabcha-2.1.12-51.ipa" > "$RUNNER_TEMP/private-ios-build.log" 2>&1; then
             echo 'iOS local build failed. Raw private build output is not published.'
             exit 1
           fi
@@ -117,10 +100,11 @@ jobs:
             assert z.testzip() is None
             n=next(n for n in z.namelist() if n.startswith('Payload/') and n.endswith('/Info.plist') and n.count('/')==2)
             i=plistlib.loads(z.read(n));assert i['CFBundleIdentifier']=='com.kitabcha.app' and i['CFBundleShortVersionString']=='2.1.12' and i['CFBundleVersion']=='51'
+            scene=i.get('UIApplicationSceneManifest',{});assert scene.get('UIApplicationSupportsMultipleScenes') is False and any(c.get('UISceneDelegateClassName')=='EXExpoAppSceneDelegate' for c in scene.get('UISceneConfigurations',{}).get('UIWindowSceneSessionRoleApplication',[])), 'Required iOS scene lifecycle missing'
             assert int(i['DTXcode']) >= 2700 and i['DTSDKName'].startswith('iphoneos27.'), 'iOS 27 SDK required'
             profile=Path(os.environ['RUNNER_TEMP'])/'profile.mobileprovision';profile.write_bytes(z.read(n.rsplit('/',1)[0]+'/embedded.mobileprovision'))
             v=subprocess.run(['security','cms','-D','-i',str(profile)],capture_output=True,check=True);e=plistlib.loads(v.stdout)['Entitlements'];assert e['application-identifier']=='HQSHUAD342.com.kitabcha.app' and e['aps-environment']=='production'
-          r={'package':'com.kitabcha.app','version':'2.1.12','build':'51','source':os.environ['SOURCE_SHA'],'bytes':p.stat().st_size,'sha256':hashlib.file_digest(p.open('rb'),'sha256').hexdigest(),'productionPush':True,'xcode':i['DTXcode'],'sdk':i['DTSDKName']}
+          r={'package':'com.kitabcha.app','version':'2.1.12','build':'51','source':os.environ['SOURCE_SHA'],'bytes':p.stat().st_size,'sha256':hashlib.file_digest(p.open('rb'),'sha256').hexdigest(),'sceneLifecycle':True,'productionPush':True,'xcode':i['DTXcode'],'sdk':i['DTSDKName']}
           (p.parent/'verification.json').write_text(json.dumps(r,indent=2));print(json.dumps(r))
           PY
       - uses: actions/upload-artifact@v4
@@ -159,8 +143,102 @@ jobs:
       - name: Remove signing material and private logs
         if: always()
         shell: bash
-        run: >
-          rm -f apps/client/credentials.json apps/client/.credentials/distribution.p12
-          apps/client/.credentials/production.mobileprovision "$HOME/.expo/state.json"
-
+        run: |
+          rm -f apps/client/credentials.json apps/client/.credentials/distribution.p12 apps/client/.credentials/production.mobileprovision "$HOME/.expo/state.json"
           rm -f "$RUNNER_TEMP/private-install.log" "$RUNNER_TEMP/private-ios-build.log"
+  ios-launch:
+    runs-on: xcode-27
+    timeout-minutes: 120
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_27.1.app/Contents/Developer
+      CI: "1"
+      EXPO_NO_TELEMETRY: "1"
+      EAS_NO_TELEMETRY: "1"
+      EAS_SKIP_AUTO_FINGERPRINT: "1"
+      EXPO_PUBLIC_API_URL: https://app.kitabcha.app
+      KITABCHA_BUILD_VERSION: 2.1.12
+      SOURCE_SHA: ${{ inputs.source_ref }}
+    steps:
+      - name: Require immutable source
+        shell: bash
+        run: '[[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]'
+      - name: Require Xcode 27 and iOS 27 SDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$(uname -m)" == arm64 ]]
+          xcodebuild -version
+          [[ "$(xcodebuild -version | head -n 1)" == 'Xcode 27.1' ]]
+          sdk_version="$(xcrun --sdk iphoneos --show-sdk-version)"
+          [[ "$sdk_version" == 27.* ]]
+          echo "Building with iOS SDK $sdk_version"
+      - uses: actions/checkout@v4
+        with:
+          repository: xecdev/kitabcha-app
+          ref: ${{ inputs.source_ref }}
+          ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.22.1
+          cache: npm
+      - name: Install private dependencies
+        shell: bash
+        run: npm ci --include=dev --no-audit --no-fund > "$RUNNER_TEMP/private-ios-build.log" 2>&1
+      - name: Build and launch actual Release app on iOS 27
+        shell: bash
+        run: |-
+          set -euo pipefail
+          {
+            cd apps/client
+            npm run eas-build-post-install
+            npx expo prebuild --platform ios --no-install
+            python3 - <<'PY'
+          from pathlib import Path
+          s=Path('ios/Kitabcha/AppDelegate.swift').read_text()
+          assert 'ExpoReactNativeFactoryProvider' in s
+          assert 'reactNativeFactory = factory' in s
+          assert 'window = UIWindow(frame:' not in s and 'factory.startReactNative(' not in s
+          assert 'RCTLinkingManager.application' in s
+          PY
+            pod install --project-directory=ios
+            xcodebuild -workspace ios/Kitabcha.xcworkspace -scheme Kitabcha -configuration Release -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath "$RUNNER_TEMP/ios-simulator" CODE_SIGNING_ALLOWED=NO ARCHS=arm64 ONLY_ACTIVE_ARCH=YES build
+            cd ../..
+            python3 scripts/ios-launch-probe.py "$RUNNER_TEMP/ios-simulator/Build/Products/Release-iphonesimulator/Kitabcha.app" "$RUNNER_TEMP/ios-launch-evidence"
+          } > "$RUNNER_TEMP/private-ios-build.log" 2>&1
+          echo 'Actual iOS 27 Release app passed cold, warm and cold-link launch checks.'
+      - name: Encrypt simulator evidence
+        if: always()
+        env:
+          DIAGNOSTIC_PUBLIC_KEY: |
+            -----BEGIN PUBLIC KEY-----
+            MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAtg3UeD8IE9A0fOZ1Oaal
+            1pSoJkxstU4Nmi6qZ0qFRkgn5j9Hzm34TqjwEQVRCbujBSipjcdctR6rxToAbk8N
+            WhaofmJnVgh8hCUytqi6JTNA2d11Ej/mIgPLwX0dgLdh4yPJsPotHSmolv+4rdcL
+            PajxEksQbpaHPqwrkAk6UXhKCxn3dbVeOBNQ/CkIEA+uVF6RvQq8QQU+LN3tqPZg
+            pGkJRY5M/ZnAnqe5FTd8M8SkWLbOd/dlu/ffWzZzsyr+bw6DR+PMSR6dE2thjLh+
+            AHG0RBX+sSqTA1o6fSMRIn+/Pk3BwvTrPiDVKE5LzSRHzonkcGOXBOFVQkgaBT/w
+            kwIDAQAB
+            -----END PUBLIC KEY-----
+        shell: bash
+        run: |-
+          node --input-type=module <<'JS'
+          import fs from 'node:fs';import{randomBytes,createCipheriv,publicEncrypt,constants}from'node:crypto';
+          const root=process.env.RUNNER_TEMP,files={};
+          for(const p of [root+'/private-ios-build.log',...fs.existsSync(root+'/ios-launch-evidence')?fs.readdirSync(root+'/ios-launch-evidence').map(n=>root+'/ios-launch-evidence/'+n):[]])if(fs.existsSync(p)&&fs.statSync(p).isFile())files[p.split('/').at(-1)]=fs.readFileSync(p).toString('base64');
+          const key=randomBytes(32),iv=randomBytes(12),cipher=createCipheriv('aes-256-gcm',key,iv),data=Buffer.concat([cipher.update(JSON.stringify(files)),cipher.final()]);
+          const wrapped=publicEncrypt({key:process.env.DIAGNOSTIC_PUBLIC_KEY,oaepHash:'sha256',padding:constants.RSA_PKCS1_OAEP_PADDING},key);
+          fs.writeFileSync(root+'/ios-launch.enc.json',JSON.stringify({key:wrapped.toString('base64'),iv:iv.toString('base64'),tag:cipher.getAuthTag().toString('base64'),data:data.toString('base64')}));
+          JS
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: encrypted-ios-launch-evidence
+          path: ${{ runner.temp }}/ios-launch.enc.json
+          retention-days: 2
+      - name: Remove private simulator evidence
+        if: always()
+        shell: bash
+        run: |-
+          rm -rf "$RUNNER_TEMP/ios-launch-evidence"
+          rm -f "$RUNNER_TEMP/private-ios-build.log"
