@@ -1,0 +1,52 @@
+name: Diagnose hosted Mac Vision OCR
+on: {workflow_dispatch: {}}
+permissions: {contents: read}
+jobs:
+  ocr:
+    runs-on: xcode-27
+    timeout-minutes: 10
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_27.1.app/Contents/Developer
+    steps:
+      - name: Compare interpreted and compiled Vision CPU recognition
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP"
+          cat > sample.swift <<'SWIFT'
+          import AppKit
+          let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: 1206, pixelsHigh: 2622, bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0)!
+          NSGraphicsContext.saveGraphicsState()
+          NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
+          NSColor.white.setFill()
+          NSRect(x:0,y:0,width:1206,height:2622).fill()
+          ("Kitabcha WhatsApp" as NSString).draw(at:NSPoint(x:80,y:1500),withAttributes:[.font:NSFont.systemFont(ofSize:80),.foregroundColor:NSColor.black])
+          NSGraphicsContext.restoreGraphicsState()
+          try rep.representation(using:.png,properties:[:])!.write(to:URL(fileURLWithPath:"sample.png"))
+          SWIFT
+          xcrun --sdk macosx swiftc sample.swift -o sample
+          ./sample
+          cat > recognize.swift <<'SWIFT'
+          import Foundation
+          import Vision
+          let request = VNRecognizeTextRequest()
+          request.recognitionLevel = .accurate
+          request.recognitionLanguages = ["en-US"]
+          if CommandLine.arguments.contains("cpu") { request.usesCPUOnly = true }
+          try VNImageRequestHandler(url:URL(fileURLWithPath:CommandLine.arguments[1])).perform([request])
+          print((request.results ?? []).compactMap { $0.topCandidates(1).first?.string }.joined(separator:" "))
+          SWIFT
+          xcrun --sdk macosx swiftc recognize.swift -o recognize
+          set +e
+          for mode in interpreted compiled interpreted-cpu compiled-cpu; do
+            case "$mode" in
+              interpreted) swift recognize.swift sample.png > "$mode.log" 2>&1 ;;
+              compiled) ./recognize sample.png > "$mode.log" 2>&1 ;;
+              interpreted-cpu) swift recognize.swift sample.png cpu > "$mode.log" 2>&1 ;;
+              compiled-cpu) ./recognize sample.png cpu > "$mode.log" 2>&1 ;;
+            esac
+            result=$?
+            echo "$mode exit=$result"
+            grep -E 'Kitabcha|WhatsApp|Fatal error|Assertion|JIT|failed|error:|architecture|MLNeural|Metal|Vision|dyld' "$mode.log" | head -n 12
+          done
+          exit 0
