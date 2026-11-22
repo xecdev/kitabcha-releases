@@ -1,4 +1,4 @@
-name: Verify payment focused keyboard activation five times
+name: Diagnose payment focus transition without deployment
 on:
   workflow_dispatch: {}
 permissions:
@@ -21,7 +21,7 @@ jobs:
           - 5
     env:
       CI: "1"
-      SOURCE_SHA: 801216316575bb412a5530d68fef9bfd1aee6e48
+      SOURCE_SHA: 3129ab1effdc20045f0730fe2cce87ede6cc9125
       KITABCHA_BUILD_VERSION: v3.8.24
       EXPO_PUBLIC_API_URL: http://localhost:3001
       SPECS: ${{ matrix.specs }}
@@ -30,7 +30,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: xecdev/kitabcha-app
-          ref: 801216316575bb412a5530d68fef9bfd1aee6e48
+          ref: 3129ab1effdc20045f0730fe2cce87ede6cc9125
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
           fetch-depth: 9
