@@ -18,16 +18,16 @@ jobs:
     timeout-minutes: 35
     env:
       CI: "1"
-      SOURCE_SHA: c89b357d6d0f06b259e2c6e69e0dc91f22cbb9c0
-      DEPLOY_VERSION: v3.8.27
-      KITABCHA_BUILD_VERSION: v3.8.27
+      SOURCE_SHA: 2119c1d8130657318f9390fca7939c505c820014
+      DEPLOY_VERSION: v3.8.28
+      KITABCHA_BUILD_VERSION: v3.8.28
       PREFLIGHT_RUN: ${{ github.event.workflow_run.id || inputs.preflight_run }}
-      VALIDATION_DIGEST: 48f0e93bd961c83dc31e6d9b1911c385d7e8284c26786a8f159b8a1c59c7565f
+      VALIDATION_DIGEST: cb0e0cc1792417f0d79dc307fabdd0ac9deb00723e8c4d0591aa804bcaafabe3
     steps:
       - uses: actions/checkout@v4
         with:
           repository: xecdev/kitabcha-app
-          ref: c89b357d6d0f06b259e2c6e69e0dc91f22cbb9c0
+          ref: 2119c1d8130657318f9390fca7939c505c820014
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
           fetch-depth: 9
@@ -40,19 +40,19 @@ jobs:
         run: node scripts/ci/verify-preflight.mjs
       - uses: actions/download-artifact@v4
         with:
-          name: production-c89b357d6d0f06b259e2c6e69e0dc91f22cbb9c0
+          name: production-2119c1d8130657318f9390fca7939c505c820014
           path: ${{ runner.temp }}/production
           github-token: ${{ github.token }}
           run-id: ${{ github.event.workflow_run.id || inputs.preflight_run }}
       - name: Authenticate production artifact
         env:
           ARTIFACT_SECRET: ${{ secrets.PRIVATE_SOURCE_KEY }}
-          ARTIFACT_CONTEXT: xecdev/kitabcha-releases/${{ github.event.workflow_run.id || inputs.preflight_run }}/c89b357d6d0f06b259e2c6e69e0dc91f22cbb9c0/v3.8.27/903fd54d5dd44b50d22e66960a02f6411c8f74bb/production
+          ARTIFACT_CONTEXT: xecdev/kitabcha-releases/${{ github.event.workflow_run.id || inputs.preflight_run }}/2119c1d8130657318f9390fca7939c505c820014/v3.8.28/c89b357d6d0f06b259e2c6e69e0dc91f22cbb9c0/production
         run: node scripts/release-artifact.mjs open "$RUNNER_TEMP/production/production.enc" "$RUNNER_TEMP/update.tar.gz"
       - name: Confirm production release base
         run: |-
           node --input-type=module <<'NODE'
-          const response=await fetch('https://app.kitabcha.app/web-release.json',{cache:'no-store',signal:AbortSignal.timeout(30000)});if(!response.ok)throw Error('Production marker HTTP '+response.status);const current=await response.json();if(current.version!=='v3.8.26'||current.commit!=='903fd54d5dd44b50d22e66960a02f6411c8f74bb')throw Error('Production changed since preparation');console.log('Production release base confirmed:',current.version,current.commit);
+          const response=await fetch('https://app.kitabcha.app/web-release.json',{cache:'no-store',signal:AbortSignal.timeout(30000)});if(!response.ok)throw Error('Production marker HTTP '+response.status);const current=await response.json();if(current.version!=='v3.8.27'||current.commit!=='c89b357d6d0f06b259e2c6e69e0dc91f22cbb9c0')throw Error('Production changed since preparation');console.log('Production release base confirmed:',current.version,current.commit);
           NODE
       - name: Publish through restricted receiver
         env:

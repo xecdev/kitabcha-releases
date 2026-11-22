@@ -23,7 +23,7 @@ jobs:
       CCACHE_BASEDIR: ${{ github.workspace }}
       CCACHE_MAXSIZE: 2G
       CCACHE_COMPILERCHECK: content
-      KITABCHA_BUILD_VERSION: 2.1.13
+      KITABCHA_BUILD_VERSION: 2.1.14
       SOURCE_SHA: ${{ inputs.source_ref }}
       VALIDATION_SHA: ${{ inputs.source_ref }}
     steps:
@@ -432,7 +432,7 @@ jobs:
       CCACHE_BASEDIR: ${{ github.workspace }}
       CCACHE_MAXSIZE: 2G
       CCACHE_COMPILERCHECK: content
-      KITABCHA_BUILD_VERSION: 2.1.13
+      KITABCHA_BUILD_VERSION: 2.1.14
       SOURCE_SHA: ${{ inputs.source_ref }}
       VALIDATION_SHA: ${{ inputs.source_ref }}
     steps:
@@ -665,7 +665,7 @@ jobs:
       CCACHE_BASEDIR: ${{ github.workspace }}
       CCACHE_MAXSIZE: 2G
       CCACHE_COMPILERCHECK: content
-      KITABCHA_BUILD_VERSION: 2.1.13
+      KITABCHA_BUILD_VERSION: 2.1.14
       SOURCE_SHA: ${{ inputs.source_ref }}
       VALIDATION_SHA: ${{ inputs.source_ref }}
     steps:
@@ -809,7 +809,9 @@ jobs:
           node --test tests/native-barcode-scanner.test.mjs tests/native-barcode-camera.test.mjs tests/android-release.test.mjs
           tests/native-receipt-build.test.mjs > "$RUNNER_TEMP/native-scanner.log" 2>&1
       - name: Install isolated synthetic phonebook screen
-        run: cp tests/native-phonebook-probe-layout.txt apps/client/app/_layout.tsx
+        run: |
+          cp tests/native-phonebook-probe-layout.txt apps/client/app/_layout.tsx
+          node scripts/install-native-text-probe.mjs
       - name: Generate Android project
         working-directory: apps/client
         run: |
@@ -856,8 +858,20 @@ jobs:
           emulator-boot-timeout: 180
           disable-animations: true
           script: python3 tests/native-phonebook-probe.py
+      - name: Verify Android 15 RTL drawing and contact picker
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          target: google_apis
+          profile: pixel_6
+          disk-size: 3G
+          ram-size: 2048M
+          emulator-boot-timeout: 180
+          disable-animations: true
+          script: python3 tests/native-phonebook-probe.py
       - name: Encrypt Android failure diagnostics
-        if: failure()
+        if: always()
         env:
           DIAGNOSTIC_PUBLIC_KEY: |
             -----BEGIN PUBLIC KEY-----
@@ -879,7 +893,7 @@ jobs:
           fs.writeFileSync(process.env.RUNNER_TEMP+'/android-diagnostic.enc.json',JSON.stringify({key:wrapped.toString('base64'),iv:iv.toString('base64'),tag:cipher.getAuthTag().toString('base64'),data:data.toString('base64')}));
           JS
       - uses: actions/upload-artifact@v4
-        if: failure()
+        if: always()
         with:
           name: encrypted-android-native_phonebook-diagnostic
           path: ${{ runner.temp }}/android-diagnostic.enc.json

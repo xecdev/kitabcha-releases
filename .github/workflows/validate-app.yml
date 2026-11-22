@@ -12,22 +12,22 @@ jobs:
       fail-fast: false
       matrix:
         specs:
-          - report-consistency website-pages book-deletion reset-backup plan-tiers refresh-interruption
-          - pane-drafts offline-phase2 website-language ux-navigation-followups recovery-reload book-switch-performance help-center scale-reports
-          - financial-reports quotation-header owner-support-view current-ui-fixes marketing-v3 push-notifications rejected-record-recovery profile-stock-premium qa-receipt-policy
-          - report-filter-popup ledger offline-phase3 team-viewer books qa-report-flows navigation-expiry report-attachments web-startup
-          - bill-actions mobile-workspace-20261115 header-trade-rtl landing-masthead cashbook mobile-keyboard onboarding-prefill sale-visibility-units landing-faq billing-emails
-          - trade-editor-ui contact-input-ui people-entry-layout app-language-ux accounts-workspace interaction-motion payment-pane landing loading-version
-          - workspace-followups rtl-layout-parity calendar-controls ui-feedback-regressions record-payment-mode background-saves switcher-animations ui-polish bahij-web
-          - notification-settings online-only barcode-scanner transaction-balance-motion transaction-receipts forms-refresh form-experience app-recovery theme-speed otp-email
-          - account-contact mobile-back offline-phase1 input-direction team-identity reset-cache-boundaries pre-signin-language bill-confirmation readable-export scale-validation
-          - people-activity report-reminder-follow-up hardware-barcode-scanner scale-loading transaction-drafts screen-recovery slow-network-stock grocery-audit form-enter
-          - notification-inbox records-toolbars otp-ui customer-proof-motion quotations more-hub list-hover access-recovery creator-ui
-          - auth business-assets offline-final-ux team-access people-currency-selection mobile-responsive backup-restore support-layout setup-otp-enter otp-auto
+          - report-consistency current-ui-fixes mobile-responsive pre-signin-language access-recovery bahij-web
+          - pane-drafts offline-final-ux team-access website-pages mobile-keyboard switcher-animations grocery-audit profile-stock-premium
+          - financial-reports quotation-header offline-phase3 record-payment-mode book-deletion reset-backup navigation-expiry refresh-interruption otp-email
+          - report-filter-popup ledger offline-phase2 website-language ux-navigation-followups reset-cache-boundaries backup-restore support-layout web-startup readable-export
+          - bill-actions mobile-workspace-20261115 header-trade-rtl app-language-ux cashbook background-saves qa-report-flows landing scale-reports
+          - trade-editor-ui contact-input-ui people-entry-layout ui-feedback-regressions people-currency-selection screen-recovery book-switch-performance sale-visibility-units creator-ui
+          - workspace-followups rtl-layout-parity calendar-controls scale-loading transaction-receipts books form-experience rejected-record-recovery setup-otp-enter qa-receipt-policy
+          - notification-settings online-only barcode-scanner owner-support-view accounts-workspace marketing-v3 payment-pane ui-polish theme-speed
+          - account-contact mobile-back offline-phase1 landing-masthead quotations more-hub push-notifications help-center form-enter
+          - people-activity report-reminder-follow-up hardware-barcode-scanner transaction-balance-motion transaction-drafts forms-refresh list-hover app-recovery report-attachments billing-emails
+          - notification-inbox records-toolbars otp-ui input-direction team-viewer interaction-motion onboarding-prefill bill-confirmation landing-faq otp-auto
+          - auth business-assets multi-currency-bills customer-proof-motion team-identity recovery-reload slow-network-stock plan-tiers loading-version scale-validation
     env:
       CI: "1"
-      SOURCE_SHA: c89b357d6d0f06b259e2c6e69e0dc91f22cbb9c0
-      KITABCHA_BUILD_VERSION: v3.8.27
+      SOURCE_SHA: 2119c1d8130657318f9390fca7939c505c820014
+      KITABCHA_BUILD_VERSION: v3.8.28
       EXPO_PUBLIC_API_URL: http://localhost:3001
       SPECS: ${{ matrix.specs }}
       EXPO_PUBLIC_ENTITLEMENT_KEY: 087b7041c48b7f58b4357d170ddb97cc3ad66974fa992e5ca9ad2b0ac9fa0bba
@@ -35,7 +35,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: xecdev/kitabcha-app
-          ref: c89b357d6d0f06b259e2c6e69e0dc91f22cbb9c0
+          ref: 2119c1d8130657318f9390fca7939c505c820014
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
           fetch-depth: 9
@@ -120,14 +120,14 @@ jobs:
     timeout-minutes: 20
     env:
       CI: "1"
-      SOURCE_SHA: c89b357d6d0f06b259e2c6e69e0dc91f22cbb9c0
-      KITABCHA_BUILD_VERSION: v3.8.27
+      SOURCE_SHA: 2119c1d8130657318f9390fca7939c505c820014
+      KITABCHA_BUILD_VERSION: v3.8.28
       SHARD: ${{ matrix.shard }}
     steps:
       - uses: actions/checkout@v4
         with:
           repository: xecdev/kitabcha-app
-          ref: c89b357d6d0f06b259e2c6e69e0dc91f22cbb9c0
+          ref: 2119c1d8130657318f9390fca7939c505c820014
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
           fetch-depth: 9
@@ -188,14 +188,14 @@ jobs:
     timeout-minutes: 20
     env:
       CI: "1"
-      SOURCE_SHA: c89b357d6d0f06b259e2c6e69e0dc91f22cbb9c0
-      KITABCHA_BUILD_VERSION: v3.8.27
-      BROWSER_TEST_SPECS: report-consistency pane-drafts financial-reports report-filter-popup bill-actions trade-editor-ui workspace-followups notification-settings account-contact people-activity notification-inbox auth business-assets records-toolbars report-reminder-follow-up mobile-back online-only rtl-layout-parity contact-input-ui mobile-workspace-20261115 ledger people-entry-layout barcode-scanner calendar-controls offline-phase1 otp-ui quotation-header hardware-barcode-scanner header-trade-rtl offline-final-ux offline-phase2 offline-phase3 owner-support-view transaction-balance-motion scale-loading ui-feedback-regressions app-language-ux landing-masthead input-direction customer-proof-motion team-access website-language team-viewer quotations team-identity cashbook people-currency-selection record-payment-mode accounts-workspace current-ui-fixes transaction-receipts transaction-drafts website-pages ux-navigation-followups books mobile-responsive forms-refresh screen-recovery book-deletion marketing-v3 mobile-keyboard background-saves interaction-motion recovery-reload more-hub reset-cache-boundaries qa-report-flows payment-pane switcher-animations push-notifications book-switch-performance slow-network-stock reset-backup onboarding-prefill list-hover pre-signin-language form-experience backup-restore navigation-expiry bill-confirmation sale-visibility-units plan-tiers landing help-center grocery-audit ui-polish access-recovery rejected-record-recovery app-recovery support-layout report-attachments setup-otp-enter theme-speed profile-stock-premium form-enter bahij-web scale-reports creator-ui loading-version web-startup landing-faq refresh-interruption readable-export scale-validation qa-receipt-policy otp-auto otp-email billing-emails
+      SOURCE_SHA: 2119c1d8130657318f9390fca7939c505c820014
+      KITABCHA_BUILD_VERSION: v3.8.28
+      BROWSER_TEST_SPECS: report-consistency pane-drafts financial-reports report-filter-popup bill-actions trade-editor-ui workspace-followups notification-settings account-contact people-activity notification-inbox auth business-assets records-toolbars report-reminder-follow-up mobile-back online-only rtl-layout-parity contact-input-ui mobile-workspace-20261115 ledger people-entry-layout barcode-scanner calendar-controls offline-phase1 otp-ui quotation-header hardware-barcode-scanner header-trade-rtl multi-currency-bills offline-final-ux offline-phase2 offline-phase3 owner-support-view transaction-balance-motion scale-loading ui-feedback-regressions app-language-ux landing-masthead input-direction customer-proof-motion team-access website-language team-viewer quotations team-identity cashbook people-currency-selection record-payment-mode accounts-workspace current-ui-fixes transaction-receipts transaction-drafts website-pages ux-navigation-followups books mobile-responsive forms-refresh screen-recovery book-deletion marketing-v3 mobile-keyboard background-saves interaction-motion recovery-reload more-hub reset-cache-boundaries qa-report-flows payment-pane switcher-animations push-notifications book-switch-performance slow-network-stock reset-backup onboarding-prefill list-hover pre-signin-language form-experience backup-restore navigation-expiry bill-confirmation sale-visibility-units plan-tiers landing help-center grocery-audit ui-polish access-recovery rejected-record-recovery app-recovery support-layout report-attachments setup-otp-enter theme-speed profile-stock-premium form-enter bahij-web scale-reports creator-ui loading-version web-startup landing-faq refresh-interruption readable-export scale-validation qa-receipt-policy otp-auto otp-email billing-emails
     steps:
       - uses: actions/checkout@v4
         with:
           repository: xecdev/kitabcha-app
-          ref: c89b357d6d0f06b259e2c6e69e0dc91f22cbb9c0
+          ref: 2119c1d8130657318f9390fca7939c505c820014
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
           fetch-depth: 9
@@ -234,13 +234,13 @@ jobs:
     timeout-minutes: 20
     env:
       CI: "1"
-      SOURCE_SHA: c89b357d6d0f06b259e2c6e69e0dc91f22cbb9c0
-      KITABCHA_BUILD_VERSION: v3.8.27
+      SOURCE_SHA: 2119c1d8130657318f9390fca7939c505c820014
+      KITABCHA_BUILD_VERSION: v3.8.28
     steps:
       - uses: actions/checkout@v4
         with:
           repository: xecdev/kitabcha-app
-          ref: c89b357d6d0f06b259e2c6e69e0dc91f22cbb9c0
+          ref: 2119c1d8130657318f9390fca7939c505c820014
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
           fetch-depth: 9
@@ -298,15 +298,15 @@ jobs:
     timeout-minutes: 20
     env:
       CI: "1"
-      SOURCE_SHA: c89b357d6d0f06b259e2c6e69e0dc91f22cbb9c0
-      KITABCHA_BUILD_VERSION: v3.8.27
-      DEPLOY_VERSION: v3.8.27
+      SOURCE_SHA: 2119c1d8130657318f9390fca7939c505c820014
+      KITABCHA_BUILD_VERSION: v3.8.28
+      DEPLOY_VERSION: v3.8.28
       EXPO_PUBLIC_API_URL: https://app.kitabcha.app
     steps:
       - uses: actions/checkout@v4
         with:
           repository: xecdev/kitabcha-app
-          ref: c89b357d6d0f06b259e2c6e69e0dc91f22cbb9c0
+          ref: 2119c1d8130657318f9390fca7939c505c820014
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
           fetch-depth: 9
@@ -315,11 +315,11 @@ jobs:
       - name: Build production package and runtime image
         env:
           ARTIFACT_SECRET: ${{ secrets.PRIVATE_SOURCE_KEY }}
-          ARTIFACT_CONTEXT: xecdev/kitabcha-releases/${{ github.run_id }}/c89b357d6d0f06b259e2c6e69e0dc91f22cbb9c0/v3.8.27/903fd54d5dd44b50d22e66960a02f6411c8f74bb/production
+          ARTIFACT_CONTEXT: xecdev/kitabcha-releases/${{ github.run_id }}/2119c1d8130657318f9390fca7939c505c820014/v3.8.28/c89b357d6d0f06b259e2c6e69e0dc91f22cbb9c0/production
         run: bash scripts/ci/build-production.sh
       - uses: actions/upload-artifact@v4
         with:
-          name: production-c89b357d6d0f06b259e2c6e69e0dc91f22cbb9c0
+          name: production-2119c1d8130657318f9390fca7939c505c820014
           path: ${{ runner.temp }}/production.enc*
           retention-days: 2
           if-no-files-found: error
@@ -351,7 +351,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: xecdev/kitabcha-app
-          ref: c89b357d6d0f06b259e2c6e69e0dc91f22cbb9c0
+          ref: 2119c1d8130657318f9390fca7939c505c820014
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
       - name: Verify isolated PostgreSQL backup and restore
