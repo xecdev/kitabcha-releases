@@ -14,11 +14,9 @@ jobs:
         specs:
           - barcode-scanner barcode-scanner barcode-scanner barcode-scanner barcode-scanner
           - owner-support-view owner-support-view owner-support-view
-          - financial-reports financial-reports financial-reports
-          - transaction-balance-motion transaction-balance-motion transaction-balance-motion
     env:
       CI: "1"
-      SOURCE_SHA: 7b04428d76402837b1422c49a0a2f3c1ea2770f8
+      SOURCE_SHA: 28c8ca3f943c41fb35a1f111a87e2550feceb7b3
       KITABCHA_BUILD_VERSION: v3.8.26
       EXPO_PUBLIC_API_URL: http://localhost:3001
       SPECS: ${{ matrix.specs }}
@@ -27,7 +25,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: xecdev/kitabcha-app
-          ref: 7b04428d76402837b1422c49a0a2f3c1ea2770f8
+          ref: 28c8ca3f943c41fb35a1f111a87e2550feceb7b3
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
           fetch-depth: 9
