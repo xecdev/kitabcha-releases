@@ -1,12 +1,5 @@
 name: Promote fully validated Kitabcha release
 on:
-  workflow_run:
-    workflows:
-      - Validate complete Kitabcha release
-    types:
-      - completed
-    branches:
-      - main
   workflow_dispatch:
     inputs:
       preflight_run:
@@ -25,16 +18,16 @@ jobs:
     timeout-minutes: 35
     env:
       CI: "1"
-      SOURCE_SHA: 99d2a6f415e8e71ca86f3e0e7803faf2dcba6004
+      SOURCE_SHA: 903fd54d5dd44b50d22e66960a02f6411c8f74bb
       DEPLOY_VERSION: v3.8.26
       KITABCHA_BUILD_VERSION: v3.8.26
       PREFLIGHT_RUN: ${{ github.event.workflow_run.id || inputs.preflight_run }}
-      VALIDATION_DIGEST: a15db0d2624d7a6d135948857bd4575afba32f8b0d39666640f9b2d23574e6a1
+      VALIDATION_DIGEST: b688fe6824bedea1c2239479936f10d6dbdf75120af201cd83b72b38c8897019
     steps:
       - uses: actions/checkout@v4
         with:
           repository: xecdev/kitabcha-app
-          ref: 99d2a6f415e8e71ca86f3e0e7803faf2dcba6004
+          ref: 903fd54d5dd44b50d22e66960a02f6411c8f74bb
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
           fetch-depth: 9
@@ -47,14 +40,14 @@ jobs:
         run: node scripts/ci/verify-preflight.mjs
       - uses: actions/download-artifact@v4
         with:
-          name: production-99d2a6f415e8e71ca86f3e0e7803faf2dcba6004
+          name: production-903fd54d5dd44b50d22e66960a02f6411c8f74bb
           path: ${{ runner.temp }}/production
           github-token: ${{ github.token }}
           run-id: ${{ github.event.workflow_run.id || inputs.preflight_run }}
       - name: Authenticate production artifact
         env:
           ARTIFACT_SECRET: ${{ secrets.PRIVATE_SOURCE_KEY }}
-          ARTIFACT_CONTEXT: xecdev/kitabcha-releases/${{ github.event.workflow_run.id || inputs.preflight_run }}/99d2a6f415e8e71ca86f3e0e7803faf2dcba6004/v3.8.26/ce6a30a493983967ae18cf7e0e9ac81879e2d500/production
+          ARTIFACT_CONTEXT: xecdev/kitabcha-releases/${{ github.event.workflow_run.id || inputs.preflight_run }}/903fd54d5dd44b50d22e66960a02f6411c8f74bb/v3.8.26/ce6a30a493983967ae18cf7e0e9ac81879e2d500/production
         run: node scripts/release-artifact.mjs open "$RUNNER_TEMP/production/production.enc" "$RUNNER_TEMP/update.tar.gz"
       - name: Confirm production release base
         run: |-
