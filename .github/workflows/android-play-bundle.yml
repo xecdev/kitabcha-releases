@@ -846,7 +846,8 @@ jobs:
           tests/native-receipt-build.test.mjs > "$RUNNER_TEMP/native-scanner.log" 2>&1
       - name: Install isolated synthetic phonebook screen
         run: |
-          cp tests/native-phonebook-probe-layout.txt apps/client/app/_layout.tsx
+          node --test tests/native-phonebook-probe-layout.test.mjs > "$RUNNER_TEMP/phonebook-fixture-regressions.log" 2>&1
+          node scripts/install-native-phonebook-probe.mjs
           node scripts/install-native-text-probe.mjs
       - name: Generate Android project
         working-directory: apps/client
