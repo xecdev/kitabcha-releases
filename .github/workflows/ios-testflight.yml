@@ -202,7 +202,11 @@ jobs:
           assert 'ExpoReactNativeFactoryProvider' in s
           assert 'reactNativeFactory = factory' in s
           assert 'window = UIWindow(frame:' not in s and 'factory.startReactNative(' not in s
-          assert 'RCTLinkingManager.application' in s
+          scene=Path('ios/Kitabcha/SceneDelegate.swift').read_text()
+          assert 'class SceneDelegate: ExpoAppSceneDelegate' in scene
+          runtime=Path('../../node_modules/expo/ios/Expo/ExpoAppSceneDelegate.swift').read_text()
+          assert 'scene:openURLContexts:' in runtime and 'scene:continueUserActivity:' in runtime
+          assert 'RCTLinkingManager.perform' in runtime
           PY
             pod install --project-directory=ios
             xcodebuild -workspace ios/Kitabcha.xcworkspace -scheme Kitabcha -configuration Release -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath "$RUNNER_TEMP/ios-simulator" CODE_SIGNING_ALLOWED=NO ARCHS=arm64 ONLY_ACTIVE_ARCH=YES build

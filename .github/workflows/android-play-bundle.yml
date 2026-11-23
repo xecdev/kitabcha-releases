@@ -122,7 +122,7 @@ jobs:
           sdk=$(find "$ANDROID_HOME/cmdline-tools" -path '*/bin/sdkmanager' -print -quit)
           test -n "$sdk"
           yes | "$sdk" --licenses >/dev/null || true
-          "$sdk" 'platforms;android-37' 'build-tools;37.0.0' 'ndk;27.1.12297006' 'cmake;3.22.1'
+          "$sdk" 'platforms;android-37.0' 'build-tools;37.0.0' 'ndk;27.1.12297006' 'cmake;3.22.1'
       - name: Install JavaScript dependencies
         run: |
           set -euo pipefail
@@ -537,7 +537,7 @@ jobs:
           sdk=$(find "$ANDROID_HOME/cmdline-tools" -path '*/bin/sdkmanager' -print -quit)
           test -n "$sdk"
           yes | "$sdk" --licenses >/dev/null || true
-          "$sdk" 'platforms;android-37' 'build-tools;37.0.0' 'ndk;27.1.12297006' 'cmake;3.22.1'
+          "$sdk" 'platforms;android-37.0' 'build-tools;37.0.0' 'ndk;27.1.12297006' 'cmake;3.22.1'
       - name: Install JavaScript dependencies
         run: |
           set -euo pipefail
@@ -776,7 +776,7 @@ jobs:
           sdk=$(find "$ANDROID_HOME/cmdline-tools" -path '*/bin/sdkmanager' -print -quit)
           test -n "$sdk"
           yes | "$sdk" --licenses >/dev/null || true
-          "$sdk" 'platforms;android-37' 'build-tools;37.0.0' 'ndk;27.1.12297006' 'cmake;3.22.1'
+          "$sdk" 'platforms;android-37.0' 'build-tools;37.0.0' 'ndk;27.1.12297006' 'cmake;3.22.1'
       - name: Install JavaScript dependencies
         run: |
           set -euo pipefail
