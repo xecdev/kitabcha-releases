@@ -205,7 +205,19 @@ jobs:
         working-directory: apps/client/android
         run: |
           set -euo pipefail
-          ./gradlew verifyKitabchaAndroidToolchain --no-daemon > "$RUNNER_TEMP/android-toolchain.log" 2>&1
+          verified=0
+          for attempt in 1 2 3; do
+            log="$RUNNER_TEMP/android-toolchain-$attempt.log"
+            if ./gradlew verifyKitabchaAndroidToolchain --no-daemon --stacktrace > "$log" 2>&1; then
+              verified=1
+              break
+            fi
+            # A missing remote plugin can be a transient Maven/Plugin Portal response.
+            # Configuration assertions and compilation failures are never retried here.
+            if ! grep -Eq 'Plugin \[id:.*was not found|Could not (GET|HEAD)|status code (429|50[234])|Read timed out|Connection reset' "$log"; then exit 1; fi
+            sleep 5
+          done
+          test "$verified" = 1
           cat app/build/outputs/kitabcha-toolchain.json
       - name: Restore compiled native dependencies
         uses: actions/cache@v4
@@ -597,7 +609,19 @@ jobs:
         working-directory: apps/client/android
         run: |
           set -euo pipefail
-          ./gradlew verifyKitabchaAndroidToolchain --no-daemon > "$RUNNER_TEMP/android-toolchain.log" 2>&1
+          verified=0
+          for attempt in 1 2 3; do
+            log="$RUNNER_TEMP/android-toolchain-$attempt.log"
+            if ./gradlew verifyKitabchaAndroidToolchain --no-daemon --stacktrace > "$log" 2>&1; then
+              verified=1
+              break
+            fi
+            # A missing remote plugin can be a transient Maven/Plugin Portal response.
+            # Configuration assertions and compilation failures are never retried here.
+            if ! grep -Eq 'Plugin \[id:.*was not found|Could not (GET|HEAD)|status code (429|50[234])|Read timed out|Connection reset' "$log"; then exit 1; fi
+            sleep 5
+          done
+          test "$verified" = 1
           cat app/build/outputs/kitabcha-toolchain.json
       - name: Restore compiled native dependencies
         uses: actions/cache@v4
@@ -836,7 +860,19 @@ jobs:
         working-directory: apps/client/android
         run: |
           set -euo pipefail
-          ./gradlew verifyKitabchaAndroidToolchain --no-daemon > "$RUNNER_TEMP/android-toolchain.log" 2>&1
+          verified=0
+          for attempt in 1 2 3; do
+            log="$RUNNER_TEMP/android-toolchain-$attempt.log"
+            if ./gradlew verifyKitabchaAndroidToolchain --no-daemon --stacktrace > "$log" 2>&1; then
+              verified=1
+              break
+            fi
+            # A missing remote plugin can be a transient Maven/Plugin Portal response.
+            # Configuration assertions and compilation failures are never retried here.
+            if ! grep -Eq 'Plugin \[id:.*was not found|Could not (GET|HEAD)|status code (429|50[234])|Read timed out|Connection reset' "$log"; then exit 1; fi
+            sleep 5
+          done
+          test "$verified" = 1
           cat app/build/outputs/kitabcha-toolchain.json
       - name: Restore compiled native dependencies
         uses: actions/cache@v4
