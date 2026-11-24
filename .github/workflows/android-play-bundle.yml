@@ -23,7 +23,7 @@ jobs:
       CCACHE_BASEDIR: ${{ github.workspace }}
       CCACHE_MAXSIZE: 2G
       CCACHE_COMPILERCHECK: content
-      KITABCHA_BUILD_VERSION: 2.1.16
+      KITABCHA_BUILD_VERSION: 2.1.17
       SOURCE_SHA: ${{ inputs.source_ref }}
       VALIDATION_SHA: ${{ inputs.source_ref }}
     steps:
@@ -450,7 +450,7 @@ jobs:
       CCACHE_BASEDIR: ${{ github.workspace }}
       CCACHE_MAXSIZE: 2G
       CCACHE_COMPILERCHECK: content
-      KITABCHA_BUILD_VERSION: 2.1.16
+      KITABCHA_BUILD_VERSION: 2.1.17
       SOURCE_SHA: ${{ inputs.source_ref }}
       VALIDATION_SHA: ${{ inputs.source_ref }}
     steps:
@@ -701,7 +701,7 @@ jobs:
       CCACHE_BASEDIR: ${{ github.workspace }}
       CCACHE_MAXSIZE: 2G
       CCACHE_COMPILERCHECK: content
-      KITABCHA_BUILD_VERSION: 2.1.16
+      KITABCHA_BUILD_VERSION: 2.1.17
       SOURCE_SHA: ${{ inputs.source_ref }}
       VALIDATION_SHA: ${{ inputs.source_ref }}
     steps:
