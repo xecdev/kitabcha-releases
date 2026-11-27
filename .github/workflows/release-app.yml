@@ -1,5 +1,12 @@
 name: Promote fully validated Kitabcha release
 on:
+  workflow_run:
+    workflows:
+      - Validate complete Kitabcha release
+    types:
+      - completed
+    branches:
+      - main
   workflow_dispatch:
     inputs:
       preflight_run:
@@ -18,16 +25,16 @@ jobs:
     timeout-minutes: 35
     env:
       CI: "1"
-      SOURCE_SHA: ab4cf7d75770e74adc34bf804f88eb9937e7c34a
+      SOURCE_SHA: a26bc08a72a6cb3427a2555077485e9ea53485b0
       DEPLOY_VERSION: v3.8.39
       KITABCHA_BUILD_VERSION: v3.8.39
       PREFLIGHT_RUN: ${{ github.event.workflow_run.id || inputs.preflight_run }}
-      VALIDATION_DIGEST: de069ae1533c7341c030e8443f63f0ef2ef566f62b339d8c1687bf1feff03970
+      VALIDATION_DIGEST: 69de83b4bf14c4322eeb4fbb498b4d23322604898ee557a78f3fa1e6c17e181f
     steps:
       - uses: actions/checkout@v4
         with:
           repository: xecdev/kitabcha-app
-          ref: ab4cf7d75770e74adc34bf804f88eb9937e7c34a
+          ref: a26bc08a72a6cb3427a2555077485e9ea53485b0
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
           fetch-depth: 9
@@ -40,18 +47,15 @@ jobs:
         run: node scripts/ci/verify-preflight.mjs
       - uses: actions/download-artifact@v4
         with:
-          name: production-ab4cf7d75770e74adc34bf804f88eb9937e7c34a
+          name: production-a26bc08a72a6cb3427a2555077485e9ea53485b0
           path: ${{ runner.temp }}/production
           github-token: ${{ github.token }}
           run-id: ${{ github.event.workflow_run.id || inputs.preflight_run }}
       - name: Authenticate production artifact
         env:
           ARTIFACT_SECRET: ${{ secrets.PRIVATE_SOURCE_KEY }}
-          ARTIFACT_CONTEXT: xecdev/kitabcha-releases/${{ github.event.workflow_run.id ||
-            inputs.preflight_run
-            }}/ab4cf7d75770e74adc34bf804f88eb9937e7c34a/v3.8.39/880d1bfac8ff03bd780ddbfeb0cd7a7c235643bd/production
-        run: node scripts/release-artifact.mjs open
-          "$RUNNER_TEMP/production/production.enc" "$RUNNER_TEMP/update.tar.gz"
+          ARTIFACT_CONTEXT: xecdev/kitabcha-releases/${{ github.event.workflow_run.id || inputs.preflight_run }}/a26bc08a72a6cb3427a2555077485e9ea53485b0/v3.8.39/880d1bfac8ff03bd780ddbfeb0cd7a7c235643bd/production
+        run: node scripts/release-artifact.mjs open "$RUNNER_TEMP/production/production.enc" "$RUNNER_TEMP/update.tar.gz"
       - name: Confirm production release base
         run: |-
           node --input-type=module <<'NODE'
@@ -120,10 +124,8 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: release-${{ github.job }}-web-${{ strategy.job-index }}-${{ github.run_id
-            }}
+          name: release-${{ github.job }}-web-${{ strategy.job-index }}-${{ github.run_id }}
           path: ${{ runner.temp }}/release-${{ github.job }}-diagnostic.enc
           retention-days: 2
           if-no-files-found: ignore
-    if: github.event_name == 'workflow_dispatch' ||
-      github.event.workflow_run.conclusion == 'success'
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
