@@ -22,7 +22,7 @@ jobs:
       DEPLOY_VERSION: v3.8.43
       KITABCHA_BUILD_VERSION: v3.8.43
       PREFLIGHT_RUN: ${{ github.event.workflow_run.id || inputs.preflight_run }}
-      VALIDATION_DIGEST: 8c6b9aa69ee6bf53a059a13f0895e614f01ce4edfe13edd75f4b7ee0e30d0921
+      VALIDATION_DIGEST: 7fefd079f17d77cfe931fb0e079e1f6eed4f69baddd17ecd55b6b01356fd7bd4
     steps:
       - uses: actions/checkout@v4
         with:

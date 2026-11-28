@@ -66,7 +66,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: xecdev/kitabcha-app
-          ref: 3aeb45af321a4b68410c8c4cc422e442e6877f84
+          ref: 71383eed4422d340fb164b1b0c2558535b1d5ec5
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
           path: .ci-cashbook-fixture
@@ -74,6 +74,7 @@ jobs:
             tests/e2e/cashbook.spec.ts
             tests/e2e/header-trade-rtl.spec.ts
             tests/e2e/app-recovery.spec.ts
+            tests/e2e/rtl-layout-parity.spec.ts
           sparse-checkout-cone-mode: false
       - name: Install reviewed test fixture without modifying runtime source
         run: >-
@@ -85,6 +86,9 @@ jobs:
 
           cp .ci-cashbook-fixture/tests/e2e/app-recovery.spec.ts
           tests/e2e/app-recovery.spec.ts
+
+          cp .ci-cashbook-fixture/tests/e2e/rtl-layout-parity.spec.ts
+          tests/e2e/rtl-layout-parity.spec.ts
 
           git diff --quiet -- apps packages scripts package.json
           package-lock.json
@@ -306,7 +310,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: xecdev/kitabcha-app
-          ref: 3aeb45af321a4b68410c8c4cc422e442e6877f84
+          ref: 71383eed4422d340fb164b1b0c2558535b1d5ec5
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
           path: .ci-cashbook-fixture
@@ -314,6 +318,7 @@ jobs:
             tests/e2e/cashbook.spec.ts
             tests/e2e/header-trade-rtl.spec.ts
             tests/e2e/app-recovery.spec.ts
+            tests/e2e/rtl-layout-parity.spec.ts
           sparse-checkout-cone-mode: false
       - name: Install reviewed test fixture without modifying runtime source
         run: >-
@@ -325,6 +330,9 @@ jobs:
 
           cp .ci-cashbook-fixture/tests/e2e/app-recovery.spec.ts
           tests/e2e/app-recovery.spec.ts
+
+          cp .ci-cashbook-fixture/tests/e2e/rtl-layout-parity.spec.ts
+          tests/e2e/rtl-layout-parity.spec.ts
 
           git diff --quiet -- apps packages scripts package.json
           package-lock.json
