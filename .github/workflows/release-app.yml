@@ -18,16 +18,16 @@ jobs:
     timeout-minutes: 35
     env:
       CI: "1"
-      SOURCE_SHA: 24d3ec04a3ba1e7814dc2b7ab1e9ccd057a9c9d8
+      SOURCE_SHA: d4f34c5b763927f129bd912f82047f5f4bd0c580
       DEPLOY_VERSION: v3.8.43
       KITABCHA_BUILD_VERSION: v3.8.43
       PREFLIGHT_RUN: ${{ github.event.workflow_run.id || inputs.preflight_run }}
-      VALIDATION_DIGEST: fcecb9ea1eb072fbc9a3164dae2ebf04cf584e0e994a8c372083692712b4ee47
+      VALIDATION_DIGEST: e5d832e8aa33c3783cbfeeac261c3888f1731eeb5ffa27fff5a2810aa3097e74
     steps:
       - uses: actions/checkout@v4
         with:
           repository: xecdev/kitabcha-app
-          ref: 24d3ec04a3ba1e7814dc2b7ab1e9ccd057a9c9d8
+          ref: d4f34c5b763927f129bd912f82047f5f4bd0c580
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
           fetch-depth: 9
@@ -40,7 +40,7 @@ jobs:
         run: node scripts/ci/verify-preflight.mjs
       - uses: actions/download-artifact@v4
         with:
-          name: production-24d3ec04a3ba1e7814dc2b7ab1e9ccd057a9c9d8
+          name: production-d4f34c5b763927f129bd912f82047f5f4bd0c580
           path: ${{ runner.temp }}/production
           github-token: ${{ github.token }}
           run-id: ${{ github.event.workflow_run.id || inputs.preflight_run }}
@@ -48,7 +48,7 @@ jobs:
         env:
           ARTIFACT_SECRET: ${{ secrets.PRIVATE_SOURCE_KEY }}
           ARTIFACT_CONTEXT: xecdev/kitabcha-releases/${{ github.event.workflow_run.id || inputs.preflight_run
-            }}/24d3ec04a3ba1e7814dc2b7ab1e9ccd057a9c9d8/v3.8.43/3475d6676ca05ba5a3194d676e99c59ff2671b2d/production
+            }}/d4f34c5b763927f129bd912f82047f5f4bd0c580/v3.8.43/3475d6676ca05ba5a3194d676e99c59ff2671b2d/production
         run: node scripts/release-artifact.mjs open "$RUNNER_TEMP/production/production.enc"
           "$RUNNER_TEMP/update.tar.gz"
       - name: Confirm production release base
