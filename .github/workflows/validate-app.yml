@@ -12,44 +12,21 @@ jobs:
       fail-fast: false
       matrix:
         specs:
-          - report-consistency cashbook mobile-responsive slow-network-stock
-            sale-visibility-units form-enter qa-receipt-policy
-          - pane-drafts multi-currency-bills input-direction
-            transaction-receipts website-pages list-hover plan-tiers bahij-web
-            otp-auto
-          - financial-reports quotation-header offline-phase2 team-viewer
-            marketing-v3 switcher-animations access-recovery setup-otp-enter
-            otp-email
-          - report-filter-popup ledger offline-final-ux customer-proof-motion
-            transaction-drafts recovery-reload pre-signin-language help-center
-            theme-speed billing-emails
-          - bill-actions mobile-workspace-20261115 hardware-barcode-scanner
-            scale-loading record-payment-mode screen-recovery more-hub
-            form-experience loading-version readable-export
-          - trade-editor-ui contact-input-ui people-entry-layout
-            transaction-balance-motion current-ui-fixes ux-navigation-followups
-            onboarding-prefill bill-confirmation scale-reports
-          - workspace-followups rtl-layout-parity calendar-controls
-            people-categories accounts-workspace forms-refresh payment-pane
-            ui-polish report-attachments
-          - notification-settings online-only barcode-scanner offline-phase3
-            quotations mobile-keyboard book-switch-performance navigation-expiry
-            creator-ui
-          - account-contact mobile-back offline-phase1 ui-feedback-regressions
-            team-identity book-deletion push-notifications grocery-audit
-            support-layout
-          - people-activity report-reminder-follow-up contact-call-confirmation
-            owner-support-view people-currency-selection books reset-backup
-            backup-restore web-startup scale-validation
-          - notification-inbox records-toolbars otp-ui app-language-ux
-            website-language interaction-motion reset-cache-boundaries
-            rejected-record-recovery app-recovery landing-faq
-          - auth business-assets header-trade-rtl landing-masthead team-access
-            background-saves qa-report-flows landing profile-stock-premium
-            refresh-interruption
+          - report-consistency cashbook mobile-responsive slow-network-stock sale-visibility-units form-enter qa-receipt-policy
+          - pane-drafts multi-currency-bills input-direction transaction-receipts website-pages list-hover plan-tiers bahij-web otp-auto
+          - financial-reports quotation-header offline-phase2 team-viewer marketing-v3 switcher-animations access-recovery setup-otp-enter otp-email
+          - report-filter-popup ledger offline-final-ux customer-proof-motion transaction-drafts recovery-reload pre-signin-language help-center theme-speed billing-emails
+          - bill-actions mobile-workspace-20261115 hardware-barcode-scanner scale-loading record-payment-mode screen-recovery more-hub form-experience loading-version readable-export
+          - trade-editor-ui contact-input-ui people-entry-layout transaction-balance-motion current-ui-fixes ux-navigation-followups onboarding-prefill bill-confirmation scale-reports
+          - workspace-followups rtl-layout-parity calendar-controls people-categories accounts-workspace forms-refresh payment-pane ui-polish report-attachments
+          - notification-settings online-only barcode-scanner offline-phase3 quotations mobile-keyboard book-switch-performance navigation-expiry creator-ui
+          - account-contact mobile-back offline-phase1 ui-feedback-regressions team-identity book-deletion push-notifications grocery-audit support-layout
+          - people-activity report-reminder-follow-up contact-call-confirmation owner-support-view people-currency-selection books reset-backup backup-restore web-startup scale-validation
+          - notification-inbox records-toolbars otp-ui app-language-ux website-language interaction-motion reset-cache-boundaries rejected-record-recovery app-recovery landing-faq
+          - auth business-assets header-trade-rtl landing-masthead team-access background-saves qa-report-flows landing profile-stock-premium refresh-interruption
     env:
       CI: "1"
-      SOURCE_SHA: 38096644ff21cbe87ae6a1a1cb1a50fdf2b54a8a
+      SOURCE_SHA: 24d3ec04a3ba1e7814dc2b7ab1e9ccd057a9c9d8
       KITABCHA_BUILD_VERSION: v3.8.43
       EXPO_PUBLIC_API_URL: http://localhost:3001
       SPECS: ${{ matrix.specs }}
@@ -58,40 +35,10 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: xecdev/kitabcha-app
-          ref: 38096644ff21cbe87ae6a1a1cb1a50fdf2b54a8a
+          ref: 24d3ec04a3ba1e7814dc2b7ab1e9ccd057a9c9d8
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
           fetch-depth: 9
-      - name: Checkout immutable readiness fixture correction
-        uses: actions/checkout@v4
-        with:
-          repository: xecdev/kitabcha-app
-          ref: 71383eed4422d340fb164b1b0c2558535b1d5ec5
-          ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
-          persist-credentials: false
-          path: .ci-cashbook-fixture
-          sparse-checkout: |
-            tests/e2e/cashbook.spec.ts
-            tests/e2e/header-trade-rtl.spec.ts
-            tests/e2e/app-recovery.spec.ts
-            tests/e2e/rtl-layout-parity.spec.ts
-          sparse-checkout-cone-mode: false
-      - name: Install reviewed test fixture without modifying runtime source
-        run: >-
-          cp .ci-cashbook-fixture/tests/e2e/cashbook.spec.ts
-          tests/e2e/cashbook.spec.ts
-
-          cp .ci-cashbook-fixture/tests/e2e/header-trade-rtl.spec.ts
-          tests/e2e/header-trade-rtl.spec.ts
-
-          cp .ci-cashbook-fixture/tests/e2e/app-recovery.spec.ts
-          tests/e2e/app-recovery.spec.ts
-
-          cp .ci-cashbook-fixture/tests/e2e/rtl-layout-parity.spec.ts
-          tests/e2e/rtl-layout-parity.spec.ts
-
-          git diff --quiet -- apps packages scripts package.json
-          package-lock.json
       - uses: actions/setup-node@v4
         with:
           node-version: 24.22.1
@@ -106,16 +53,12 @@ jobs:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
       - name: Select reachable signed Ubuntu archive
-        run: sudo --preserve-env=GITHUB_ACTIONS python3
-          scripts/ci/select-ubuntu-mirror.py "$RUNNER_TEMP"
+        run: sudo --preserve-env=GITHUB_ACTIONS python3 scripts/ci/select-ubuntu-mirror.py "$RUNNER_TEMP"
       - name: Install invoice image renderer
-        run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends
-          poppler-utils > "$RUNNER_TEMP/invoice-renderer-install.log" 2>&1
+        run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends poppler-utils > "$RUNNER_TEMP/invoice-renderer-install.log" 2>&1
       - name: Install browser validation dependencies
-        run: >-
-          npm ci --include=dev --no-audit --no-fund >
-          "$RUNNER_TEMP/browser-install.log" 2>&1
-
+        run: |-
+          npm ci --include=dev --no-audit --no-fund > "$RUNNER_TEMP/browser-install.log" 2>&1
           npm run db:generate > "$RUNNER_TEMP/browser-prisma.log" 2>&1
       - name: Install pinned Caddy for receipt policy regression
         if: contains(matrix.specs, 'qa-receipt-policy')
@@ -134,17 +77,11 @@ jobs:
           chmod 700 caddy
           echo "CADDY_EXECUTABLE=$RUNNER_TEMP/caddy" >> "$GITHUB_ENV"
       - name: Validate plans, owner dashboard, permissions and existing browser flows
-        run: >
+        run: |
           set -euo pipefail
-
-          npx playwright install --with-deps chromium >
-          "$RUNNER_TEMP/validation-browser-install.log" 2>&1
-
-          EXPO_PUBLIC_API_URL=http://localhost:3001 GITHUB_SHA="$SOURCE_SHA" npm
-          run build:web > "$RUNNER_TEMP/validation-web.log" 2>&1
-
+          npx playwright install --with-deps chromium > "$RUNNER_TEMP/validation-browser-install.log" 2>&1
+          EXPO_PUBLIC_API_URL=http://localhost:3001 GITHUB_SHA="$SOURCE_SHA" npm run build:web > "$RUNNER_TEMP/validation-web.log" 2>&1
           failed=0
-
           for spec in $SPECS; do
             echo "Checking $spec in an isolated test server."
             if ! npx playwright test "tests/e2e/$spec.spec.ts" > "$RUNNER_TEMP/browser-$spec.log" 2>&1; then
@@ -153,15 +90,11 @@ jobs:
               find test-results -name error-context.md -type f -exec cat {} + > "$RUNNER_TEMP/browser-context-$spec.log"
             fi
           done
-
           test "$failed" = 0
-
-          echo 'Owner notifications, invoice links, team access and expiry
-          browser checks passed.'
+          echo 'Owner notifications, invoice links, team access and expiry browser checks passed.'
       - name: Capture private browser failure context
         if: failure()
-        run: find test-results -name error-context.md -type f -exec cat {} + >
-          "$RUNNER_TEMP/browser-context.log"
+        run: find test-results -name error-context.md -type f -exec cat {} + > "$RUNNER_TEMP/browser-context.log"
       - name: Encrypt private failure diagnostics
         if: failure()
         env:
@@ -178,8 +111,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: release-${{ github.job }}-browser-${{ strategy.job-index }}-${{
-            github.run_id }}
+          name: release-${{ github.job }}-browser-${{ strategy.job-index }}-${{ github.run_id }}
           path: ${{ runner.temp }}/release-${{ github.job }}-diagnostic.enc
           retention-days: 2
           if-no-files-found: ignore
@@ -188,14 +120,14 @@ jobs:
     timeout-minutes: 20
     env:
       CI: "1"
-      SOURCE_SHA: 38096644ff21cbe87ae6a1a1cb1a50fdf2b54a8a
+      SOURCE_SHA: 24d3ec04a3ba1e7814dc2b7ab1e9ccd057a9c9d8
       KITABCHA_BUILD_VERSION: v3.8.43
       SHARD: ${{ matrix.shard }}
     steps:
       - uses: actions/checkout@v4
         with:
           repository: xecdev/kitabcha-app
-          ref: 38096644ff21cbe87ae6a1a1cb1a50fdf2b54a8a
+          ref: 24d3ec04a3ba1e7814dc2b7ab1e9ccd057a9c9d8
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
           fetch-depth: 9
@@ -207,32 +139,22 @@ jobs:
       - *a2
       - &a5
         name: Select reachable signed Ubuntu archive
-        run: sudo --preserve-env=GITHUB_ACTIONS python3
-          scripts/ci/select-ubuntu-mirror.py "$RUNNER_TEMP"
+        run: sudo --preserve-env=GITHUB_ACTIONS python3 scripts/ci/select-ubuntu-mirror.py "$RUNNER_TEMP"
       - &a6
         name: Install invoice image renderer
-        run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends
-          poppler-utils > "$RUNNER_TEMP/invoice-renderer-install.log" 2>&1
+        run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends poppler-utils > "$RUNNER_TEMP/invoice-renderer-install.log" 2>&1
       - &a4
         name: Install locked validation dependencies
-        run: >-
+        run: |-
           set -euo pipefail
-
-          npm ci --include=dev --no-audit --no-fund > "$RUNNER_TEMP/install.log"
-          2>&1
-
+          npm ci --include=dev --no-audit --no-fund > "$RUNNER_TEMP/install.log" 2>&1
           npm run db:generate > "$RUNNER_TEMP/prisma.log" 2>&1
       - name: Install Chromium dependencies
-        run: npx playwright install --with-deps chromium > "$RUNNER_TEMP/playwright.log"
-          2>&1
+        run: npx playwright install --with-deps chromium > "$RUNNER_TEMP/playwright.log" 2>&1
       - name: Validate complete TypeScript shard
-        run: >-
+        run: |-
           set -euo pipefail
-
-          node --import tsx --test --test-reporter=tap --test-concurrency=2
-          --test-timeout=120000 --test-shard="$SHARD/3" tests/*.test.ts >
-          "$RUNNER_TEMP/unit.log" 2>&1
-
+          node --import tsx --test --test-reporter=tap --test-concurrency=2 --test-timeout=120000 --test-shard="$SHARD/3" tests/*.test.ts > "$RUNNER_TEMP/unit.log" 2>&1
           grep -E "^# (tests|pass|fail|skipped)" "$RUNNER_TEMP/unit.log"
       - name: Encrypt private failure diagnostics
         if: failure()
@@ -250,8 +172,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: release-${{ github.job }}-unit-${{ strategy.job-index }}-${{ github.run_id
-            }}
+          name: release-${{ github.job }}-unit-${{ strategy.job-index }}-${{ github.run_id }}
           path: ${{ runner.temp }}/release-${{ github.job }}-diagnostic.enc
           retention-days: 2
           if-no-files-found: ignore
@@ -267,89 +188,26 @@ jobs:
     timeout-minutes: 20
     env:
       CI: "1"
-      SOURCE_SHA: 38096644ff21cbe87ae6a1a1cb1a50fdf2b54a8a
+      SOURCE_SHA: 24d3ec04a3ba1e7814dc2b7ab1e9ccd057a9c9d8
       KITABCHA_BUILD_VERSION: v3.8.43
-      BROWSER_TEST_SPECS: report-consistency pane-drafts financial-reports
-        report-filter-popup bill-actions trade-editor-ui workspace-followups
-        notification-settings account-contact people-activity notification-inbox
-        auth business-assets records-toolbars report-reminder-follow-up
-        mobile-back online-only rtl-layout-parity contact-input-ui
-        mobile-workspace-20261115 ledger people-entry-layout barcode-scanner
-        calendar-controls offline-phase1 otp-ui quotation-header
-        contact-call-confirmation hardware-barcode-scanner header-trade-rtl
-        multi-currency-bills offline-final-ux offline-phase2 offline-phase3
-        owner-support-view people-categories transaction-balance-motion
-        scale-loading ui-feedback-regressions app-language-ux landing-masthead
-        input-direction customer-proof-motion team-access website-language
-        team-viewer quotations team-identity cashbook people-currency-selection
-        record-payment-mode accounts-workspace current-ui-fixes
-        transaction-receipts transaction-drafts website-pages
-        ux-navigation-followups books mobile-responsive forms-refresh
-        screen-recovery book-deletion marketing-v3 mobile-keyboard
-        background-saves interaction-motion recovery-reload more-hub
-        reset-cache-boundaries qa-report-flows payment-pane switcher-animations
-        push-notifications book-switch-performance slow-network-stock
-        reset-backup onboarding-prefill list-hover pre-signin-language
-        form-experience backup-restore navigation-expiry bill-confirmation
-        sale-visibility-units plan-tiers landing help-center grocery-audit
-        ui-polish access-recovery rejected-record-recovery app-recovery
-        support-layout report-attachments setup-otp-enter theme-speed
-        profile-stock-premium form-enter bahij-web scale-reports creator-ui
-        loading-version web-startup landing-faq refresh-interruption
-        readable-export scale-validation qa-receipt-policy otp-auto otp-email
-        billing-emails
+      BROWSER_TEST_SPECS: report-consistency pane-drafts financial-reports report-filter-popup bill-actions trade-editor-ui workspace-followups notification-settings account-contact people-activity notification-inbox auth business-assets records-toolbars report-reminder-follow-up mobile-back online-only rtl-layout-parity contact-input-ui mobile-workspace-20261115 ledger people-entry-layout barcode-scanner calendar-controls offline-phase1 otp-ui quotation-header contact-call-confirmation hardware-barcode-scanner header-trade-rtl multi-currency-bills offline-final-ux offline-phase2 offline-phase3 owner-support-view people-categories transaction-balance-motion scale-loading ui-feedback-regressions app-language-ux landing-masthead input-direction customer-proof-motion team-access website-language team-viewer quotations team-identity cashbook people-currency-selection record-payment-mode accounts-workspace current-ui-fixes transaction-receipts transaction-drafts website-pages ux-navigation-followups books mobile-responsive forms-refresh screen-recovery book-deletion marketing-v3 mobile-keyboard background-saves interaction-motion recovery-reload more-hub reset-cache-boundaries qa-report-flows payment-pane switcher-animations push-notifications book-switch-performance slow-network-stock reset-backup onboarding-prefill list-hover pre-signin-language form-experience backup-restore navigation-expiry bill-confirmation sale-visibility-units plan-tiers landing help-center grocery-audit ui-polish access-recovery rejected-record-recovery app-recovery support-layout report-attachments setup-otp-enter theme-speed profile-stock-premium form-enter bahij-web scale-reports creator-ui loading-version web-startup landing-faq refresh-interruption readable-export scale-validation qa-receipt-policy otp-auto otp-email billing-emails
     steps:
       - uses: actions/checkout@v4
         with:
           repository: xecdev/kitabcha-app
-          ref: 38096644ff21cbe87ae6a1a1cb1a50fdf2b54a8a
+          ref: 24d3ec04a3ba1e7814dc2b7ab1e9ccd057a9c9d8
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
           fetch-depth: 9
-      - name: Checkout immutable readiness fixture correction
-        uses: actions/checkout@v4
-        with:
-          repository: xecdev/kitabcha-app
-          ref: 71383eed4422d340fb164b1b0c2558535b1d5ec5
-          ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
-          persist-credentials: false
-          path: .ci-cashbook-fixture
-          sparse-checkout: |
-            tests/e2e/cashbook.spec.ts
-            tests/e2e/header-trade-rtl.spec.ts
-            tests/e2e/app-recovery.spec.ts
-            tests/e2e/rtl-layout-parity.spec.ts
-          sparse-checkout-cone-mode: false
-      - name: Install reviewed test fixture without modifying runtime source
-        run: >-
-          cp .ci-cashbook-fixture/tests/e2e/cashbook.spec.ts
-          tests/e2e/cashbook.spec.ts
-
-          cp .ci-cashbook-fixture/tests/e2e/header-trade-rtl.spec.ts
-          tests/e2e/header-trade-rtl.spec.ts
-
-          cp .ci-cashbook-fixture/tests/e2e/app-recovery.spec.ts
-          tests/e2e/app-recovery.spec.ts
-
-          cp .ci-cashbook-fixture/tests/e2e/rtl-layout-parity.spec.ts
-          tests/e2e/rtl-layout-parity.spec.ts
-
-          git diff --quiet -- apps packages scripts package.json
-          package-lock.json
       - *a3
       - *a1
       - *a4
       - name: Types, lint, plain Node and complete browser inventory
-        run: >-
+        run: |-
           set -euo pipefail
-
-          node scripts/check-browser-coverage.mjs --release >
-          "$RUNNER_TEMP/coverage.log" 2>&1
-
+          node scripts/check-browser-coverage.mjs --release > "$RUNNER_TEMP/coverage.log" 2>&1
           npm run typecheck > "$RUNNER_TEMP/types.log" 2>&1
-
           npm run lint > "$RUNNER_TEMP/lint.log" 2>&1
-
           node --test tests/*.test.mjs > "$RUNNER_TEMP/node.log" 2>&1
       - name: Encrypt private failure diagnostics
         if: failure()
@@ -367,8 +225,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: release-${{ github.job }}-unit-${{ strategy.job-index }}-${{ github.run_id
-            }}
+          name: release-${{ github.job }}-unit-${{ strategy.job-index }}-${{ github.run_id }}
           path: ${{ runner.temp }}/release-${{ github.job }}-diagnostic.enc
           retention-days: 2
           if-no-files-found: ignore
@@ -377,13 +234,13 @@ jobs:
     timeout-minutes: 20
     env:
       CI: "1"
-      SOURCE_SHA: 38096644ff21cbe87ae6a1a1cb1a50fdf2b54a8a
+      SOURCE_SHA: 24d3ec04a3ba1e7814dc2b7ab1e9ccd057a9c9d8
       KITABCHA_BUILD_VERSION: v3.8.43
     steps:
       - uses: actions/checkout@v4
         with:
           repository: xecdev/kitabcha-app
-          ref: 38096644ff21cbe87ae6a1a1cb1a50fdf2b54a8a
+          ref: 24d3ec04a3ba1e7814dc2b7ab1e9ccd057a9c9d8
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
           fetch-depth: 9
@@ -394,46 +251,28 @@ jobs:
       - *a6
       - *a4
       - name: Install Chromium dependencies
-        run: npx playwright install --with-deps chromium > "$RUNNER_TEMP/playwright.log"
-          2>&1
+        run: npx playwright install --with-deps chromium > "$RUNNER_TEMP/playwright.log" 2>&1
       - name: All owner, native PDF and print browser gates
-        run: >
+        run: |
           set -euo pipefail
-
-          if ! node tests/admin-backup-ui-smoke.mjs >
-          "$RUNNER_TEMP/owner-backup-browser.log" 2>&1; then
+          if ! node tests/admin-backup-ui-smoke.mjs > "$RUNNER_TEMP/owner-backup-browser.log" 2>&1; then
             echo 'Owner backup browser regression failed; private diagnostics retained on runner.'
             exit 1
           fi
-
-          echo 'Owner encrypted backup download, upload review and restore
-          browser gate passed.'
-
-          if ! node tests/react-admin-owner-ui-smoke.mjs >
-          "$RUNNER_TEMP/owner-console-browser.log" 2>&1; then
+          echo 'Owner encrypted backup download, upload review and restore browser gate passed.'
+          if ! node tests/react-admin-owner-ui-smoke.mjs > "$RUNNER_TEMP/owner-console-browser.log" 2>&1; then
             echo 'Owner console security, restore and Drive browser regression failed; private diagnostics retained on runner.'
             exit 1
           fi
-
-          echo 'Owner console security, scoped restore, storage and B2
-          configuration browser gate passed.'
-
-          if ! timeout --kill-after=10s 300s node --import tsx --test
-          --test-concurrency=1 --test-timeout=120000 tests/browser/*.test.ts >
-          "$RUNNER_TEMP/bill-preview-browser.log" 2>&1; then
+          echo 'Owner console security, scoped restore, storage and B2 configuration browser gate passed.'
+          if ! timeout --kill-after=10s 300s node --import tsx --test --test-concurrency=1 --test-timeout=120000 tests/browser/*.test.ts > "$RUNNER_TEMP/bill-preview-browser.log" 2>&1; then
             echo 'Bill preview browser regression failed; private diagnostics retained on runner.'
             exit 1
           fi
+          echo 'Types, lint, full API/unit and session/owner/native regressions passed.'
 
-          echo 'Types, lint, full API/unit and session/owner/native regressions
-          passed.'
-
-
-          timeout --kill-after=10s 120s node tests/admin-ui-smoke.mjs >
-          "$RUNNER_TEMP/admin-ui-browser.log" 2>&1
-
-          timeout --kill-after=10s 120s node tests/owner-otp-ui.mjs >
-          "$RUNNER_TEMP/owner-otp-browser.log" 2>&1
+          timeout --kill-after=10s 120s node tests/admin-ui-smoke.mjs > "$RUNNER_TEMP/admin-ui-browser.log" 2>&1
+          timeout --kill-after=10s 120s node tests/owner-otp-ui.mjs > "$RUNNER_TEMP/owner-otp-browser.log" 2>&1
       - name: Encrypt private failure diagnostics
         if: failure()
         env:
@@ -450,8 +289,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: release-${{ github.job }}-unit-${{ strategy.job-index }}-${{ github.run_id
-            }}
+          name: release-${{ github.job }}-unit-${{ strategy.job-index }}-${{ github.run_id }}
           path: ${{ runner.temp }}/release-${{ github.job }}-diagnostic.enc
           retention-days: 2
           if-no-files-found: ignore
@@ -460,7 +298,7 @@ jobs:
     timeout-minutes: 20
     env:
       CI: "1"
-      SOURCE_SHA: 38096644ff21cbe87ae6a1a1cb1a50fdf2b54a8a
+      SOURCE_SHA: 24d3ec04a3ba1e7814dc2b7ab1e9ccd057a9c9d8
       KITABCHA_BUILD_VERSION: v3.8.43
       DEPLOY_VERSION: v3.8.43
       EXPO_PUBLIC_API_URL: https://app.kitabcha.app
@@ -468,7 +306,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: xecdev/kitabcha-app
-          ref: 38096644ff21cbe87ae6a1a1cb1a50fdf2b54a8a
+          ref: 24d3ec04a3ba1e7814dc2b7ab1e9ccd057a9c9d8
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
           fetch-depth: 9
@@ -477,12 +315,11 @@ jobs:
       - name: Build production package and runtime image
         env:
           ARTIFACT_SECRET: ${{ secrets.PRIVATE_SOURCE_KEY }}
-          ARTIFACT_CONTEXT: xecdev/kitabcha-releases/${{ github.run_id
-            }}/38096644ff21cbe87ae6a1a1cb1a50fdf2b54a8a/v3.8.43/3475d6676ca05ba5a3194d676e99c59ff2671b2d/production
+          ARTIFACT_CONTEXT: xecdev/kitabcha-releases/${{ github.run_id }}/24d3ec04a3ba1e7814dc2b7ab1e9ccd057a9c9d8/v3.8.43/3475d6676ca05ba5a3194d676e99c59ff2671b2d/production
         run: bash scripts/ci/build-production.sh
       - uses: actions/upload-artifact@v4
         with:
-          name: production-38096644ff21cbe87ae6a1a1cb1a50fdf2b54a8a
+          name: production-24d3ec04a3ba1e7814dc2b7ab1e9ccd057a9c9d8
           path: ${{ runner.temp }}/production.enc*
           retention-days: 2
           if-no-files-found: error
@@ -503,8 +340,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: release-${{ github.job }}-web-${{ strategy.job-index }}-${{ github.run_id
-            }}
+          name: release-${{ github.job }}-web-${{ strategy.job-index }}-${{ github.run_id }}
           path: ${{ runner.temp }}/release-${{ github.job }}-diagnostic.enc
           retention-days: 2
           if-no-files-found: ignore
@@ -515,16 +351,13 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: xecdev/kitabcha-app
-          ref: 38096644ff21cbe87ae6a1a1cb1a50fdf2b54a8a
+          ref: 24d3ec04a3ba1e7814dc2b7ab1e9ccd057a9c9d8
           ssh-key: ${{ secrets.PRIVATE_SOURCE_KEY }}
           persist-credentials: false
       - name: Verify isolated PostgreSQL backup and restore
-        run: >-
+        run: |-
           set -euo pipefail
-
-          python3 scripts/verify-postgres-recovery.py >
-          "$RUNNER_TEMP/recovery.log" 2>&1
-
+          python3 scripts/verify-postgres-recovery.py > "$RUNNER_TEMP/recovery.log" 2>&1
           echo "Isolated PostgreSQL backup and restore gate passed."
       - name: Encrypt private failure diagnostics
         if: failure()
@@ -542,8 +375,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: release-${{ github.job }}-recovery-${{ strategy.job-index }}-${{
-            github.run_id }}
+          name: release-${{ github.job }}-recovery-${{ strategy.job-index }}-${{ github.run_id }}
           path: ${{ runner.temp }}/release-${{ github.job }}-diagnostic.enc
           retention-days: 2
           if-no-files-found: ignore
